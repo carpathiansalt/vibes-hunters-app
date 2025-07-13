@@ -162,6 +162,10 @@ export class SpatialAudioController {
         }
     }
 
+    hasAudioSource(participantIdentity: string): boolean {
+        return this.sources.has(participantIdentity);
+    }
+
     updateListenerPosition(position: Vector2): void {
         if (!this._audioContext) return;
 

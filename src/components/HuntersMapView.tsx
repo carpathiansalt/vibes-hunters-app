@@ -5,6 +5,8 @@ import { Room, RoomEvent, RemoteParticipant } from 'livekit-client';
 import { Loader } from '@googlemaps/js-api-loader';
 import { Vector2, ParticipantMetadata, UserPosition } from '@/types';
 import { BoomboxMusicDialog } from './BoomboxMusicDialog';
+import { MicrophoneButton } from './MicrophoneButton';
+import { EarshotRadius } from './EarshotRadius';
 import { useSpatialAudio } from '@/hooks/useSpatialAudio';
 
 interface HuntersMapViewProps {
@@ -27,12 +29,15 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
     const [spatialAudioEnabled, setSpatialAudioEnabled] = useState(true);
     const [masterVolume, setMasterVolume] = useState(0.8);
+    const [showVoiceRange, setShowVoiceRange] = useState(false);
 
     const mapContainerRef = useRef<HTMLDivElement>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mapRef = useRef<any>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const markersRef = useRef<Map<string, any>>(new Map());
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const voiceRangeCircleRef = useRef<any>(null);
     const watchIdRef = useRef<number | null>(null);
     const lastMetadataUpdateRef = useRef<number>(0);
     const metadataUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -454,6 +459,43 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         }
     }, [participants]);
 
+    // Voice range circle management
+    const updateVoiceRangeCircle = useCallback(() => {
+        if (!mapRef.current || !window.google?.maps || !showVoiceRange) {
+            // Remove circle if it exists and shouldn't be shown
+            if (voiceRangeCircleRef.current) {
+                voiceRangeCircleRef.current.setMap(null);
+                voiceRangeCircleRef.current = null;
+            }
+            return;
+        }
+
+        const voiceRangeMeters = 50; // Voice chat radius in meters
+
+        if (voiceRangeCircleRef.current) {
+            // Update existing circle position
+            voiceRangeCircleRef.current.setCenter({ lat: myPosition.x, lng: myPosition.y });
+        } else {
+            // Create new circle
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            voiceRangeCircleRef.current = new (window.google.maps as any).Circle({
+                strokeColor: '#3B82F6', // Blue color
+                strokeOpacity: 0.8,
+                strokeWeight: 2,
+                fillColor: '#3B82F6',
+                fillOpacity: 0.15,
+                map: mapRef.current,
+                center: { lat: myPosition.x, lng: myPosition.y },
+                radius: voiceRangeMeters
+            });
+        }
+    }, [myPosition, showVoiceRange]);
+
+    // Update voice range circle when position or visibility changes
+    useEffect(() => {
+        updateVoiceRangeCircle();
+    }, [updateVoiceRangeCircle]);
+
     // Connect to LiveKit
     const connectToLiveKit = useCallback(async () => {
         // Prevent multiple connections
@@ -841,6 +883,15 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 </div>
             </div>
 
+            {/* Voice Chat Range Controls */}
+            <div className="absolute top-56 left-4 z-10">
+                <EarshotRadius
+                    show={showVoiceRange}
+                    radius={50}
+                    onToggle={() => setShowVoiceRange(!showVoiceRange)}
+                />
+            </div>
+
             {!error && (
                 <div className="absolute bottom-4 left-4 z-10 bg-black/80 text-white p-3 rounded-lg backdrop-blur-sm">
                     <div className="text-sm">
@@ -848,6 +899,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         <div>• Your position updates automatically via GPS</div>
                         <div>• Click on the map for manual positioning</div>
                         <div>• Click on 📻 boombox to join music parties</div>
+                        <div>• Use 🎤 button for proximity voice chat</div>
                         <div>• Experience spatial audio as you move around</div>
                     </div>
                 </div>
@@ -878,6 +930,12 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             )}
 
             <div ref={mapContainerRef} className="w-full h-full" />
+
+            {/* Microphone Button for Spatial Voice Chat */}
+            <MicrophoneButton
+                room={livekitRoom}
+                localParticipant={livekitRoom?.localParticipant || null}
+            />
 
             {/* Bottom Center Music Button */}
             <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10">

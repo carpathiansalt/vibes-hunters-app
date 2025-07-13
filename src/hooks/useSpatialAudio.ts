@@ -5,6 +5,16 @@ import { Room, RemoteAudioTrack, RemoteParticipant, RoomEvent, RemoteTrack, Remo
 import { SpatialAudioController } from '@/components/SpatialAudioController';
 import { Vector2, UserPosition } from '@/types';
 
+// Proximity-based voice chat configuration
+const VOICE_CHAT_RADIUS = 50; // Distance in meters where voice chat becomes active
+
+// Helper function to calculate distance between two positions
+function calculateDistance(pos1: Vector2, pos2: Vector2): number {
+    const dx = pos1.x - pos2.x;
+    const dy = pos1.y - pos2.y;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
 export function useSpatialAudio(room: Room | null, participants: Map<string, UserPosition>, myPosition: Vector2) {
     const controllerRef = useRef<SpatialAudioController | null>(null);
     const isInitializedRef = useRef(false);
@@ -87,6 +97,47 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         });
     }, [participants]);
 
+    // Proximity-based voice chat subscription management
+    useEffect(() => {
+        if (!room || !controllerRef.current || !myPosition) return;
+
+        // Check each remote participant for proximity-based voice subscription
+        room.remoteParticipants.forEach((participant) => {
+            const participantData = participants.get(participant.identity);
+            if (!participantData) return;
+
+            const distance = calculateDistance(myPosition, participantData.position);
+            const isWithinVoiceRange = distance <= VOICE_CHAT_RADIUS;
+
+            // Check for voice tracks (not music tracks)
+            participant.audioTrackPublications.forEach((publication) => {
+                const isVoiceTrack = !publication.trackName?.startsWith('music-');
+
+                if (isVoiceTrack && publication.track) {
+                    if (isWithinVoiceRange && !controllerRef.current?.hasAudioSource(participant.identity)) {
+                        // Add to spatial audio if close enough and not already added
+                        if (publication.track instanceof RemoteAudioTrack && controllerRef.current) {
+                            console.log(`🎤 Adding voice track for ${participant.identity} (entered range: ${distance.toFixed(1)}m)`);
+                            controllerRef.current.addAudioSource(participant, publication.track, participantData.position, publication.trackName);
+
+                            // Set volume based on distance
+                            const volumeMultiplier = Math.max(0, 1 - (distance / VOICE_CHAT_RADIUS));
+                            controllerRef.current.setSourceVolume(participant.identity, volumeMultiplier);
+                        }
+                    } else if (!isWithinVoiceRange && controllerRef.current?.hasAudioSource(participant.identity)) {
+                        // Remove from spatial audio if too far away
+                        console.log(`🔇 Removing voice track for ${participant.identity} (left range: ${distance.toFixed(1)}m)`);
+                        controllerRef.current.removeAudioSource(participant.identity);
+                    } else if (isWithinVoiceRange && controllerRef.current?.hasAudioSource(participant.identity)) {
+                        // Update volume based on current distance
+                        const volumeMultiplier = Math.max(0, 1 - (distance / VOICE_CHAT_RADIUS));
+                        controllerRef.current.setSourceVolume(participant.identity, volumeMultiplier);
+                    }
+                }
+            });
+        });
+    }, [room, participants, myPosition]);
+
     // Handle new remote audio tracks
     const handleTrackSubscribed = useCallback((track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
         if (!controllerRef.current || track.kind !== 'audio') return;
@@ -147,9 +198,22 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                         console.error('No media stream available for music track:', participant.identity);
                     }
                 } else {
-                    // Voice tracks: Use spatial audio processing
-                    console.log('Adding spatial audio source for voice track:', participant.identity, 'track:', publication.trackName);
-                    controllerRef.current.addAudioSource(participant, track, participantData.position, publication.trackName);
+                    // Voice tracks: Use spatial audio processing with proximity check
+                    const distance = calculateDistance(myPosition, participantData.position);
+
+                    if (distance <= VOICE_CHAT_RADIUS) {
+                        console.log(`Adding spatial audio source for voice track (distance: ${distance.toFixed(1)}m):`, participant.identity, 'track:', publication.trackName);
+                        controllerRef.current.addAudioSource(participant, track, participantData.position, publication.trackName);
+
+                        // Calculate volume based on distance for proximity-based voice chat
+                        const volumeMultiplier = Math.max(0, 1 - (distance / VOICE_CHAT_RADIUS));
+                        controllerRef.current.setSourceVolume(participant.identity, volumeMultiplier);
+
+                        console.log(`Voice chat enabled for ${participant.identity} at distance ${distance.toFixed(1)}m (volume: ${(volumeMultiplier * 100).toFixed(0)}%)`);
+                    } else {
+                        console.log(`Participant ${participant.identity} too far for voice chat (distance: ${distance.toFixed(1)}m > ${VOICE_CHAT_RADIUS}m)`);
+                        // Don't add to spatial audio if too far
+                    }
                 }
             } else {
                 console.log('Participant data not found or track not audio:', participant.identity);
@@ -157,7 +221,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         } catch (error) {
             console.error('Error handling track subscription:', error);
         }
-    }, [participants]);
+    }, [participants, myPosition]);
 
     // Handle removed remote audio tracks
     const handleTrackUnsubscribed = useCallback((track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
@@ -298,6 +362,50 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         return audioElements;
     }, []);
 
+    // Function to manage proximity-based voice subscriptions
+    const manageVoiceProximity = useCallback(async () => {
+        if (!room || !myPosition) return;
+
+        // Iterate through all remote participants
+        for (const [participantId, participant] of room.remoteParticipants) {
+            const participantData = participants.get(participantId);
+            if (!participantData) continue;
+
+            const distance = calculateDistance(myPosition, participantData.position);
+            const isWithinVoiceRange = distance <= VOICE_CHAT_RADIUS;
+
+            // Check for voice tracks (exclude music tracks)
+            for (const publication of participant.audioTrackPublications.values()) {
+                const isVoiceTrack = !publication.trackName?.startsWith('music-');
+
+                if (isVoiceTrack) {
+                    if (isWithinVoiceRange && !publication.isSubscribed) {
+                        // Subscribe to voice track if within range and not subscribed
+                        try {
+                            console.log(`🎤 Subscribing to voice track for ${participantId} (distance: ${distance.toFixed(1)}m)`);
+                            await publication.setSubscribed(true);
+                        } catch (error) {
+                            console.error(`Failed to subscribe to voice track for ${participantId}:`, error);
+                        }
+                    } else if (!isWithinVoiceRange && publication.isSubscribed) {
+                        // Unsubscribe from voice track if out of range
+                        try {
+                            console.log(`🔇 Unsubscribing from voice track for ${participantId} (distance: ${distance.toFixed(1)}m)`);
+                            await publication.setSubscribed(false);
+                        } catch (error) {
+                            console.error(`Failed to unsubscribe from voice track for ${participantId}:`, error);
+                        }
+                    }
+                }
+            }
+        }
+    }, [room, myPosition, participants]);
+
+    // Trigger proximity management when positions change
+    useEffect(() => {
+        manageVoiceProximity();
+    }, [manageVoiceProximity, participants, myPosition]);
+
     return {
         isInitialized: isInitializedRef.current,
         setMasterVolume,
@@ -305,6 +413,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         subscribeToParticipant,
         enableAudioContext,
         getActiveAudioElements,
+        manageVoiceProximity,
         controller: controllerRef.current
     };
 }
