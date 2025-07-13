@@ -12,11 +12,16 @@ interface SpatialAudioSource {
 }
 
 export class SpatialAudioController {
-    private audioContext: AudioContext | null = null;
+    private _audioContext: AudioContext | null = null;
     private listenerPosition: Vector2 = { x: 0, y: 0 };
     private sources: Map<string, SpatialAudioSource> = new Map();
     private masterGain: GainNode | null = null;
     private isInitialized = false;
+
+    // Getter for audioContext to allow external access
+    get audioContext(): AudioContext | null {
+        return this._audioContext;
+    }
 
     async initialize(): Promise<void> {
         if (this.isInitialized) {
@@ -26,38 +31,38 @@ export class SpatialAudioController {
 
         try {
             // Create audio context with explicit sample rate
-            this.audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)({
+            this._audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)({
                 sampleRate: 44100
             });
 
             // Resume audio context if suspended
-            if (this.audioContext.state === 'suspended') {
-                await this.audioContext.resume();
+            if (this._audioContext.state === 'suspended') {
+                await this._audioContext.resume();
             }
 
-            this.masterGain = this.audioContext.createGain();
-            this.masterGain.connect(this.audioContext.destination);
+            this.masterGain = this._audioContext.createGain();
+            this.masterGain.connect(this._audioContext.destination);
 
             // Configure 3D audio listener
-            if (this.audioContext.listener.positionX) {
+            if (this._audioContext.listener.positionX) {
                 // Modern browsers
-                this.audioContext.listener.positionX.setValueAtTime(0, this.audioContext.currentTime);
-                this.audioContext.listener.positionY.setValueAtTime(0, this.audioContext.currentTime);
-                this.audioContext.listener.positionZ.setValueAtTime(0, this.audioContext.currentTime);
-                this.audioContext.listener.forwardX.setValueAtTime(0, this.audioContext.currentTime);
-                this.audioContext.listener.forwardY.setValueAtTime(-1, this.audioContext.currentTime);
-                this.audioContext.listener.forwardZ.setValueAtTime(0, this.audioContext.currentTime);
-                this.audioContext.listener.upX.setValueAtTime(0, this.audioContext.currentTime);
-                this.audioContext.listener.upY.setValueAtTime(0, this.audioContext.currentTime);
-                this.audioContext.listener.upZ.setValueAtTime(1, this.audioContext.currentTime);
+                this._audioContext.listener.positionX.setValueAtTime(0, this._audioContext.currentTime);
+                this._audioContext.listener.positionY.setValueAtTime(0, this._audioContext.currentTime);
+                this._audioContext.listener.positionZ.setValueAtTime(0, this._audioContext.currentTime);
+                this._audioContext.listener.forwardX.setValueAtTime(0, this._audioContext.currentTime);
+                this._audioContext.listener.forwardY.setValueAtTime(-1, this._audioContext.currentTime);
+                this._audioContext.listener.forwardZ.setValueAtTime(0, this._audioContext.currentTime);
+                this._audioContext.listener.upX.setValueAtTime(0, this._audioContext.currentTime);
+                this._audioContext.listener.upY.setValueAtTime(0, this._audioContext.currentTime);
+                this._audioContext.listener.upZ.setValueAtTime(1, this._audioContext.currentTime);
                 console.log('Using modern AudioListener API');
             } else {
                 // Fallback for older browsers
-                (this.audioContext.listener as AudioListener & {
+                (this._audioContext.listener as AudioListener & {
                     setPosition: (x: number, y: number, z: number) => void;
                     setOrientation: (x: number, y: number, z: number, xUp: number, yUp: number, zUp: number) => void
                 }).setPosition(0, 0, 0);
-                (this.audioContext.listener as AudioListener & {
+                (this._audioContext.listener as AudioListener & {
                     setPosition: (x: number, y: number, z: number) => void;
                     setOrientation: (x: number, y: number, z: number, xUp: number, yUp: number, zUp: number) => void
                 }).setOrientation(0, -1, 0, 0, 0, 1);
@@ -66,8 +71,8 @@ export class SpatialAudioController {
 
             this.isInitialized = true;
             console.log('SpatialAudioController initialized successfully', {
-                sampleRate: this.audioContext.sampleRate,
-                state: this.audioContext.state
+                sampleRate: this._audioContext.sampleRate,
+                state: this._audioContext.state
             });
         } catch (error) {
             console.error('Failed to initialize SpatialAudioController:', error);
@@ -76,7 +81,7 @@ export class SpatialAudioController {
     }
 
     async addAudioSource(participant: RemoteParticipant, track: RemoteAudioTrack, position: Vector2, trackName?: string): Promise<void> {
-        if (!this.audioContext || !this.masterGain) {
+        if (!this._audioContext || !this.masterGain) {
             console.error('SpatialAudioController not initialized');
             return;
         }
@@ -104,11 +109,11 @@ export class SpatialAudioController {
 
             // Get MediaStream from track
             const mediaStream = new MediaStream([track.mediaStreamTrack]);
-            const source = this.audioContext.createMediaStreamSource(mediaStream);
+            const source = this._audioContext.createMediaStreamSource(mediaStream);
 
             // Create spatial audio nodes
-            const pannerNode = this.audioContext.createPanner();
-            const gainNode = this.audioContext.createGain();
+            const pannerNode = this._audioContext.createPanner();
+            const gainNode = this._audioContext.createGain();
 
             // Configure panner for 3D audio
             pannerNode.panningModel = 'HRTF';
@@ -158,17 +163,17 @@ export class SpatialAudioController {
     }
 
     updateListenerPosition(position: Vector2): void {
-        if (!this.audioContext) return;
+        if (!this._audioContext) return;
 
         this.listenerPosition = position;
 
-        if (this.audioContext.listener.positionX) {
+        if (this._audioContext.listener.positionX) {
             // Modern browsers
-            this.audioContext.listener.positionX.setValueAtTime(position.x, this.audioContext.currentTime);
-            this.audioContext.listener.positionY.setValueAtTime(position.y, this.audioContext.currentTime);
+            this._audioContext.listener.positionX.setValueAtTime(position.x, this._audioContext.currentTime);
+            this._audioContext.listener.positionY.setValueAtTime(position.y, this._audioContext.currentTime);
         } else {
             // Fallback for older browsers
-            (this.audioContext.listener as AudioListener & { setPosition: (x: number, y: number, z: number) => void }).setPosition(position.x, position.y, 0);
+            (this._audioContext.listener as AudioListener & { setPosition: (x: number, y: number, z: number) => void }).setPosition(position.x, position.y, 0);
         }
     }
 
@@ -181,13 +186,13 @@ export class SpatialAudioController {
     }
 
     private updateSourcePositionInternal(pannerNode: PannerNode, position: Vector2): void {
-        if (!this.audioContext) return;
+        if (!this._audioContext) return;
 
         if (pannerNode.positionX) {
             // Modern browsers
-            pannerNode.positionX.setValueAtTime(position.x, this.audioContext.currentTime);
-            pannerNode.positionY.setValueAtTime(position.y, this.audioContext.currentTime);
-            pannerNode.positionZ.setValueAtTime(0, this.audioContext.currentTime);
+            pannerNode.positionX.setValueAtTime(position.x, this._audioContext.currentTime);
+            pannerNode.positionY.setValueAtTime(position.y, this._audioContext.currentTime);
+            pannerNode.positionZ.setValueAtTime(0, this._audioContext.currentTime);
         } else {
             // Fallback for older browsers
             (pannerNode as PannerNode & { setPosition: (x: number, y: number, z: number) => void }).setPosition(position.x, position.y, 0);
@@ -196,14 +201,14 @@ export class SpatialAudioController {
 
     setMasterVolume(volume: number): void {
         if (this.masterGain) {
-            this.masterGain.gain.setValueAtTime(volume, this.audioContext!.currentTime);
+            this.masterGain.gain.setValueAtTime(volume, this._audioContext!.currentTime);
         }
     }
 
     setSourceVolume(participantIdentity: string, volume: number): void {
         const source = this.sources.get(participantIdentity);
         if (source) {
-            source.gainNode.gain.setValueAtTime(volume, this.audioContext!.currentTime);
+            source.gainNode.gain.setValueAtTime(volume, this._audioContext!.currentTime);
         }
     }
 
@@ -214,8 +219,8 @@ export class SpatialAudioController {
         });
         this.sources.clear();
 
-        if (this.audioContext && this.audioContext.state !== 'closed') {
-            this.audioContext.close();
+        if (this._audioContext && this._audioContext.state !== 'closed') {
+            this._audioContext.close();
         }
 
         this.isInitialized = false;

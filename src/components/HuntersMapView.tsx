@@ -41,7 +41,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const {
         isInitialized: spatialAudioInitialized,
         setMasterVolume: setSpatialMasterVolume,
-        subscribeToParticipant
+        subscribeToParticipant,
+        enableAudioContext
     } = useSpatialAudio(livekitRoom, participants, myPosition);
 
     // Throttled metadata publishing to prevent timeout errors
@@ -907,6 +908,9 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         if (selectedMusicUser.userId !== 'self') {
                             console.log('Joining music party from:', selectedMusicUser.username, 'userId:', selectedMusicUser.userId);
                             try {
+                                // Enable audio context first (important for mobile)
+                                await enableAudioContext();
+
                                 const success = await subscribeToParticipant(selectedMusicUser.userId);
                                 if (success) {
                                     console.log('Successfully subscribed to:', selectedMusicUser.username);
