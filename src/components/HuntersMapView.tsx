@@ -237,7 +237,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             console.error('Error parsing participant metadata for', participant.identity, ':', error);
             console.log('Raw metadata:', participant.metadata);
         }
-    }, [updateMapMarker, myPosition]);
+    }, [updateMapMarker]);
 
     // Update track positions for spatial audio
     const updateTrackPositions = useCallback(() => {
