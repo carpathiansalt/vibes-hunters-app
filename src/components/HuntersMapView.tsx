@@ -498,26 +498,19 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         };
                     } catch (error) {
                         console.error('Error parsing local participant metadata:', error);
-                        localUserPosition = {
-                            userId: localParticipant.identity,
-                            username: localParticipant.name || localParticipant.identity,
-                            avatar: 'char_001.png',
-                            position: myPosition,
-                            isPublishingMusic: false,
-                            musicTitle: undefined,
-                        };
+                        // Skip local participant if metadata is invalid - will be added when correct metadata is published
+                        console.log('Local participant metadata is invalid, skipping until valid metadata is published');
+                        localUserPosition = null;
                     }
                 } else {
-                    localUserPosition = {
-                        userId: localParticipant.identity,
-                        username: localParticipant.name || localParticipant.identity,
-                        avatar: 'char_001.png',
-                        position: myPosition,
-                        isPublishingMusic: false,
-                        musicTitle: undefined,
-                    };
+                    // Skip local participant if no metadata - will be added when metadata is published
+                    console.log('Local participant has no metadata yet, skipping until metadata is published');
+                    localUserPosition = null;
                 }
-                newParticipants.set(localParticipant.identity, localUserPosition);
+
+                if (localUserPosition) {
+                    newParticipants.set(localParticipant.identity, localUserPosition);
+                }
 
                 // Add remote participants
                 newRoom.remoteParticipants.forEach((participant) => {
@@ -538,16 +531,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                             console.error('Error parsing participant metadata for', participant.identity, ':', error);
                         }
                     } else {
-                        // Add with default values if no metadata
-                        const defaultUserPosition = {
-                            userId: participant.identity,
-                            username: participant.name || participant.identity,
-                            avatar: 'char_001.png',
-                            position: myPosition,
-                            isPublishingMusic: false,
-                            musicTitle: undefined,
-                        };
-                        newParticipants.set(participant.identity, defaultUserPosition);
+                        // Skip participants without metadata - they will be added when metadata arrives
+                        console.log('Participant has no metadata yet, skipping:', participant.identity);
                     }
                 });
                 setParticipants(newParticipants);
@@ -566,8 +551,10 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
             newRoom.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
                 console.log('🟢 Participant connected:', participant.identity, 'name:', participant.name);
-                // Immediately add participant, even without metadata
-                updateParticipantFromMetadata(participant);
+                // Only add participant when they have metadata
+                if (participant.metadata) {
+                    updateParticipantFromMetadata(participant);
+                }
 
                 // Listen for when they publish their metadata
                 const checkMetadata = () => {
@@ -579,7 +566,11 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         setTimeout(checkMetadata, 1000);
                     }
                 };
-                checkMetadata();
+
+                // Only start checking if they don't have metadata yet
+                if (!participant.metadata) {
+                    checkMetadata();
+                }
             });
 
             newRoom.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
@@ -614,7 +605,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             setError(`Failed to connect to audio service: ${err instanceof Error ? err.message : 'Unknown error'}`);
             setIsConnecting(false);
         }
-    }, [room, username, publishMyMetadataThrottled, updateParticipantFromMetadata, removeParticipant, updateTrackPositions, isConnected, livekitRoom, isConnecting, myPosition, updateMapMarker]);    // Initialize everything
+    }, [room, username, publishMyMetadataThrottled, updateParticipantFromMetadata, removeParticipant, updateTrackPositions, isConnected, livekitRoom, isConnecting, refreshAllMarkers]);    // Initialize everything
     useEffect(() => {
         let mounted = true;
 
