@@ -90,10 +90,41 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         controllerRef.current?.setSourceVolume(participantIdentity, volume);
     }, []);
 
+    const subscribeToParticipant = useCallback(async (participantIdentity: string) => {
+        if (!room) return false;
+
+        try {
+            const participant = room.remoteParticipants.get(participantIdentity);
+            if (!participant) {
+                console.error('Participant not found:', participantIdentity);
+                return false;
+            }
+
+            // Subscribe to audio tracks
+            const audioTracks = participant.audioTrackPublications;
+            for (const publication of audioTracks.values()) {
+                if (publication.track) {
+                    // Already subscribed
+                    continue;
+                }
+
+                // Subscribe to the track
+                publication.setSubscribed(true);
+                console.log('Subscribed to audio track from:', participantIdentity);
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Failed to subscribe to participant:', error);
+            return false;
+        }
+    }, [room]);
+
     return {
         isInitialized: isInitializedRef.current,
         setMasterVolume,
         setSourceVolume,
+        subscribeToParticipant,
         controller: controllerRef.current
     };
 }

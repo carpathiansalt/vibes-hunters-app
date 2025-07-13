@@ -40,7 +40,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     // Initialize spatial audio
     const {
         isInitialized: spatialAudioInitialized,
-        setMasterVolume: setSpatialMasterVolume
+        setMasterVolume: setSpatialMasterVolume,
+        subscribeToParticipant
     } = useSpatialAudio(livekitRoom, participants, myPosition);
 
     // Throttled metadata publishing to prevent timeout errors
@@ -791,8 +792,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         <button
                             onClick={() => setSpatialAudioEnabled(!spatialAudioEnabled)}
                             className={`px-2 py-1 rounded text-xs font-medium transition-colors ${spatialAudioEnabled
-                                    ? 'bg-purple-600 hover:bg-purple-500'
-                                    : 'bg-gray-600 hover:bg-gray-500'
+                                ? 'bg-purple-600 hover:bg-purple-500'
+                                : 'bg-gray-600 hover:bg-gray-500'
                                 }`}
                         >
                             {spatialAudioEnabled ? '🔊 ON' : '🔇 OFF'}
@@ -864,12 +865,41 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
             <div ref={mapContainerRef} className="w-full h-full" />
 
+            {/* Bottom Center Music Button */}
+            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10">
+                <button
+                    onClick={() => setSelectedMusicUser({
+                        userId: 'self',
+                        username,
+                        avatar,
+                        position: myPosition,
+                        isPublishingMusic
+                    })}
+                    className={`w-16 h-16 rounded-full shadow-2xl transition-all duration-300 ${isPublishingMusic
+                            ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700'
+                            : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
+                        } flex items-center justify-center text-white text-2xl`}
+                    title={isPublishingMusic ? "Stop Music Party" : "Start Music Party"}
+                >
+                    {isPublishingMusic ? '⏹️' : '🎵'}
+                </button>
+            </div>
+
             {selectedMusicUser && (
                 <BoomboxMusicDialog
                     user={selectedMusicUser}
                     onClose={() => setSelectedMusicUser(null)}
-                    onJoin={() => {
-                        setIsPublishingMusic(true);
+                    onJoin={async () => {
+                        // Only relevant for remote users joining
+                        if (selectedMusicUser.userId !== 'self') {
+                            console.log('Joining music party from:', selectedMusicUser.username);
+                            const success = await subscribeToParticipant(selectedMusicUser.userId);
+                            if (success) {
+                                console.log('Successfully subscribed to:', selectedMusicUser.username);
+                            } else {
+                                console.error('Failed to subscribe to:', selectedMusicUser.username);
+                            }
+                        }
                         setSelectedMusicUser(null);
                     }}
                     room={livekitRoom}
@@ -883,6 +913,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         setIsPublishingMusic(false);
                         console.log('Stopped publishing music');
                     }}
+                    isSelf={selectedMusicUser.userId === 'self'}
                 />
             )}
         </div>
