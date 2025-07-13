@@ -3,14 +3,30 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import type { UserPosition } from '@/types';
+import type { Room } from 'livekit-client';
+import { MusicPublisher } from './MusicPublisher';
 
 interface BoomboxMusicDialogProps {
     user: UserPosition;
     onClose: () => void;
     onJoin: () => void;
+    room?: Room | null;
+    spatialAudioEnabled?: boolean;
+    isPublishing?: boolean;
+    onPublishStart?: (filename: string) => void;
+    onPublishStop?: () => void;
 }
 
-export function BoomboxMusicDialog({ user, onClose, onJoin }: BoomboxMusicDialogProps) {
+export function BoomboxMusicDialog({
+    user,
+    onClose,
+    onJoin,
+    room,
+    spatialAudioEnabled = false,
+    isPublishing = false,
+    onPublishStart,
+    onPublishStop
+}: BoomboxMusicDialogProps) {
     const [isJoining, setIsJoining] = useState(false);
 
     const handleJoin = async () => {
@@ -76,6 +92,28 @@ export function BoomboxMusicDialog({ user, onClose, onJoin }: BoomboxMusicDialog
                             </div>
                         </div>
                     </div>
+
+                    {/* Music Publisher Section */}
+                    {room && (
+                        <div className="mt-6 p-4 bg-gray-50 rounded-xl">
+                            <div className="text-sm font-medium text-gray-700 mb-3 flex items-center space-x-2">
+                                <span>🎵</span>
+                                <span>Share Your Music</span>
+                                {spatialAudioEnabled && (
+                                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
+                                        Spatial Audio
+                                    </span>
+                                )}
+                            </div>
+                            <MusicPublisher
+                                room={room}
+                                isPublishing={isPublishing}
+                                spatialAudioEnabled={spatialAudioEnabled}
+                                onPublishStart={onPublishStart || (() => { })}
+                                onPublishStop={onPublishStop || (() => { })}
+                            />
+                        </div>
+                    )}
 
                     {/* Action Buttons */}
                     <div className="flex space-x-3">

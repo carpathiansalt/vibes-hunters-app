@@ -5,6 +5,7 @@ import { Room, RoomEvent, RemoteParticipant } from 'livekit-client';
 import { Loader } from '@googlemaps/js-api-loader';
 import { Vector2, ParticipantMetadata, UserPosition } from '@/types';
 import { BoomboxMusicDialog } from './BoomboxMusicDialog';
+import { useSpatialAudio } from '@/hooks/useSpatialAudio';
 
 interface HuntersMapViewProps {
     room: string;
@@ -24,6 +25,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [isTrackingLocation, setIsTrackingLocation] = useState(false);
     const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
     const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+    const [spatialAudioEnabled, setSpatialAudioEnabled] = useState(true);
+    const [masterVolume, setMasterVolume] = useState(0.8);
 
     const mapContainerRef = useRef<HTMLDivElement>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -33,6 +36,12 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const watchIdRef = useRef<number | null>(null);
     const lastMetadataUpdateRef = useRef<number>(0);
     const metadataUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Initialize spatial audio
+    const {
+        isInitialized: spatialAudioInitialized,
+        setMasterVolume: setSpatialMasterVolume
+    } = useSpatialAudio(livekitRoom, participants, myPosition);
 
     // Throttled metadata publishing to prevent timeout errors
     const publishMyMetadataThrottled = useCallback(async (roomInstance?: Room) => {
@@ -770,6 +779,53 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 </div>
             </div>
 
+            {/* Spatial Audio Controls */}
+            <div className="absolute top-4 left-4 z-10 bg-black/80 text-white p-3 rounded-lg backdrop-blur-sm max-w-xs">
+                <div className="text-sm space-y-2">
+                    <div className="font-bold text-purple-400 flex items-center space-x-2">
+                        <span>🎧 Spatial Audio</span>
+                        {spatialAudioInitialized && <span className="text-green-400 text-xs">●</span>}
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                        <button
+                            onClick={() => setSpatialAudioEnabled(!spatialAudioEnabled)}
+                            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${spatialAudioEnabled
+                                    ? 'bg-purple-600 hover:bg-purple-500'
+                                    : 'bg-gray-600 hover:bg-gray-500'
+                                }`}
+                        >
+                            {spatialAudioEnabled ? '🔊 ON' : '🔇 OFF'}
+                        </button>
+                        <span className="text-xs text-gray-300">
+                            {spatialAudioEnabled ? 'Spatial' : 'Stereo'}
+                        </span>
+                    </div>
+
+                    {spatialAudioEnabled && (
+                        <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs text-gray-300">Master Volume</span>
+                                <span className="text-xs text-gray-400">{Math.round(masterVolume * 100)}%</span>
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.1"
+                                value={masterVolume}
+                                onChange={(e) => {
+                                    const newVolume = parseFloat(e.target.value);
+                                    setMasterVolume(newVolume);
+                                    setSpatialMasterVolume(newVolume);
+                                }}
+                                className="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                            />
+                        </div>
+                    )}
+                </div>
+            </div>
+
             {!error && (
                 <div className="absolute bottom-4 left-4 z-10 bg-black/80 text-white p-3 rounded-lg backdrop-blur-sm">
                     <div className="text-sm">
@@ -815,6 +871,17 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                     onJoin={() => {
                         setIsPublishingMusic(true);
                         setSelectedMusicUser(null);
+                    }}
+                    room={livekitRoom}
+                    spatialAudioEnabled={spatialAudioEnabled}
+                    isPublishing={isPublishingMusic}
+                    onPublishStart={(filename) => {
+                        setIsPublishingMusic(true);
+                        console.log(`Started publishing: ${filename}`);
+                    }}
+                    onPublishStop={() => {
+                        setIsPublishingMusic(false);
+                        console.log('Stopped publishing music');
                     }}
                 />
             )}
