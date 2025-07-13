@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import type { Room, LocalAudioTrack } from 'livekit-client';
-import { createLocalAudioTrack } from 'livekit-client';
+import { LocalAudioTrack as LocalAudioTrackClass } from 'livekit-client';
 
 interface MusicPublisherProps {
     room: Room | null;
@@ -111,10 +111,18 @@ export function MusicPublisher({
             }
 
             // Create LocalAudioTrack from the stream
-            const audioTrack = await createLocalAudioTrack({
-                // @ts-expect-error - using the captured stream
-                track: mediaStream.getAudioTracks()[0],
-            });
+            const audioTracks = mediaStream.getAudioTracks();
+            if (audioTracks.length === 0) {
+                throw new Error('No audio tracks found in the media stream');
+            }
+
+            // Create LocalAudioTrack directly from the MediaStreamTrack
+            const audioTrack = new LocalAudioTrackClass(
+                audioTracks[0],
+                undefined,
+                false,
+                undefined
+            );
 
             currentTrackRef.current = audioTrack;
 
@@ -148,6 +156,9 @@ export function MusicPublisher({
         try {
             // Stop and unpublish the track
             await room.localParticipant.unpublishTrack(currentTrackRef.current);
+
+            // Stop the track
+            currentTrackRef.current.stop();
 
             // Stop the audio element
             if (audioElementRef.current) {

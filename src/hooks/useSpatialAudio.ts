@@ -15,16 +15,52 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
 
         const initializeController = async () => {
             try {
-                controllerRef.current = new SpatialAudioController();
-                await controllerRef.current.initialize();
-                isInitializedRef.current = true;
-                console.log('Spatial audio controller initialized');
+                // Add delay to ensure room is fully connected
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Double check room is still valid and connected
+                if (!room || room.state !== 'connected') {
+                    console.log('Room not connected, skipping spatial audio initialization');
+                    return;
+                }
+
+                if (!controllerRef.current) {
+                    controllerRef.current = new SpatialAudioController();
+                    await controllerRef.current.initialize();
+                    isInitializedRef.current = true;
+                    console.log('Spatial audio controller initialized successfully');
+                }
             } catch (error) {
                 console.error('Failed to initialize spatial audio:', error);
+                // Reset state on failure
+                isInitializedRef.current = false;
+                if (controllerRef.current) {
+                    try {
+                        controllerRef.current.destroy();
+                    } catch (destroyError) {
+                        console.error('Error destroying spatial audio controller:', destroyError);
+                    }
+                    controllerRef.current = null;
+                }
             }
         };
 
-        initializeController();
+        // Only initialize if room is connected
+        if (room.state === 'connected') {
+            initializeController();
+        } else {
+            // Wait for room to connect
+            const handleConnected = () => {
+                console.log('Room connected, initializing spatial audio');
+                initializeController();
+                room.off('connected', handleConnected);
+            };
+            room.on('connected', handleConnected);
+
+            return () => {
+                room.off('connected', handleConnected);
+            };
+        }
 
         return () => {
             if (controllerRef.current) {
@@ -55,9 +91,16 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
     const handleTrackSubscribed = useCallback((track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
         if (!controllerRef.current || track.kind !== 'audio') return;
 
-        const participantData = participants.get(participant.identity);
-        if (participantData && track instanceof RemoteAudioTrack) {
-            controllerRef.current.addAudioSource(participant, track, participantData.position);
+        try {
+            const participantData = participants.get(participant.identity);
+            if (participantData && track instanceof RemoteAudioTrack) {
+                console.log('Adding spatial audio source for:', participant.identity);
+                controllerRef.current.addAudioSource(participant, track, participantData.position);
+            } else {
+                console.log('Participant data not found or track not audio:', participant.identity);
+            }
+        } catch (error) {
+            console.error('Error handling track subscription:', error);
         }
     }, [participants]);
 
@@ -65,7 +108,12 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
     const handleTrackUnsubscribed = useCallback((track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
         if (!controllerRef.current || track.kind !== 'audio') return;
 
-        controllerRef.current.removeAudioSource(participant.identity);
+        try {
+            console.log('Removing spatial audio source for:', participant.identity);
+            controllerRef.current.removeAudioSource(participant.identity);
+        } catch (error) {
+            console.error('Error handling track unsubscription:', error);
+        }
     }, []);
 
     // Setup room event listeners
@@ -88,10 +136,11 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
 
     const setSourceVolume = useCallback((participantIdentity: string, volume: number) => {
         controllerRef.current?.setSourceVolume(participantIdentity, volume);
-    }, []);
-
-    const subscribeToParticipant = useCallback(async (participantIdentity: string) => {
-        if (!room) return false;
+    }, []); const subscribeToParticipant = useCallback(async (participantIdentity: string) => {
+        if (!room) {
+            console.error('Room not available for subscription');
+            return false;
+        }
 
         try {
             const participant = room.remoteParticipants.get(participantIdentity);
@@ -100,20 +149,28 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                 return false;
             }
 
+            console.log('Attempting to subscribe to participant:', participantIdentity);
+
             // Subscribe to audio tracks
             const audioTracks = participant.audioTrackPublications;
-            for (const publication of audioTracks.values()) {
-                if (publication.track) {
-                    // Already subscribed
-                    continue;
-                }
+            let subscribed = false;
 
-                // Subscribe to the track
-                publication.setSubscribed(true);
-                console.log('Subscribed to audio track from:', participantIdentity);
+            for (const publication of audioTracks.values()) {
+                if (!publication.isSubscribed && publication.track === undefined) {
+                    try {
+                        await publication.setSubscribed(true);
+                        subscribed = true;
+                        console.log('Successfully subscribed to audio track from:', participantIdentity);
+                    } catch (subError) {
+                        console.error('Failed to subscribe to track:', subError);
+                    }
+                } else if (publication.track) {
+                    console.log('Already subscribed to track from:', participantIdentity);
+                    subscribed = true;
+                }
             }
 
-            return true;
+            return subscribed;
         } catch (error) {
             console.error('Failed to subscribe to participant:', error);
             return false;

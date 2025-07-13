@@ -19,10 +19,22 @@ export class SpatialAudioController {
     private isInitialized = false;
 
     async initialize(): Promise<void> {
-        if (this.isInitialized) return;
+        if (this.isInitialized) {
+            console.log('SpatialAudioController already initialized');
+            return;
+        }
 
         try {
-            this.audioContext = new AudioContext();
+            // Create audio context with explicit sample rate
+            this.audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)({
+                sampleRate: 44100
+            });
+
+            // Resume audio context if suspended
+            if (this.audioContext.state === 'suspended') {
+                await this.audioContext.resume();
+            }
+
             this.masterGain = this.audioContext.createGain();
             this.masterGain.connect(this.audioContext.destination);
 
@@ -38,6 +50,7 @@ export class SpatialAudioController {
                 this.audioContext.listener.upX.setValueAtTime(0, this.audioContext.currentTime);
                 this.audioContext.listener.upY.setValueAtTime(0, this.audioContext.currentTime);
                 this.audioContext.listener.upZ.setValueAtTime(1, this.audioContext.currentTime);
+                console.log('Using modern AudioListener API');
             } else {
                 // Fallback for older browsers
                 (this.audioContext.listener as AudioListener & {
@@ -48,12 +61,17 @@ export class SpatialAudioController {
                     setPosition: (x: number, y: number, z: number) => void;
                     setOrientation: (x: number, y: number, z: number, xUp: number, yUp: number, zUp: number) => void
                 }).setOrientation(0, -1, 0, 0, 0, 1);
+                console.log('Using legacy AudioListener API');
             }
 
             this.isInitialized = true;
-            console.log('SpatialAudioController initialized');
+            console.log('SpatialAudioController initialized successfully', {
+                sampleRate: this.audioContext.sampleRate,
+                state: this.audioContext.state
+            });
         } catch (error) {
             console.error('Failed to initialize SpatialAudioController:', error);
+            this.isInitialized = false;
         }
     }
 
@@ -63,7 +81,19 @@ export class SpatialAudioController {
             return;
         }
 
+        // Check if source already exists
+        if (this.sources.has(participant.identity)) {
+            console.log('Audio source already exists for:', participant.identity);
+            return;
+        }
+
         try {
+            // Validate track
+            if (!track.mediaStreamTrack) {
+                console.error('Invalid track - no mediaStreamTrack:', participant.identity);
+                return;
+            }
+
             // Get MediaStream from track
             const mediaStream = new MediaStream([track.mediaStreamTrack]);
             const source = this.audioContext.createMediaStreamSource(mediaStream);
@@ -103,7 +133,7 @@ export class SpatialAudioController {
             console.log('Added spatial audio source for:', participant.identity);
 
         } catch (error) {
-            console.error('Failed to add audio source:', error);
+            console.error('Failed to add audio source for', participant.identity, ':', error);
         }
     }
 
