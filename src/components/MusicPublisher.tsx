@@ -9,7 +9,6 @@ interface MusicPublisherProps {
     onPublishStart: (filename: string) => void;
     onPublishStop: () => void;
     isPublishing: boolean;
-    spatialAudioEnabled?: boolean;
     volume?: number;
     onVolumeChange?: (volume: number) => void;
 }
@@ -19,7 +18,6 @@ export function MusicPublisher({
     onPublishStart,
     onPublishStop,
     isPublishing,
-    spatialAudioEnabled = false,
     volume = 1.0,
     onVolumeChange
 }: MusicPublisherProps) {
@@ -28,8 +26,6 @@ export function MusicPublisher({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const audioElementRef = useRef<HTMLAudioElement>(null);
     const currentTrackRef = useRef<LocalAudioTrack | null>(null);
-    const audioContextRef = useRef<AudioContext | null>(null);
-    const gainNodeRef = useRef<GainNode | null>(null);
 
     const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -66,49 +62,35 @@ export function MusicPublisher({
                 audioElement.load();
             });
 
+            // Start playing the audio first to ensure the stream has audio
+            await audioElement.play();
+
+            // Wait a bit for audio to start flowing
+            await new Promise(resolve => setTimeout(resolve, 300));
+
             // Capture the audio stream from the audio element
             let mediaStream: MediaStream;
 
-            if (spatialAudioEnabled) {
-                // Create audio context for spatial audio processing
-                const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-                audioContextRef.current = audioContext;
+            // For music, we always use standard capture (no spatial processing)
+            // Music should be heard at full volume by everyone like a virtual concert
+            const audioWithCapture = audioElement as HTMLAudioElement & {
+                captureStream?: () => MediaStream;
+                mozCaptureStream?: () => MediaStream;
+            };
 
-                // Create audio source from element
-                const source = audioContext.createMediaElementSource(audioElement);
-
-                // Create gain node for volume control
-                const gainNode = audioContext.createGain();
-                gainNodeRef.current = gainNode;
-                gainNode.gain.value = audioGain;
-
-                // Create destination for capturing
-                const destination = audioContext.createMediaStreamDestination();
-
-                // Connect: source -> gain -> destination
-                source.connect(gainNode);
-                gainNode.connect(destination);
-
-                // Also connect to audio context destination for local playback
-                gainNode.connect(audioContext.destination);
-
-                mediaStream = destination.stream;
+            if (audioWithCapture.captureStream) {
+                mediaStream = audioWithCapture.captureStream();
+            } else if (audioWithCapture.mozCaptureStream) {
+                mediaStream = audioWithCapture.mozCaptureStream();
             } else {
-                // Standard capture without spatial processing
-                // Type assertion for captureStream method
-                const audioWithCapture = audioElement as HTMLAudioElement & {
-                    captureStream?: () => MediaStream;
-                    mozCaptureStream?: () => MediaStream;
-                };
-
-                if (audioWithCapture.captureStream) {
-                    mediaStream = audioWithCapture.captureStream();
-                } else if (audioWithCapture.mozCaptureStream) {
-                    mediaStream = audioWithCapture.mozCaptureStream();
-                } else {
-                    throw new Error('Audio capture not supported in this browser');
-                }
+                throw new Error('Audio capture not supported in this browser');
             }
+
+            // Start playing the audio first to ensure the stream has audio
+            await audioElement.play();
+
+            // Wait a bit for audio to start flowing
+            await new Promise(resolve => setTimeout(resolve, 100));
 
             // Create LocalAudioTrack from the stream
             const audioTracks = mediaStream.getAudioTracks();
@@ -116,29 +98,45 @@ export function MusicPublisher({
                 throw new Error('No audio tracks found in the media stream');
             }
 
+            // Verify the audio track is active
+            const audioTrack = audioTracks[0];
+            if (audioTrack.readyState !== 'live') {
+                throw new Error('Audio track is not active');
+            }
+
             // Create LocalAudioTrack directly from the MediaStreamTrack
-            const audioTrack = new LocalAudioTrackClass(
-                audioTracks[0],
+            const localAudioTrack = new LocalAudioTrackClass(
+                audioTrack,
                 undefined,
                 false,
                 undefined
             );
 
-            currentTrackRef.current = audioTrack;
+            currentTrackRef.current = localAudioTrack;
 
-            // Publish the track
-            await room.localParticipant.publishTrack(audioTrack, {
+            // Publish the track with additional options to prevent silence detection
+            await room.localParticipant.publishTrack(localAudioTrack, {
                 name: `music-${file.name}`,
+                dtx: false, // Disable discontinuous transmission
             });
-
-            // Start playing the audio
-            await audioElement.play();
 
             onPublishStart(file.name);
 
         } catch (error) {
             console.error('Error publishing music:', error);
             alert('Failed to publish music. Please try again.');
+
+            // Clean up on error
+            if (audioElementRef.current && audioElementRef.current.src.startsWith('blob:')) {
+                audioElementRef.current.pause();
+                URL.revokeObjectURL(audioElementRef.current.src);
+                audioElementRef.current.src = '';
+            }
+
+            if (currentTrackRef.current) {
+                currentTrackRef.current.stop();
+                currentTrackRef.current = null;
+            }
         } finally {
             setIsLoading(false);
             // Reset file input
@@ -154,31 +152,36 @@ export function MusicPublisher({
         setIsLoading(true);
 
         try {
-            // Stop and unpublish the track
-            await room.localParticipant.unpublishTrack(currentTrackRef.current);
-
-            // Stop the track
-            currentTrackRef.current.stop();
-
-            // Stop the audio element
+            // First stop the audio element to stop sound immediately
             if (audioElementRef.current) {
                 audioElementRef.current.pause();
+                audioElementRef.current.currentTime = 0;
+            }
+
+            // Stop the track before unpublishing
+            currentTrackRef.current.stop();
+
+            // Unpublish the track
+            await room.localParticipant.unpublishTrack(currentTrackRef.current);
+
+            // Clean up audio element
+            if (audioElementRef.current) {
+                // Revoke the object URL to free memory
+                if (audioElementRef.current.src && audioElementRef.current.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(audioElementRef.current.src);
+                }
                 audioElementRef.current.src = '';
             }
 
-            // Clean up audio context
-            if (audioContextRef.current) {
-                audioContextRef.current.close();
-                audioContextRef.current = null;
-            }
-
             // Clean up references
-            gainNodeRef.current = null;
             currentTrackRef.current = null;
+
             onPublishStop();
 
         } catch (error) {
             console.error('Error stopping music:', error);
+            // Still call onPublishStop even if there's an error to update UI state
+            onPublishStop();
         } finally {
             setIsLoading(false);
         }
@@ -187,13 +190,8 @@ export function MusicPublisher({
     const handleVolumeChange = (newVolume: number) => {
         setAudioGain(newVolume);
 
-        // Update gain node if exists
-        if (gainNodeRef.current) {
-            gainNodeRef.current.gain.value = newVolume;
-        }
-
-        // Update audio element volume for non-spatial audio
-        if (audioElementRef.current && !spatialAudioEnabled) {
+        // Update audio element volume directly
+        if (audioElementRef.current) {
             audioElementRef.current.volume = newVolume;
         }
 
@@ -232,13 +230,6 @@ export function MusicPublisher({
                     >
                         {isLoading ? 'Stopping...' : '⏹️ Stop Music'}
                     </button>
-                )}
-
-                {spatialAudioEnabled && (
-                    <div className="flex items-center space-x-2">
-                        <span className="text-sm text-gray-600">🔊</span>
-                        <span className="text-xs text-purple-600 font-medium">Spatial Audio</span>
-                    </div>
                 )}
             </div>
 

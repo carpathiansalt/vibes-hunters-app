@@ -11,7 +11,6 @@ interface BoomboxMusicDialogProps {
     onClose: () => void;
     onJoin: () => void;
     room?: Room | null;
-    spatialAudioEnabled?: boolean;
     isPublishing?: boolean;
     onPublishStart?: (filename: string) => void;
     onPublishStop?: () => void;
@@ -23,7 +22,6 @@ export function BoomboxMusicDialog({
     onClose,
     onJoin,
     room,
-    spatialAudioEnabled = false,
     isPublishing = false,
     onPublishStart,
     onPublishStop,
@@ -76,7 +74,6 @@ export function BoomboxMusicDialog({
                                     <MusicPublisher
                                         room={room}
                                         isPublishing={isPublishing}
-                                        spatialAudioEnabled={spatialAudioEnabled}
                                         onPublishStart={onPublishStart || (() => { })}
                                         onPublishStop={onPublishStop || (() => { })}
                                     />

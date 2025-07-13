@@ -94,8 +94,8 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         try {
             const participantData = participants.get(participant.identity);
             if (participantData && track instanceof RemoteAudioTrack) {
-                console.log('Adding spatial audio source for:', participant.identity);
-                controllerRef.current.addAudioSource(participant, track, participantData.position);
+                console.log('Adding spatial audio source for:', participant.identity, 'track:', publication.trackName);
+                controllerRef.current.addAudioSource(participant, track, participantData.position, publication.trackName);
             } else {
                 console.log('Participant data not found or track not audio:', participant.identity);
             }
@@ -151,21 +151,26 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
 
             console.log('Attempting to subscribe to participant:', participantIdentity);
 
-            // Subscribe to audio tracks
+            // Subscribe to audio tracks (both music and voice)
             const audioTracks = participant.audioTrackPublications;
             let subscribed = false;
 
             for (const publication of audioTracks.values()) {
+                // Priority for music tracks - users joining music parties want to hear the music
+                const isMusicTrack = publication.trackName?.startsWith('music-');
+
                 if (!publication.isSubscribed && publication.track === undefined) {
                     try {
                         await publication.setSubscribed(true);
                         subscribed = true;
-                        console.log('Successfully subscribed to audio track from:', participantIdentity);
+                        const trackType = isMusicTrack ? 'music track' : 'voice track';
+                        console.log(`Successfully subscribed to ${trackType} from:`, participantIdentity);
                     } catch (subError) {
                         console.error('Failed to subscribe to track:', subError);
                     }
                 } else if (publication.track) {
-                    console.log('Already subscribed to track from:', participantIdentity);
+                    const trackType = isMusicTrack ? 'music track' : 'voice track';
+                    console.log(`Already subscribed to ${trackType} from:`, participantIdentity);
                     subscribed = true;
                 }
             }

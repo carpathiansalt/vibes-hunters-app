@@ -75,9 +75,15 @@ export class SpatialAudioController {
         }
     }
 
-    async addAudioSource(participant: RemoteParticipant, track: RemoteAudioTrack, position: Vector2): Promise<void> {
+    async addAudioSource(participant: RemoteParticipant, track: RemoteAudioTrack, position: Vector2, trackName?: string): Promise<void> {
         if (!this.audioContext || !this.masterGain) {
             console.error('SpatialAudioController not initialized');
+            return;
+        }
+
+        // Skip music tracks - they should be heard at full volume without spatial processing
+        if (trackName && trackName.startsWith('music-')) {
+            console.log('Skipping music track for spatial audio:', trackName);
             return;
         }
 
@@ -93,6 +99,8 @@ export class SpatialAudioController {
                 console.error('Invalid track - no mediaStreamTrack:', participant.identity);
                 return;
             }
+
+            console.log('Adding spatial audio source for voice track:', participant.identity);
 
             // Get MediaStream from track
             const mediaStream = new MediaStream([track.mediaStreamTrack]);

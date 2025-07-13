@@ -876,8 +876,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         isPublishingMusic
                     })}
                     className={`w-16 h-16 rounded-full shadow-2xl transition-all duration-300 ${isPublishingMusic
-                            ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700'
-                            : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
+                        ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700'
+                        : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
                         } flex items-center justify-center text-white text-2xl`}
                     title={isPublishingMusic ? "Stop Music Party" : "Start Music Party"}
                 >
@@ -903,7 +903,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         setSelectedMusicUser(null);
                     }}
                     room={livekitRoom}
-                    spatialAudioEnabled={spatialAudioEnabled}
                     isPublishing={isPublishingMusic}
                     onPublishStart={(filename) => {
                         setIsPublishingMusic(true);
