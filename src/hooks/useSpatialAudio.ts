@@ -142,10 +142,15 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
             return false;
         }
 
+        if (!participantIdentity || participantIdentity === 'self') {
+            console.error('Invalid participant identity:', participantIdentity);
+            return false;
+        }
+
         try {
             const participant = room.remoteParticipants.get(participantIdentity);
             if (!participant) {
-                console.error('Participant not found:', participantIdentity);
+                console.error('Participant not found:', participantIdentity, 'Available participants:', Array.from(room.remoteParticipants.keys()));
                 return false;
             }
 
@@ -155,29 +160,39 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
             const audioTracks = participant.audioTrackPublications;
             let subscribed = false;
 
+            console.log('Available audio tracks:', audioTracks.size);
+
             for (const publication of audioTracks.values()) {
                 // Priority for music tracks - users joining music parties want to hear the music
                 const isMusicTrack = publication.trackName?.startsWith('music-');
+                const trackType = isMusicTrack ? 'music track' : 'voice track';
+
+                console.log(`Processing ${trackType}:`, publication.trackName, 'isSubscribed:', publication.isSubscribed, 'hasTrack:', !!publication.track);
 
                 if (!publication.isSubscribed && publication.track === undefined) {
                     try {
+                        console.log(`Subscribing to ${trackType}:`, publication.trackName);
                         await publication.setSubscribed(true);
                         subscribed = true;
-                        const trackType = isMusicTrack ? 'music track' : 'voice track';
-                        console.log(`Successfully subscribed to ${trackType} from:`, participantIdentity);
+                        console.log(`✅ Successfully subscribed to ${trackType} from:`, participantIdentity);
                     } catch (subError) {
-                        console.error('Failed to subscribe to track:', subError);
+                        console.error(`❌ Failed to subscribe to ${trackType}:`, subError);
                     }
                 } else if (publication.track) {
-                    const trackType = isMusicTrack ? 'music track' : 'voice track';
-                    console.log(`Already subscribed to ${trackType} from:`, participantIdentity);
+                    console.log(`✅ Already subscribed to ${trackType} from:`, participantIdentity);
                     subscribed = true;
                 }
             }
 
+            if (subscribed) {
+                console.log('🎵 Successfully joined music party from:', participantIdentity);
+            } else {
+                console.warn('⚠️ No tracks were subscribed for participant:', participantIdentity);
+            }
+
             return subscribed;
         } catch (error) {
-            console.error('Failed to subscribe to participant:', error);
+            console.error('❌ Failed to subscribe to participant:', error);
             return false;
         }
     }, [room]);

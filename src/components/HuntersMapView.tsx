@@ -141,6 +141,19 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 scaledSize: new window.google.maps.Size(markerSize, markerSize),
             });
             marker.setTitle(`${user.username}${user.isPublishingMusic ? ' 🎵' : ''}`);
+            marker.setZIndex(user.isPublishingMusic ? 999 : 500);
+
+            // Clear existing listeners and add new one with current music state
+            window.google.maps.event.clearListeners(marker, 'click');
+            marker.addListener('click', () => {
+                console.log('Clicked on participant:', user.username, 'isPublishingMusic:', user.isPublishingMusic);
+                if (user.isPublishingMusic) {
+                    setSelectedMusicUser(user);
+                } else {
+                    console.log('Clicked on non-music participant:', user.username);
+                }
+            });
+
             console.log('✅ Updated existing marker for:', user.username, 'at:', user.position);
         } else {
             // Create new marker
@@ -156,7 +169,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             });
 
             marker.addListener('click', () => {
-                console.log('Clicked on participant:', user.username);
+                console.log('Clicked on participant:', user.username, 'isPublishingMusic:', user.isPublishingMusic);
                 if (user.isPublishingMusic) {
                     setSelectedMusicUser(user);
                 } else {
@@ -892,13 +905,22 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                     onJoin={async () => {
                         // Only relevant for remote users joining
                         if (selectedMusicUser.userId !== 'self') {
-                            console.log('Joining music party from:', selectedMusicUser.username);
-                            const success = await subscribeToParticipant(selectedMusicUser.userId);
-                            if (success) {
-                                console.log('Successfully subscribed to:', selectedMusicUser.username);
-                            } else {
-                                console.error('Failed to subscribe to:', selectedMusicUser.username);
+                            console.log('Joining music party from:', selectedMusicUser.username, 'userId:', selectedMusicUser.userId);
+                            try {
+                                const success = await subscribeToParticipant(selectedMusicUser.userId);
+                                if (success) {
+                                    console.log('Successfully subscribed to:', selectedMusicUser.username);
+                                    alert(`Joined ${selectedMusicUser.username}'s music party! 🎵`);
+                                } else {
+                                    console.error('Failed to subscribe to:', selectedMusicUser.username);
+                                    alert('Failed to join music party. Please try again.');
+                                }
+                            } catch (error) {
+                                console.error('Error joining music party:', error);
+                                alert('Failed to join music party. Please try again.');
                             }
+                        } else {
+                            console.log('Self music dialog - no subscription needed');
                         }
                         setSelectedMusicUser(null);
                     }}
