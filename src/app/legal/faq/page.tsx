@@ -19,7 +19,11 @@ const faqData: FAQItem[] = [
     },
     {
         question: "Can I play music from Spotify, Apple Music, or YouTube?",
-        answer: "Yes! Vibes Hunters captures audio from any application on your device. Simply start playing music in your preferred app (Spotify, YouTube, Apple Music, etc.) and then share that audio through Vibes Hunters. Please ensure you have the right to share the music you're broadcasting."
+        answer: "Yes! Vibes Hunters works with ANY music app or website. Simply start playing music in Spotify, Apple Music, YouTube, or any other music service, then use our 'Share Music' button to broadcast your system audio. This captures whatever you're playing and shares it with perfect sync to everyone in the room."
+    },
+    {
+        question: "How do I share music from streaming services?",
+        answer: "It's easy! 1) Open your favorite music app (Spotify, Apple Music, YouTube, etc.) 2) Start playing the song you want to share 3) In Vibes Hunters, click 'Share Music' and select your browser tab or application audio 4) Everyone in the room will hear your music in perfect sync! You control the volume and playback."
     },
     {
         question: "What is spatial audio?",

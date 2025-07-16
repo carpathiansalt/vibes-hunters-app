@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import type { UserPosition } from '@/types';
 import type { Room, LocalAudioTrack } from 'livekit-client';
-import { MusicPublisher } from './MusicPublisher';
+import { EnhancedMusicPlayer } from './EnhancedMusicPlayer';
 
 interface BoomboxMusicDialogProps {
     user: UserPosition;
@@ -74,14 +74,14 @@ export function BoomboxMusicDialog({
                                 <div className="text-6xl mb-4">🎵</div>
                                 <h3 className="font-bold text-gray-800 text-lg mb-2">Share Your Music</h3>
                                 <p className="text-gray-600 text-sm">
-                                    Upload music from your device and start a party for nearby hunters!
+                                    Play music from YouTube, Spotify, Apple Music, or upload from your device!
                                 </p>
                             </div>
 
-                            {/* Music Publisher Section */}
+                            {/* Enhanced Music Player Section */}
                             {room && (
                                 <div className="p-4 bg-gray-50 rounded-xl">
-                                    <MusicPublisher
+                                    <EnhancedMusicPlayer
                                         room={room}
                                         isPublishing={isPublishing}
                                         isPaused={isPaused}
