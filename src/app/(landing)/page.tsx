@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,7 +45,34 @@ export default function LandingPage() {
                 </div>
             </div>
             {/* Footer */}
-            <footer className="text-center text-white/80 text-sm py-8">
+            <footer className="text-center text-white/80 text-sm py-8 space-y-4">
+                {/* Legal Links */}
+                <div className="flex flex-wrap justify-center gap-4 text-xs mb-4">
+                    <Link href="/legal/about" className="hover:text-white transition-colors underline">
+                        About
+                    </Link>
+                    <Link href="/legal/privacy" className="hover:text-white transition-colors underline">
+                        Privacy Policy
+                    </Link>
+                    <Link href="/legal/terms" className="hover:text-white transition-colors underline">
+                        Terms of Service
+                    </Link>
+                    <Link href="/legal/faq" className="hover:text-white transition-colors underline">
+                        FAQ
+                    </Link>
+                </div>
+
+                {/* Contact Info */}
+                <div className="text-xs mb-4">
+                    <p>Questions or feedback? Contact us at:</p>
+                    <a
+                        href="mailto:info@vibes-hunters.com"
+                        className="text-blue-300 hover:text-white transition-colors underline font-medium"
+                    >
+                        info@vibes-hunters.com
+                    </a>
+                </div>
+
                 <p>
                     Created with <span className="text-pink-400">❤️</span> by{' '}
                     <a href="https://carpathiansalt.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-400">Carpathian Salt</a>

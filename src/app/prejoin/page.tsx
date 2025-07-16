@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 
@@ -85,11 +86,11 @@ export default function PreJoinPage() {
                             className="w-full mt-8 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 active:scale-95 flex items-center justify-center gap-3"
                         >
                             <Image
-                                src="/logo.png"
+                                src="/android-chrome-512x512.png"
                                 alt="Vibes Hunters Logo"
-                                width={24}
-                                height={24}
-                                className="w-6 h-6"
+                                width={28}
+                                height={28}
+                                className="w-7 h-7 brightness-0 invert"
                             />
                             Join
                         </button>
@@ -98,8 +99,35 @@ export default function PreJoinPage() {
             </div>
 
             {/* Footer */}
-            <div className="text-center text-purple-200 text-sm mt-8 pb-8">
+            <div className="text-center text-purple-200 text-sm mt-8 pb-8 space-y-4">
                 <p>Connect with others who share your musical taste</p>
+
+                {/* Legal Links */}
+                <div className="flex flex-wrap justify-center gap-4 text-xs">
+                    <Link href="/legal/about" className="hover:text-white transition-colors underline">
+                        About
+                    </Link>
+                    <Link href="/legal/privacy" className="hover:text-white transition-colors underline">
+                        Privacy Policy
+                    </Link>
+                    <Link href="/legal/terms" className="hover:text-white transition-colors underline">
+                        Terms of Service
+                    </Link>
+                    <Link href="/legal/faq" className="hover:text-white transition-colors underline">
+                        FAQ
+                    </Link>
+                </div>
+
+                {/* Contact Info */}
+                <div className="text-xs">
+                    <p>Questions or feedback? Contact us at:</p>
+                    <a
+                        href="mailto:info@vibes-hunters.com"
+                        className="text-purple-300 hover:text-white transition-colors underline font-medium"
+                    >
+                        info@vibes-hunters.com
+                    </a>
+                </div>
             </div>
         </main>
     );

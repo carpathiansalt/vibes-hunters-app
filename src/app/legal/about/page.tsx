@@ -114,9 +114,15 @@ export default function About() {
 
                     <section>
                         <h2 className="text-2xl font-bold mb-4 text-gray-800">Connect With Us</h2>
-                        <p className="text-gray-700 leading-relaxed">
+                        <p className="text-gray-700 leading-relaxed mb-4">
                             Have questions, feedback, or just want to say hello? We&apos;d love to hear from you.
-                            Reach out through our support channels or follow our development journey.
+                        </p>
+                        <p className="text-gray-700 leading-relaxed">
+                            Contact us at{' '}
+                            <a href="mailto:info@vibes-hunters.com" className="text-purple-600 hover:text-purple-800 underline font-medium">
+                                info@vibes-hunters.com
+                            </a>
+                            {' '}for support, feedback, or to join our newsletter for updates!
                         </p>
                     </section>
 
@@ -134,6 +140,6 @@ export default function About() {
                     </div>
                 </div>
             </div>
-        </main>
+        </main >
     );
 }

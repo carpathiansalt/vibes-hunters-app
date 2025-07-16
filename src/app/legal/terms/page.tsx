@@ -94,7 +94,10 @@ export default function TermsOfService() {
                     <section>
                         <h2 className="text-2xl font-bold mb-4 text-gray-800">9. Contact Information</h2>
                         <p className="text-gray-700 leading-relaxed">
-                            If you have any questions about these Terms of Service, please contact us through our support channels.
+                            If you have any questions about these Terms of Service, please contact us at{' '}
+                            <a href="mailto:info@vibes-hunters.com" className="text-purple-600 hover:text-purple-800 underline">
+                                info@vibes-hunters.com
+                            </a>
                         </p>
                     </section>
 

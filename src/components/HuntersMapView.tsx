@@ -933,6 +933,22 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                     />
                                 </div>
                             )}
+
+                            {/* Legal Links */}
+                            <div className="mt-4 pt-2 border-t border-gray-600">
+                                <div className="text-xs text-gray-400 space-y-1">
+                                    <div className="flex flex-wrap gap-2">
+                                        <a href="/legal/about" className="hover:text-white transition-colors underline">About</a>
+                                        <a href="/legal/faq" className="hover:text-white transition-colors underline">FAQ</a>
+                                        <a href="/legal/privacy" className="hover:text-white transition-colors underline">Privacy</a>
+                                    </div>
+                                    <div>
+                                        <a href="mailto:info@vibes-hunters.com" className="text-blue-300 hover:text-white transition-colors text-xs">
+                                            info@vibes-hunters.com
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}

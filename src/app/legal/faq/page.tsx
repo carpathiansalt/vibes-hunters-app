@@ -134,8 +134,11 @@ export default function FAQ() {
                     <div className="mt-12 p-6 bg-purple-50 rounded-xl">
                         <h2 className="text-xl font-bold text-gray-800 mb-3">Still need help?</h2>
                         <p className="text-gray-700 mb-4">
-                            If you couldn&apos;t find the answer you&apos;re looking for, feel free to reach out to our support team.
-                            We&apos;re here to help you get the most out of your Vibes Hunters experience!
+                            If you couldn&apos;t find the answer you&apos;re looking for, contact us at{' '}
+                            <a href="mailto:info@vibes-hunters.com" className="text-purple-600 hover:text-purple-800 underline font-medium">
+                                info@vibes-hunters.com
+                            </a>
+                            . We&apos;re here to help you get the most out of your Vibes Hunters experience!
                         </p>
                         <div className="flex flex-wrap gap-4">
                             <Link
