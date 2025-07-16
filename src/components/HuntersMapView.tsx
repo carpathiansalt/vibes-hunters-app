@@ -53,7 +53,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         subscribeToParticipant,
         leaveMusicParty,
         enableAudioContext,
-        getCurrentMusicParty
+        getCurrentMusicParty,
+        cleanupParticipant
     } = useSpatialAudio(livekitRoom, participants, myPosition);
 
     // Throttled metadata publishing to prevent timeout errors
@@ -226,13 +227,22 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             return updated;
         });
 
+        // If we were listening to this participant's music, stop listening
+        if (listeningToMusic === identity) {
+            setListeningToMusic(null);
+            console.log('Stopped listening to music from disconnected participant:', identity);
+        }
+
+        // Clean up spatial audio and music tracks for this participant
+        cleanupParticipant(identity);
+
         const marker = markersRef.current.get(identity);
         if (marker) {
             marker.setMap(null);
             markersRef.current.delete(identity);
         }
         console.log('Removed participant:', identity);
-    }, []);
+    }, [listeningToMusic, cleanupParticipant]);
 
     // Update participant from metadata
     const updateParticipantFromMetadata = useCallback((participant: RemoteParticipant) => {
@@ -1133,6 +1143,13 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                         alert('Failed to leave music party. Please try again.');
                                     }
                                 } else {
+                                    // Before joining, check if the user is actually publishing music
+                                    if (!selectedMusicUser.isPublishingMusic) {
+                                        alert(`${selectedMusicUser.username} is not currently playing music. Wait for them to start a music party!`);
+                                        setSelectedMusicUser(null);
+                                        return;
+                                    }
+
                                     // Check if user is already listening to a different music party
                                     const currentMusicParty = getCurrentMusicParty();
                                     if (currentMusicParty && currentMusicParty !== selectedMusicUser.userId) {

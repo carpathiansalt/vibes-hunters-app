@@ -126,28 +126,37 @@ export function BoomboxMusicDialog({
                             </div>
 
                             {/* Info */}
-                            <div className={`${isListening ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'} rounded-xl p-4 mb-6 border`}>
+                            <div className={`${isListening ? 'bg-green-50 border-green-200' : user.isPublishingMusic ? 'bg-blue-50 border-blue-200' : 'bg-orange-50 border-orange-200'} rounded-xl p-4 mb-6 border`}>
                                 <div className="flex items-start space-x-3">
-                                    <div className={`${isListening ? 'text-green-500' : 'text-blue-500'} text-lg`}>
-                                        {isListening ? '🎵' : 'ℹ️'}
+                                    <div className={`${isListening ? 'text-green-500' : user.isPublishingMusic ? 'text-blue-500' : 'text-orange-500'} text-lg`}>
+                                        {isListening ? '🎵' : user.isPublishingMusic ? 'ℹ️' : '⚠️'}
                                     </div>
-                                    <div className={`${isListening ? 'text-green-700' : 'text-blue-700'} text-sm`}>
+                                    <div className={`${isListening ? 'text-green-700' : user.isPublishingMusic ? 'text-blue-700' : 'text-orange-700'} text-sm`}>
                                         {isListening ? (
                                             <div>
                                                 <p className="font-medium mb-1">You are listening to this music party!</p>
                                                 <ul className="text-xs space-y-1">
                                                     <li>• Click &quot;Leave Party&quot; to stop listening</li>
-                                                    <li>• You can join other parties while listening</li>
                                                     <li>• Move around to experience spatial audio</li>
+                                                    <li>• Only one music party can be active at a time</li>
                                                 </ul>
                                             </div>
-                                        ) : (
+                                        ) : user.isPublishingMusic ? (
                                             <div>
                                                 <p className="font-medium mb-1">Join this music party to:</p>
                                                 <ul className="text-xs space-y-1">
                                                     <li>• Listen to the same music together</li>
                                                     <li>• Experience spatial audio as you move</li>
                                                     <li>• Chat while the music plays</li>
+                                                </ul>
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <p className="font-medium mb-1">No music is currently playing</p>
+                                                <ul className="text-xs space-y-1">
+                                                    <li>• Wait for {user.username} to start playing music</li>
+                                                    <li>• The join button will become available when music starts</li>
+                                                    <li>• Try refreshing or check back later</li>
                                                 </ul>
                                             </div>
                                         )}
@@ -172,10 +181,12 @@ export function BoomboxMusicDialog({
                             <>
                                 <button
                                     onClick={handleJoin}
-                                    disabled={isJoining}
+                                    disabled={isJoining || (!user.isPublishingMusic && !isListening)}
                                     className={`flex-1 ${isListening
                                         ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800'
-                                        : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
+                                        : user.isPublishingMusic
+                                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
+                                            : 'bg-gray-400 cursor-not-allowed'
                                         } text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
                                 >
                                     {isJoining ? (
@@ -186,8 +197,12 @@ export function BoomboxMusicDialog({
                                             </svg>
                                             {isListening ? 'Leaving...' : 'Joining...'}
                                         </span>
+                                    ) : isListening ? (
+                                        '🚪 Leave Party'
+                                    ) : user.isPublishingMusic ? (
+                                        '🎧 Join Party'
                                     ) : (
-                                        isListening ? '🚪 Leave Party' : '🎧 Join Party'
+                                        '⏳ No Music Playing'
                                     )}
                                 </button>
                                 <button

@@ -458,9 +458,19 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
 
                 // Subscribe to audio tracks (both music and voice)
                 const audioTracks = participant.audioTrackPublications;
-                let subscribed = false;
+                let subscribedToMusic = false;
 
                 console.log('Available audio tracks:', audioTracks.size);
+
+                // First, check if there are any music tracks being published
+                const hasMusicTracks = Array.from(audioTracks.values()).some(pub =>
+                    pub.trackName?.startsWith('music-') && (pub.track || !pub.isSubscribed)
+                );
+
+                if (!hasMusicTracks) {
+                    console.warn('❌ No music tracks available from participant:', participantIdentity);
+                    return false;
+                }
 
                 for (const publication of audioTracks.values()) {
                     // Priority for music tracks - users joining music parties want to hear the music
@@ -469,34 +479,36 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
 
                     console.log(`Processing ${trackType}:`, publication.trackName, 'isSubscribed:', publication.isSubscribed, 'hasTrack:', !!publication.track);
 
-                    if (!publication.isSubscribed && publication.track === undefined) {
-                        try {
-                            console.log(`Subscribing to ${trackType}:`, publication.trackName);
-                            await publication.setSubscribed(true);
+                    if (isMusicTrack) {
+                        if (!publication.isSubscribed && publication.track === undefined) {
+                            try {
+                                console.log(`Subscribing to ${trackType}:`, publication.trackName);
+                                await publication.setSubscribed(true);
 
-                            // Wait a bit for subscription to take effect
-                            await new Promise(resolve => setTimeout(resolve, 500));
+                                // Wait a bit for subscription to take effect
+                                await new Promise(resolve => setTimeout(resolve, 500));
 
-                            subscribed = true;
-                            console.log(`✅ Successfully subscribed to ${trackType} from:`, participantIdentity);
-                        } catch (subError) {
-                            console.error(`❌ Failed to subscribe to ${trackType}:`, subError);
-                            throw subError; // Re-throw to trigger retry
+                                subscribedToMusic = true;
+                                console.log(`✅ Successfully subscribed to ${trackType} from:`, participantIdentity);
+                            } catch (subError) {
+                                console.error(`❌ Failed to subscribe to ${trackType}:`, subError);
+                                throw subError; // Re-throw to trigger retry
+                            }
+                        } else if (publication.track) {
+                            console.log(`✅ Already subscribed to ${trackType} from:`, participantIdentity);
+                            subscribedToMusic = true;
                         }
-                    } else if (publication.track) {
-                        console.log(`✅ Already subscribed to ${trackType} from:`, participantIdentity);
-                        subscribed = true;
                     }
                 }
 
-                if (subscribed) {
-                    // Add participant to joined music tracks set
+                if (subscribedToMusic) {
+                    // Add participant to joined music tracks set only if we successfully subscribed to music
                     joinedMusicTracks.current.add(participantIdentity);
                     console.log('🎵 Successfully joined music party from:', participantIdentity);
                     console.log('👥 Currently joined music parties:', Array.from(joinedMusicTracks.current));
                     return true;
                 } else {
-                    console.warn('⚠️ No tracks were subscribed for participant:', participantIdentity);
+                    console.warn('⚠️ No music tracks were subscribed for participant:', participantIdentity);
                     return false;
                 }
             } catch (error) {
@@ -666,6 +678,23 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         return parties.length > 0 ? parties[0] : null;
     }, []);
 
+    // Function to clean up when a participant disconnects
+    const cleanupParticipant = useCallback((participantIdentity: string) => {
+        // Remove from joined music tracks
+        joinedMusicTracks.current.delete(participantIdentity);
+
+        // Clean up any audio elements for this participant
+        const audioElements = document.querySelectorAll(`audio[data-participant="${participantIdentity}"]`);
+        audioElements.forEach(element => {
+            const audioEl = element as HTMLAudioElement;
+            audioEl.pause();
+            audioEl.remove();
+        });
+
+        console.log('Cleaned up participant:', participantIdentity);
+        console.log('👥 Remaining joined music parties:', Array.from(joinedMusicTracks.current));
+    }, []);
+
     // Function to manage proximity-based voice subscriptions with retry logic
     const manageVoiceProximity = useCallback(async () => {
         if (!room || !myPosition) return;
@@ -716,6 +745,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         controller: controllerRef.current,
         leaveMusicParty,
         hasJoinedMusicParty,
-        getCurrentMusicParty
+        getCurrentMusicParty,
+        cleanupParticipant
     };
 }
