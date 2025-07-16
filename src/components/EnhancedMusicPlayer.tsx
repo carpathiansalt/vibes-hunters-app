@@ -71,20 +71,122 @@ export function EnhancedMusicPlayer({
         const file = event.target.files?.[0];
         if (!file || !room) return;
 
+        // Validate file type
         if (!file.type.startsWith('audio/')) {
             alert('Please select an audio file');
             return;
         }
 
+        // Check file size (max 50MB)
         if (file.size > 50 * 1024 * 1024) {
             alert('File size must be less than 50MB');
             return;
         }
 
-        await startAudioPlayback(file, file.name);
+        setIsLoading(true);
+
+        try {
+            // Create audio element for playback
+            const audioElement = audioElementRef.current || new Audio();
+            audioElementRef.current = audioElement;
+
+            // Create object URL for the file
+            const audioURL = URL.createObjectURL(file);
+            audioElement.src = audioURL;
+            audioElement.loop = true; // Loop the music
+            audioElement.volume = audioGain;
+
+            // Wait for the audio to be ready
+            await new Promise<void>((resolve, reject) => {
+                audioElement.oncanplaythrough = () => resolve();
+                audioElement.onerror = () => reject(new Error('Failed to load audio file'));
+                audioElement.load();
+            });
+
+            // Start playing the audio first to ensure the stream has audio
+            await audioElement.play();
+
+            // Wait a bit for audio to start flowing
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            // Capture the audio stream from the audio element
+            const audioWithCapture = audioElement as HTMLAudioElement & {
+                captureStream?: () => MediaStream;
+                mozCaptureStream?: () => MediaStream;
+            };
+
+            let mediaStream: MediaStream;
+            if (audioWithCapture.captureStream) {
+                mediaStream = audioWithCapture.captureStream();
+            } else if (audioWithCapture.mozCaptureStream) {
+                mediaStream = audioWithCapture.mozCaptureStream();
+            } else {
+                throw new Error('Audio capture not supported in this browser');
+            }
+
+            // Start playing the audio first to ensure the stream has audio
+            await audioElement.play();
+
+            // Wait a bit for audio to start flowing
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Create LocalAudioTrack from the stream
+            const audioTracks = mediaStream.getAudioTracks();
+            if (audioTracks.length === 0) {
+                throw new Error('No audio tracks found in the media stream');
+            }
+
+            // Verify the audio track is active
+            const audioTrack = audioTracks[0];
+            if (audioTrack.readyState !== 'live') {
+                throw new Error('Audio track is not active');
+            }
+
+            // Create LocalAudioTrack directly from the MediaStreamTrack
+            const localAudioTrack = new LiveKitLocalAudioTrack(
+                audioTrack,
+                undefined,
+                false,
+                undefined
+            );
+
+            currentTrackRef.current = localAudioTrack;
+
+            // Publish the track with additional options to prevent silence detection
+            await room.localParticipant.publishTrack(localAudioTrack, {
+                name: `music-${file.name}`,
+                dtx: false, // Disable discontinuous transmission
+            });
+
+            onPublishStart(file.name, localAudioTrack, audioElement);
+
+        } catch (error) {
+            console.error('Error publishing music:', error);
+            alert('Failed to publish music. Please try again.');
+
+            // Clean up on error
+            if (audioElementRef.current && audioElementRef.current.src.startsWith('blob:')) {
+                audioElementRef.current.pause();
+                URL.revokeObjectURL(audioElementRef.current.src);
+                audioElementRef.current.src = '';
+            }
+
+            if (currentTrackRef.current) {
+                currentTrackRef.current.stop();
+                currentTrackRef.current = null;
+            }
+        } finally {
+            setIsLoading(false);
+            // Reset file input
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
     };
 
     const handleTabCapture = async () => {
+        if (!room) return;
+
         setIsLoading(true);
 
         try {
@@ -115,7 +217,6 @@ export function EnhancedMusicPlayer({
                 return;
             }
 
-            const audioStream = new MediaStream(audioTracks);
             mediaStream.getVideoTracks().forEach(track => track.stop());
 
             audioTracks[0].addEventListener('ended', () => {
@@ -123,7 +224,28 @@ export function EnhancedMusicPlayer({
                 handleStop();
             });
 
-            await startAudioFromStream(audioStream, 'Tab Audio Capture');
+            // Create LocalAudioTrack from the stream
+            const audioTrack = audioTracks[0];
+            if (audioTrack.readyState !== 'live') {
+                throw new Error('Audio track is not active');
+            }
+
+            const localAudioTrack = new LiveKitLocalAudioTrack(
+                audioTrack,
+                undefined,
+                false,
+                undefined
+            );
+
+            currentTrackRef.current = localAudioTrack;
+
+            await room.localParticipant.publishTrack(localAudioTrack, {
+                name: 'music-tab-capture',
+                dtx: false,
+            });
+
+            onPublishStart('Tab Audio Capture', localAudioTrack, undefined);
+
         } catch (error) {
             console.error('Tab capture error:', error);
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -141,145 +263,41 @@ export function EnhancedMusicPlayer({
         }
     };
 
-    const startAudioPlayback = async (source: File, title: string) => {
-        if (!room) return;
-
-        setIsLoading(true);
-        try {
-            const audioElement = audioElementRef.current || new Audio();
-            audioElementRef.current = audioElement;
-
-            const audioURL = URL.createObjectURL(source);
-            audioElement.src = audioURL;
-            audioElement.loop = true;
-            audioElement.volume = audioGain;
-
-            await new Promise<void>((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    reject(new Error('Audio loading timeout'));
-                }, 30000);
-
-                audioElement.oncanplaythrough = () => {
-                    clearTimeout(timeout);
-                    resolve();
-                };
-                audioElement.onerror = (e) => {
-                    clearTimeout(timeout);
-                    console.error('Audio loading error:', e);
-                    reject(new Error('Failed to load audio file'));
-                };
-                audioElement.load();
-            });
-
-            await audioElement.play();
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            const audioWithCapture = audioElement as HTMLAudioElement & {
-                captureStream?: () => MediaStream;
-                mozCaptureStream?: () => MediaStream;
-            };
-
-            let mediaStream: MediaStream;
-            if (audioWithCapture.captureStream) {
-                mediaStream = audioWithCapture.captureStream();
-            } else if (audioWithCapture.mozCaptureStream) {
-                mediaStream = audioWithCapture.mozCaptureStream();
-            } else {
-                throw new Error('Audio capture not supported in this browser');
-            }
-
-            await startAudioFromStream(mediaStream, title);
-        } catch (error) {
-            console.error('Audio playback error:', error);
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            alert(`Failed to start audio playback: ${errorMessage}`);
-
-            if (audioElementRef.current) {
-                audioElementRef.current.pause();
-                if (audioElementRef.current.src.startsWith('blob:')) {
-                    URL.revokeObjectURL(audioElementRef.current.src);
-                }
-                audioElementRef.current.src = '';
-            }
-
-            if (currentTrackRef.current) {
-                currentTrackRef.current.stop();
-                currentTrackRef.current = null;
-            }
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const startAudioFromStream = async (mediaStream: MediaStream, title: string) => {
-        if (!room) return;
-
-        try {
-            const audioTracks = mediaStream.getAudioTracks();
-            if (audioTracks.length === 0) {
-                throw new Error('No audio tracks found in the media stream');
-            }
-
-            const audioTrack = audioTracks[0];
-            if (audioTrack.readyState !== 'live') {
-                throw new Error('Audio track is not active');
-            }
-
-            const localAudioTrack = new LiveKitLocalAudioTrack(
-                audioTrack,
-                undefined,
-                false,
-                undefined
-            );
-
-            currentTrackRef.current = localAudioTrack;
-
-            await room.localParticipant.publishTrack(localAudioTrack, {
-                name: `music-${title}`,
-                dtx: false,
-            });
-
-            onPublishStart(title, localAudioTrack, audioElementRef.current || undefined);
-        } catch (error) {
-            console.error('Error publishing audio track:', error);
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            alert(`Failed to publish audio: ${errorMessage}`);
-
-            if (currentTrackRef.current) {
-                currentTrackRef.current.stop();
-                currentTrackRef.current = null;
-            }
-        }
-    };
-
     const handleStop = async () => {
-        if (!room) return;
+        if (!room || !currentTrackRef.current) return;
 
         setIsLoading(true);
 
         try {
+            // First stop the audio element to stop sound immediately
             if (audioElementRef.current) {
                 audioElementRef.current.pause();
                 audioElementRef.current.currentTime = 0;
             }
 
-            if (currentTrackRef.current) {
-                await room.localParticipant.unpublishTrack(currentTrackRef.current);
-                currentTrackRef.current.stop();
-            }
+            // Stop the track before unpublishing
+            currentTrackRef.current.stop();
 
+            // Unpublish the track
+            await room.localParticipant.unpublishTrack(currentTrackRef.current);
+
+            // Clean up audio element
             if (audioElementRef.current) {
+                // Revoke the object URL to free memory
                 if (audioElementRef.current.src && audioElementRef.current.src.startsWith('blob:')) {
                     URL.revokeObjectURL(audioElementRef.current.src);
                 }
                 audioElementRef.current.src = '';
             }
 
+            // Clean up references
             currentTrackRef.current = null;
+
             onPublishStop();
 
         } catch (error) {
             console.error('Error stopping music:', error);
+            // Still call onPublishStop even if there's an error to update UI state
             onPublishStop();
         } finally {
             setIsLoading(false);
@@ -287,13 +305,15 @@ export function EnhancedMusicPlayer({
     };
 
     const handlePause = async () => {
+        if (!audioElementRef.current || !currentTrackRef.current) return;
+
         try {
-            if (audioElementRef.current) {
-                audioElementRef.current.pause();
-            }
-            if (currentTrackRef.current) {
-                currentTrackRef.current.mute();
-            }
+            // Pause the audio element
+            audioElementRef.current.pause();
+
+            // Mute the track
+            currentTrackRef.current.mute();
+
             onPublishPause?.();
         } catch (error) {
             console.error('Error pausing music:', error);
@@ -301,13 +321,15 @@ export function EnhancedMusicPlayer({
     };
 
     const handleResume = async () => {
+        if (!audioElementRef.current || !currentTrackRef.current) return;
+
         try {
-            if (audioElementRef.current) {
-                await audioElementRef.current.play();
-            }
-            if (currentTrackRef.current) {
-                currentTrackRef.current.unmute();
-            }
+            // Resume the audio element
+            await audioElementRef.current.play();
+
+            // Unmute the track
+            currentTrackRef.current.unmute();
+
             onPublishResume?.();
         } catch (error) {
             console.error('Error resuming music:', error);
@@ -341,7 +363,8 @@ export function EnhancedMusicPlayer({
                 <div className="flex items-center space-x-4 mb-4">
                     <button
                         onClick={isPaused ? handleResume : handlePause}
-                        className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                        disabled={isLoading}
+                        className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
                     >
                         {isPaused ? 'Resume' : 'Pause'}
                     </button>
@@ -386,7 +409,7 @@ export function EnhancedMusicPlayer({
                 {isMobile && (
                     <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <p className="text-sm text-blue-800">
-                            📱 <strong>Mobile Mode:</strong> File upload works great! For streaming services, use desktop version.
+                            📱 <strong>Mobile:</strong> Tab audio capture is not supported. Upload an audio file instead.
                         </p>
                     </div>
                 )}
@@ -410,23 +433,23 @@ export function EnhancedMusicPlayer({
                 {activeSource === 'tab-capture' && (
                     <div className="space-y-3">
                         <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                            <h4 className="font-medium text-blue-900 mb-2">🎵 Capture Tab Audio</h4>
+                            <h4 className="font-medium text-blue-900 mb-2">🎵 Tab Audio Capture</h4>
                             <p className="text-sm text-blue-800">
-                                Share audio from any tab playing music (Spotify, YouTube, Apple Music, etc.)
+                                Share audio from any tab (Spotify, YouTube, Apple Music, etc.)
                             </p>
                         </div>
 
                         <button
                             onClick={handleTabCapture}
-                            disabled={isLoading}
+                            disabled={isLoading || isMobile}
                             className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
                         >
-                            {isLoading ? 'Starting...' : 'Start Tab Audio Capture'}
+                            {isLoading ? 'Starting...' : 'Capture Tab Audio'}
                         </button>
 
                         <div className="text-xs text-gray-600 space-y-1">
                             <p><strong>How to use:</strong></p>
-                            <p>1. Click &quot;Start Tab Audio Capture&quot;</p>
+                            <p>1. Click &quot;Capture Tab Audio&quot;</p>
                             <p>2. Select the tab playing music</p>
                             <p>3. Make sure &quot;Share audio&quot; is checked</p>
                             <p>4. Click &quot;Share&quot;</p>

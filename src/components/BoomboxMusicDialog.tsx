@@ -87,8 +87,7 @@ export function BoomboxMusicDialog({
                                         isPaused={isPaused}
                                         onPublishStart={(filename, track, audioElement) => {
                                             onPublishStart?.(filename, track, audioElement);
-                                            // Auto-close dialog after starting to publish
-                                            setTimeout(() => onClose(), 500);
+                                            // Don't auto-close dialog - let user close it manually
                                         }}
                                         onPublishStop={onPublishStop || (() => { })}
                                         onPublishPause={onPublishPause || (() => { })}
