@@ -195,7 +195,89 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         });
     }, [room, participants, myPosition]);
 
-    // Handle new remote audio tracks
+    // Handle new track publications (when tracks become available)
+    const handleTrackPublished = useCallback((publication: RemoteTrackPublication, participant: RemoteParticipant) => {
+        if (publication.kind !== 'audio') return;
+
+        const isMusicTrack = publication.trackName?.startsWith('music-');
+
+        if (isMusicTrack) {
+            // For music tracks, only subscribe if user has joined this participant's party
+            const hasJoinedParty = joinedMusicTracks.current.has(participant.identity);
+
+            if (hasJoinedParty) {
+                console.log('🎵 Music track published by joined party, subscribing:', publication.trackName, 'from:', participant.identity);
+
+                // Subscribe to the track immediately since user has joined this party
+                publication.setSubscribed(true);
+            } else {
+                console.log('Music track published but user has not joined party for:', participant.identity);
+            }
+        } else {
+            // For voice tracks, handle proximity-based subscription
+            const participantData = participants.get(participant.identity);
+            if (participantData) {
+                const distance = calculateDistance(myPosition, participantData.position);
+                if (distance <= VOICE_CHAT_RADIUS) {
+                    console.log('🎤 Voice track published within range, subscribing:', participant.identity);
+                    publication.setSubscribed(true);
+                }
+            }
+        }
+    }, [participants, myPosition]);
+
+    // Separate function to handle music track attachment
+    const attachMusicTrack = useCallback((track: RemoteAudioTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
+        console.log('🎵 Attaching music track for joined party:', publication.trackName, 'from:', participant.identity);
+
+        // Remove any existing audio elements for this participant to prevent duplicates
+        const existingElements = document.querySelectorAll(`audio[data-participant="${participant.identity}"][data-track-type="music"]`);
+        existingElements.forEach(element => {
+            const audioEl = element as HTMLAudioElement;
+            track.detach(audioEl);
+            audioEl.remove();
+        });
+
+        // Use LiveKit's recommended Track.attach() method for proper track management
+        const audioElement = track.attach() as HTMLAudioElement;
+        audioElement.setAttribute('data-participant', participant.identity);
+        audioElement.setAttribute('data-track-type', 'music');
+        audioElement.setAttribute('data-track', publication.trackName || 'music');
+        audioElement.volume = 1.0; // Full volume for music
+        audioElement.setAttribute('playsinline', 'true'); // For mobile compatibility
+
+        // Append to document for playback
+        document.body.appendChild(audioElement);
+
+        // Handle autoplay restrictions more simply
+        const playPromise = audioElement.play();
+        if (playPromise !== undefined) {
+            playPromise
+                .then(() => {
+                    console.log('✅ Music track playing for joined party:', participant.identity);
+                })
+                .catch((error) => {
+                    console.warn('Autoplay prevented for music track. User interaction required:', error);
+
+                    // Add single event listener to resume on next user interaction
+                    const resumeAudio = () => {
+                        audioElement.play()
+                            .then(() => {
+                                console.log('✅ Music track resumed after user interaction');
+                            })
+                            .catch(resumeError => {
+                                console.error('Failed to resume music after user interaction:', resumeError);
+                            });
+                    };
+
+                    // Use once option to automatically remove listener
+                    document.addEventListener('click', resumeAudio, { once: true });
+                    document.addEventListener('touchstart', resumeAudio, { once: true });
+                });
+        }
+    }, []);
+
+    // Handle new remote audio tracks - this is the primary entry point for all track handling
     const handleTrackSubscribed = useCallback((track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
         if (!controllerRef.current || track.kind !== 'audio') return;
 
@@ -205,61 +287,18 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                 const isMusicTrack = publication.trackName?.startsWith('music-');
 
                 if (isMusicTrack) {
-                    // Music tracks: Only play if user has explicitly joined this participant's music party
+                    // Music tracks: Only attach/play if user has explicitly joined this participant's music party
                     const hasJoinedParty = joinedMusicTracks.current.has(participant.identity);
 
                     if (!hasJoinedParty) {
-                        console.log('Music track available but user has not joined party for:', participant.identity);
-                        return; // Don't auto-play music tracks
+                        console.log('🎵 Music track subscribed but user has not joined party, unsubscribing:', participant.identity);
+                        // Immediately unsubscribe since user hasn't joined this party
+                        publication.setSubscribed(false);
+                        return;
                     }
 
-                    console.log('Playing music track for joined party:', publication.trackName, 'from:', participant.identity);
-
-                    // Remove any existing audio elements for this participant to prevent duplicates
-                    const existingElements = document.querySelectorAll(`audio[data-participant="${participant.identity}"][data-track-type="music"]`);
-                    existingElements.forEach(element => {
-                        const audioEl = element as HTMLAudioElement;
-                        track.detach(audioEl);
-                        audioEl.remove();
-                    });
-
-                    // Use LiveKit's recommended Track.attach() method for proper track management
-                    const audioElement = track.attach() as HTMLAudioElement;
-                    audioElement.setAttribute('data-participant', participant.identity);
-                    audioElement.setAttribute('data-track-type', 'music');
-                    audioElement.setAttribute('data-track', publication.trackName || 'music');
-                    audioElement.volume = 1.0; // Full volume for music
-                    audioElement.setAttribute('playsinline', 'true'); // For mobile compatibility
-
-                    // Append to document for playback
-                    document.body.appendChild(audioElement);
-
-                    // Handle autoplay restrictions more simply
-                    const playPromise = audioElement.play();
-                    if (playPromise !== undefined) {
-                        playPromise
-                            .then(() => {
-                                console.log('✅ Music track playing for joined party:', participant.identity);
-                            })
-                            .catch((error) => {
-                                console.warn('Autoplay prevented for music track. User interaction required:', error);
-
-                                // Add single event listener to resume on next user interaction
-                                const resumeAudio = () => {
-                                    audioElement.play()
-                                        .then(() => {
-                                            console.log('✅ Music track resumed after user interaction');
-                                        })
-                                        .catch(resumeError => {
-                                            console.error('Failed to resume music after user interaction:', resumeError);
-                                        });
-                                };
-
-                                // Use once option to automatically remove listener
-                                document.addEventListener('click', resumeAudio, { once: true });
-                                document.addEventListener('touchstart', resumeAudio, { once: true });
-                            });
-                    }
+                    console.log('🎵 Music track subscribed for joined party, attaching and playing:', publication.trackName, 'from:', participant.identity);
+                    attachMusicTrack(track, publication, participant);
                 } else {
                     // Voice tracks: Use spatial audio processing with proximity check
                     const distance = calculateDistance(myPosition, participantData.position);
@@ -284,7 +323,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         } catch (error) {
             console.error('Error handling track subscription:', error);
         }
-    }, [participants, myPosition]);
+    }, [participants, myPosition, attachMusicTrack]);
 
     // Handle removed remote audio tracks with enhanced cleanup
     const handleTrackUnsubscribed = useCallback((track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
@@ -334,14 +373,16 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
     useEffect(() => {
         if (!room) return;
 
+        room.on(RoomEvent.TrackPublished, handleTrackPublished);
         room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
         room.on(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed);
 
         return () => {
+            room.off(RoomEvent.TrackPublished, handleTrackPublished);
             room.off(RoomEvent.TrackSubscribed, handleTrackSubscribed);
             room.off(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed);
         };
-    }, [room, handleTrackSubscribed, handleTrackUnsubscribed]);
+    }, [room, handleTrackPublished, handleTrackSubscribed, handleTrackUnsubscribed]);
 
     // Utility functions
     const setMasterVolume = useCallback((volume: number) => {
@@ -365,7 +406,9 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
             }
         }
         return true;
-    }, []); const subscribeToParticipant = useCallback(async (participantIdentity: string, maxRetries: number = 3) => {
+    }, []);
+
+    const subscribeToParticipant = useCallback(async (participantIdentity: string, maxRetries: number = 3) => {
         if (!room) {
             console.error('Room not available for subscription');
             return false;
@@ -377,7 +420,9 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         }
 
         // Ensure audio context is enabled (especially important for mobile)
-        await enableAudioContext();        // Before joining a new music party, leave any currently joined party (only one party at a time)
+        await enableAudioContext();
+
+        // Before joining a new music party, leave any currently joined party (only one party at a time)
         if (joinedMusicTracks.current.size > 0) {
             console.log('Leaving current music parties before joining new one (only one party allowed at a time)');
             const currentParties = Array.from(joinedMusicTracks.current);
@@ -436,6 +481,13 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
             return false;
         }
 
+        console.log(`🎵 Joining music party for: ${participantIdentity}`);
+
+        // CRITICAL: Add to joined set BEFORE any subscription attempts
+        // This ensures handleTrackSubscribed will process music tracks when they arrive
+        joinedMusicTracks.current.add(participantIdentity);
+        console.log('👥 Currently joined music parties:', Array.from(joinedMusicTracks.current));
+
         let attempts = 0;
 
         const attemptSubscription = async (): Promise<boolean> => {
@@ -444,128 +496,66 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
             try {
                 const participant = room.remoteParticipants.get(participantIdentity);
                 if (!participant) {
-                    console.error('Participant not found:', participantIdentity, 'Available participants:', Array.from(room.remoteParticipants.keys()));
+                    console.error('Participant not found:', participantIdentity);
+                    joinedMusicTracks.current.delete(participantIdentity); // Cleanup on failure
                     return false;
                 }
 
                 console.log(`Attempting to subscribe to participant: ${participantIdentity} (attempt ${attempts})`);
 
-                // Subscribe to audio tracks (both music and voice)
                 const audioTracks = participant.audioTrackPublications;
-                let subscribedToMusic = false;
-
-                console.log('Available audio tracks:', audioTracks.size);
-
-                // First, check if there are any active music tracks being published right now
-                const activeMusicTracks = Array.from(audioTracks.values()).filter(pub =>
-                    pub.trackName?.startsWith('music-') && pub.track && pub.isSubscribed
+                const musicTracks = Array.from(audioTracks.values()).filter(pub =>
+                    pub.trackName?.startsWith('music-')
                 );
 
-                const availableMusicTracks = Array.from(audioTracks.values()).filter(pub =>
-                    pub.trackName?.startsWith('music-') && !pub.isSubscribed
-                );
-
-                console.log('Active music tracks:', activeMusicTracks.length);
-                console.log('Available music tracks to subscribe:', availableMusicTracks.length);
-
-                if (activeMusicTracks.length === 0 && availableMusicTracks.length === 0) {
-                    console.warn('❌ No music tracks available from participant:', participantIdentity);
+                if (musicTracks.length === 0) {
+                    console.warn('❌ No music tracks found from participant:', participantIdentity);
+                    joinedMusicTracks.current.delete(participantIdentity); // Cleanup on failure
                     return false;
                 }
 
-                for (const publication of audioTracks.values()) {
-                    const isMusicTrack = publication.trackName?.startsWith('music-');
-                    const trackType = isMusicTrack ? 'music track' : 'voice track';
+                console.log(`Found ${musicTracks.length} music tracks, subscribing...`);
 
-                    console.log(`Processing ${trackType}:`, publication.trackName, 'isSubscribed:', publication.isSubscribed, 'hasTrack:', !!publication.track);
+                // Subscribe to all music tracks from this participant
+                for (const publication of musicTracks) {
+                    if (!publication.isSubscribed) {
+                        console.log(`🎵 Subscribing to music track:`, publication.trackName);
+                        await publication.setSubscribed(true);
+                    }
 
-                    if (isMusicTrack) {
-                        if (!publication.isSubscribed) {
-                            try {
-                                console.log(`Subscribing to ${trackType}:`, publication.trackName);
-                                await publication.setSubscribed(true);
-
-                                // Wait a bit for subscription to take effect
-                                await new Promise(resolve => setTimeout(resolve, 1000));
-
-                                // Verify that we now have the actual track with valid media stream
-                                if (publication.track && publication.track.mediaStreamTrack) {
-                                    // Additional validation: Check if the track is active and has valid state
-                                    const trackState = publication.track.mediaStreamTrack.readyState;
-                                    if (trackState === 'live') {
-                                        subscribedToMusic = true;
-                                        console.log(`✅ Successfully subscribed to ${trackType} with valid live track from:`, participantIdentity);
-                                    } else {
-                                        console.warn(`⚠️ Subscribed to ${trackType} but track is not live (state: ${trackState}) from:`, participantIdentity);
-                                    }
-                                } else {
-                                    console.warn(`⚠️ Subscribed to ${trackType} but no valid media stream track available from:`, participantIdentity);
-                                }
-                            } catch (subError) {
-                                console.error(`❌ Failed to subscribe to ${trackType}:`, subError);
-                                throw subError; // Re-throw to trigger retry
+                    // If track is already available, trigger immediate attachment
+                    if (publication.track && publication.isSubscribed) {
+                        console.log(`🎵 Track immediately available, attaching:`, publication.trackName);
+                        // Use setTimeout to ensure this runs after the current call stack
+                        setTimeout(() => {
+                            if (publication.track) {
+                                handleTrackSubscribed(publication.track, publication, participant);
                             }
-                        } else if (publication.track) {
-                            console.log(`✅ Already subscribed to ${trackType} with actual track from:`, participantIdentity);
-                            subscribedToMusic = true;
-                        } else {
-                            console.warn(`⚠️ Subscribed to ${trackType} but no actual track from:`, participantIdentity);
-                        }
+                        }, 100);
                     }
                 }
 
-                if (subscribedToMusic) {
-                    // Double-check that we actually have a playable music track with valid media stream
-                    const musicTrackExists = Array.from(audioTracks.values()).some(pub =>
-                        pub.trackName?.startsWith('music-') &&
-                        pub.track &&
-                        pub.isSubscribed &&
-                        pub.track.mediaStreamTrack &&
-                        pub.track.mediaStreamTrack.readyState === 'live'
-                    );
+                console.log('✅ Successfully joined music party for:', participantIdentity);
+                return true;
 
-                    if (!musicTrackExists) {
-                        console.warn('⚠️ Thought we subscribed to music but no valid live track found for:', participantIdentity);
-                        return false;
-                    }
-
-                    // Add participant to joined music tracks set only if we have a verified playable track
-                    joinedMusicTracks.current.add(participantIdentity);
-                    console.log('🎵 Successfully joined music party from:', participantIdentity);
-                    console.log('👥 Currently joined music parties:', Array.from(joinedMusicTracks.current));
-
-                    // Trigger the track subscription handler to start playing immediately if track is available
-                    const musicPublication = Array.from(audioTracks.values()).find(pub =>
-                        pub.trackName?.startsWith('music-') && pub.track && pub.isSubscribed
-                    );
-
-                    if (musicPublication && musicPublication.track) {
-                        console.log('🎵 Triggering immediate playback for joined music party');
-                        // The handleTrackSubscribed will be called automatically by LiveKit
-                    }
-
-                    return true;
-                } else {
-                    console.warn('⚠️ No music tracks were subscribed for participant:', participantIdentity);
-                    return false;
-                }
             } catch (error) {
                 console.error(`❌ Failed to subscribe to participant (attempt ${attempts}):`, error);
 
                 if (attempts < maxRetries) {
-                    const delay = Math.pow(2, attempts) * 1000; // Exponential backoff
+                    const delay = Math.pow(2, attempts) * 500; // Exponential backoff
                     console.log(`Retrying subscription to ${participantIdentity} in ${delay}ms...`);
                     await new Promise(resolve => setTimeout(resolve, delay));
                     return attemptSubscription();
                 } else {
                     console.error(`❌ Failed to subscribe after ${maxRetries} attempts`);
+                    joinedMusicTracks.current.delete(participantIdentity); // Cleanup on final failure
                     return false;
                 }
             }
         };
 
         return attemptSubscription();
-    }, [room, enableAudioContext]);
+    }, [room, enableAudioContext, handleTrackSubscribed]);
 
     // Debug function to list active audio elements
     const getActiveAudioElements = useCallback(() => {
