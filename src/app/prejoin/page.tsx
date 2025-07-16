@@ -86,7 +86,7 @@ export default function PreJoinPage() {
                             className="w-full mt-8 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 active:scale-95 flex items-center justify-center gap-3"
                         >
                             <Image
-                                src="/android-chrome-512x512.png"
+                                src="/logo.png"
                                 alt="Vibes Hunters Logo"
                                 width={28}
                                 height={28}
