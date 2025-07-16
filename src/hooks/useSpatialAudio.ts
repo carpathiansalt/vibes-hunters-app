@@ -402,9 +402,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         }
 
         // Ensure audio context is enabled (especially important for mobile)
-        await enableAudioContext();
-
-        // Before joining a new music party, leave any currently joined party (only one party at a time)
+        await enableAudioContext();        // Before joining a new music party, leave any currently joined party (only one party at a time)
         if (joinedMusicTracks.current.size > 0) {
             console.log('Leaving current music parties before joining new one (only one party allowed at a time)');
             const currentParties = Array.from(joinedMusicTracks.current);
@@ -442,6 +440,27 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
             }
         }
 
+        // Get fresh participant reference (in case it changed)
+        const participant = room.remoteParticipants.get(participantIdentity);
+        if (!participant) {
+            console.error('Participant not found after cleanup:', participantIdentity);
+            return false;
+        }
+
+        // Double-check that the participant is still publishing music according to metadata
+        let participantMetadata;
+        try {
+            participantMetadata = participant.metadata ? JSON.parse(participant.metadata) : null;
+        } catch (error) {
+            console.error('Failed to parse participant metadata:', error);
+            return false;
+        }
+
+        if (!participantMetadata?.isPublishingMusic) {
+            console.warn('❌ Participant metadata indicates they are not publishing music:', participantIdentity);
+            return false;
+        }
+
         let attempts = 0;
 
         const attemptSubscription = async (): Promise<boolean> => {
@@ -462,50 +481,84 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
 
                 console.log('Available audio tracks:', audioTracks.size);
 
-                // First, check if there are any music tracks being published
-                const hasMusicTracks = Array.from(audioTracks.values()).some(pub =>
-                    pub.trackName?.startsWith('music-') && (pub.track || !pub.isSubscribed)
+                // First, check if there are any active music tracks being published right now
+                const activeMusicTracks = Array.from(audioTracks.values()).filter(pub =>
+                    pub.trackName?.startsWith('music-') && pub.track && pub.isSubscribed
                 );
 
-                if (!hasMusicTracks) {
+                const availableMusicTracks = Array.from(audioTracks.values()).filter(pub =>
+                    pub.trackName?.startsWith('music-') && !pub.isSubscribed
+                );
+
+                console.log('Active music tracks:', activeMusicTracks.length);
+                console.log('Available music tracks to subscribe:', availableMusicTracks.length);
+
+                if (activeMusicTracks.length === 0 && availableMusicTracks.length === 0) {
                     console.warn('❌ No music tracks available from participant:', participantIdentity);
                     return false;
                 }
 
                 for (const publication of audioTracks.values()) {
-                    // Priority for music tracks - users joining music parties want to hear the music
                     const isMusicTrack = publication.trackName?.startsWith('music-');
                     const trackType = isMusicTrack ? 'music track' : 'voice track';
 
                     console.log(`Processing ${trackType}:`, publication.trackName, 'isSubscribed:', publication.isSubscribed, 'hasTrack:', !!publication.track);
 
                     if (isMusicTrack) {
-                        if (!publication.isSubscribed && publication.track === undefined) {
+                        if (!publication.isSubscribed) {
                             try {
                                 console.log(`Subscribing to ${trackType}:`, publication.trackName);
                                 await publication.setSubscribed(true);
 
                                 // Wait a bit for subscription to take effect
-                                await new Promise(resolve => setTimeout(resolve, 500));
+                                await new Promise(resolve => setTimeout(resolve, 1000));
 
-                                subscribedToMusic = true;
-                                console.log(`✅ Successfully subscribed to ${trackType} from:`, participantIdentity);
+                                // Verify that we now have the actual track
+                                if (publication.track) {
+                                    subscribedToMusic = true;
+                                    console.log(`✅ Successfully subscribed to ${trackType} with actual track from:`, participantIdentity);
+                                } else {
+                                    console.warn(`⚠️ Subscribed to ${trackType} but no track available from:`, participantIdentity);
+                                }
                             } catch (subError) {
                                 console.error(`❌ Failed to subscribe to ${trackType}:`, subError);
                                 throw subError; // Re-throw to trigger retry
                             }
                         } else if (publication.track) {
-                            console.log(`✅ Already subscribed to ${trackType} from:`, participantIdentity);
+                            console.log(`✅ Already subscribed to ${trackType} with actual track from:`, participantIdentity);
                             subscribedToMusic = true;
+                        } else {
+                            console.warn(`⚠️ Subscribed to ${trackType} but no actual track from:`, participantIdentity);
                         }
                     }
                 }
 
                 if (subscribedToMusic) {
-                    // Add participant to joined music tracks set only if we successfully subscribed to music
+                    // Double-check that we actually have a playable music track
+                    const musicTrackExists = Array.from(audioTracks.values()).some(pub =>
+                        pub.trackName?.startsWith('music-') && pub.track && pub.isSubscribed
+                    );
+
+                    if (!musicTrackExists) {
+                        console.warn('⚠️ Thought we subscribed to music but no playable track found for:', participantIdentity);
+                        return false;
+                    }
+
+                    // Add participant to joined music tracks set only if we have a verified playable track
                     joinedMusicTracks.current.add(participantIdentity);
                     console.log('🎵 Successfully joined music party from:', participantIdentity);
                     console.log('👥 Currently joined music parties:', Array.from(joinedMusicTracks.current));
+
+                    // Trigger the track subscription handler to start playing immediately if track is available
+                    const musicPublication = Array.from(audioTracks.values()).find(pub =>
+                        pub.trackName?.startsWith('music-') && pub.track && pub.isSubscribed
+                    );
+
+                    if (musicPublication && musicPublication.track) {
+                        console.log('🎵 Triggering immediate playback for joined music party');
+                        // The handleTrackSubscribed will be called automatically by LiveKit
+                    }
+
                     return true;
                 } else {
                     console.warn('⚠️ No music tracks were subscribed for participant:', participantIdentity);

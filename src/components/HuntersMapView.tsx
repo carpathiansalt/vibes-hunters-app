@@ -1176,7 +1176,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                         alert(`Joined ${selectedMusicUser.username}'s music party! 🎵`);
                                     } else {
                                         console.error('Failed to join music party:', selectedMusicUser.username);
-                                        alert('Failed to join music party. Please try again.');
+                                        alert(`Failed to join ${selectedMusicUser.username}'s music party. They might not be actively streaming music right now. Try again when they start playing music!`);
                                     }
                                 }
                             } catch (error) {
