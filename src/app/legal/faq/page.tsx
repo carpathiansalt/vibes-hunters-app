@@ -11,31 +11,31 @@ interface FAQItem {
 const faqData: FAQItem[] = [
     {
         question: "What is Vibes Hunters?",
-        answer: "Vibes Hunters is a social music experience that combines synchronized music broadcasting with spatial voice communication. You can share music in real-time with perfect sync, while using spatial voice chat to find and communicate with other users - your voices get louder as you get closer on the map!"
+        answer: "Vibes Hunters is a social music experience that combines synchronized music sharing with spatial voice communication. You can share music in real-time with perfect sync, while using spatial voice chat to find and communicate with other users - your voices get louder as you get closer on the map!"
     },
     {
         question: "How do I start a music party?",
-        answer: "After joining a room, click the \"🎵 Start Music Party\" button and select the audio source you want to share (like music playing from Spotify, YouTube, or any other app on your device). The music will be broadcast at the volume level you set on your device, and all users who join your party will hear it in perfect sync at that same volume."
+        answer: "After joining a room, click the \"🎵 Start Music Party\" button and select your music source. You can either upload an audio file from your device or capture audio from any browser tab (desktop only). Your music will be shared with perfect synchronization to everyone who joins your party."
     },
     {
         question: "Can I play music from Spotify, Apple Music, or YouTube?",
-        answer: "Yes! Vibes Hunters works with ANY music app or website. Simply start playing music in Spotify, Apple Music, YouTube, or any other music service, then use our 'Share Music' button to broadcast your system audio. This captures whatever you're playing and shares it with perfect sync to everyone in the room."
+        answer: "Yes! On desktop, you can use our Tab Audio Capture feature to share music from any website or app. Simply start playing music in Spotify, Apple Music, YouTube, or any other service, then use our 'Tab Audio Capture' option to share it with perfect sync. On mobile, you can upload audio files directly."
     },
     {
         question: "How do I share music from streaming services?",
-        answer: "It's easy! 1) Open your favorite music app (Spotify, Apple Music, YouTube, etc.) 2) Start playing the song you want to share 3) In Vibes Hunters, click 'Share Music' and select your browser tab or application audio 4) Everyone in the room will hear your music in perfect sync! You control the volume and playback."
+        answer: "On desktop: 1) Open your music service (Spotify, Apple Music, YouTube, etc.) 2) Start playing your song 3) In Vibes Hunters, click 'Start Music Party' and select 'Tab Audio Capture' 4) Choose the tab playing music and make sure 'Share audio' is checked 5) Click 'Share' to start broadcasting! On mobile: Upload audio files directly to your device."
     },
     {
-        question: "What is spatial audio?",
-        answer: "Spatial audio in Vibes Hunters is used only for voice communication, not for music. When you talk to other users, your voice gets louder or quieter based on how close you are to each other on the map. This creates an immersive way to find and communicate with other users - the closer you get, the clearer you can hear each other!"
+        question: "What is spatial audio and how does it work?",
+        answer: "Spatial audio in Vibes Hunters is used for voice communication only. When you talk to other users, your voice gets louder or quieter based on how close you are to each other on the map. This creates a natural way to find and communicate with others - the closer you get, the clearer you can hear each other! Music parties, however, play at the same volume for everyone."
     },
     {
         question: "How does voice communication work compared to music?",
-        answer: "Voice communication uses spatial audio - your voice gets louder as other users get closer to you on the map, helping everyone find each other naturally. Music broadcasting, however, plays at the same volume for everyone who joins the party, ensuring perfect synchronization so everyone hears the same thing at the same time."
+        answer: "Voice communication uses spatial audio - your voice gets louder as other users get closer to you on the map, helping everyone find each other naturally. Music sharing is different - when you join a music party, the music plays at the same volume for everyone, ensuring perfect synchronization so all participants hear the same thing simultaneously."
     },
     {
         question: "Do I need to download any software?",
-        answer: "No downloads required! Vibes Hunters runs entirely in your web browser. Just visit our website and you're ready to start. We recommend using Chrome, Firefox, Safari, or Edge for the best experience."
+        answer: "No downloads required! Vibes Hunters runs entirely in your web browser. Just visit our website and you're ready to start. We recommend using Chrome, Firefox, Safari, or Edge for the best experience. Tab audio capture works best on desktop browsers."
     },
     {
         question: "Is my audio being recorded or stored?",
@@ -43,11 +43,27 @@ const faqData: FAQItem[] = [
     },
     {
         question: "How many people can join a music party?",
-        answer: "Currently, one music party can be active in a room at a time, but multiple users can join that party to listen together. We're working on supporting multiple simultaneous parties in future updates."
+        answer: "Multiple users can join the same music party to listen together with perfect synchronization. Currently, one music party can be active per room at a time, but we're working on supporting multiple simultaneous parties in future updates."
     },
     {
         question: "Why can't I hear any music when I join a party?",
-        answer: "Make sure you've clicked \"Join Party\" and that your device's volume is turned up. Also, check that the person hosting the music party is actually playing audio from their device. If you still can't hear anything, try refreshing the page."
+        answer: "Make sure you've clicked \"Join Party\" and that your device's volume is turned up. Also, check that the person hosting the music party is actually playing audio from their device. If you still can't hear anything, try refreshing the page or checking your browser's audio permissions."
+    },
+    {
+        question: "What's the difference between tab audio capture and file upload?",
+        answer: "Tab Audio Capture (desktop only) lets you share music directly from any website or app in real-time - perfect for streaming services like Spotify or YouTube. File Upload works on all devices and lets you share audio files stored on your device. Both methods provide the same synchronized experience for listeners."
+    },
+    {
+        question: "Can I control music playback after starting a party?",
+        answer: "Yes! For uploaded audio files, you can pause, resume, and stop playback using the music controls. For tab audio capture, you control playback directly in the source tab (like Spotify or YouTube). The stop button will always end the music party for everyone."
+    },
+    {
+        question: "Why is tab audio capture only available on desktop?",
+        answer: "Tab audio capture requires browser APIs that are currently only available on desktop browsers. Mobile browsers don't support capturing audio from other tabs for security reasons. Mobile users can upload audio files directly to share music with the same synchronized experience."
+    },
+    {
+        question: "How do I know if someone is hosting a music party?",
+        answer: "Users who are hosting music parties will appear with a 📻 boombox icon instead of their regular avatar on the map. You can click on them to join their party. The room info panel also shows who's currently playing music."
     },
     {
         question: "Can I use this on my phone or tablet?",

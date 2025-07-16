@@ -39,8 +39,11 @@ export default function PreJoinPage() {
         <main className="min-h-screen flex flex-col bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900 p-4">
             {/* Header */}
             <div className="text-center text-white mb-8 pt-8">
-                <h1 className="text-4xl sm:text-5xl font-bold mb-2">🎵 Vibes Hunters</h1>
-                <p className="text-purple-200 text-sm sm:text-base">Find your tribe through music</p>
+                <div className="mb-4">
+                    <div className="text-6xl mb-2">🎵</div>
+                    <h1 className="text-4xl sm:text-5xl font-bold mb-2">Vibes Hunters</h1>
+                </div>
+                <p className="text-purple-200 text-lg sm:text-xl">Find your tribe through music</p>
             </div>
 
             {/* Main Card */}
@@ -83,16 +86,9 @@ export default function PreJoinPage() {
                         {/* Join Button */}
                         <button
                             onClick={handleJoinRoom}
-                            className="w-full mt-8 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 active:scale-95 flex items-center justify-center gap-3"
+                            className="w-full mt-8 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
                         >
-                            <Image
-                                src="/logo.png"
-                                alt="Vibes Hunters Logo"
-                                width={28}
-                                height={28}
-                                className="w-7 h-7 brightness-0 invert"
-                            />
-                            Join
+                            🎵 Join the Hunt
                         </button>
                     </div>
                 </div>
@@ -103,13 +99,13 @@ export default function PreJoinPage() {
                 <p>Connect with others who share your musical taste</p>
 
                 {/* New streaming capabilities highlight */}
-                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 max-w-md mx-auto">
-                    <h3 className="font-bold text-white mb-2">🎵 Share Your Music</h3>
-                    <div className="text-xs space-y-1">
+                <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-6 max-w-lg mx-auto border border-white/20">
+                    <h3 className="font-bold text-white mb-3 text-lg">🎵 Share Your Music</h3>
+                    <div className="text-sm space-y-2 text-white">
                         <p>• Upload audio files from your device</p>
                         <p>• Capture audio from any tab (desktop)</p>
                         <p>• Works with Spotify, YouTube, Apple Music</p>
-                        <p>• Real-time spatial audio experience</p>
+                        <p>• Real-time spatial audio voice chat</p>
                     </div>
                 </div>
 

@@ -20,9 +20,9 @@ export default function About() {
                     <section>
                         <h2 className="text-2xl font-bold mb-4 text-gray-800">What is Vibes Hunters?</h2>
                         <p className="text-gray-700 leading-relaxed">
-                            Vibes Hunters is a revolutionary social music experience that combines synchronized music broadcasting with spatial voice communication.
+                            Vibes Hunters is a revolutionary social music experience that combines synchronized music sharing with spatial voice communication.
                             Using cutting-edge WebRTC technology, we create virtual &ldquo;music parties&rdquo; where you can
-                            broadcast your music to others with perfect synchronization, while using spatial voice chat to find and communicate with other users naturally.
+                            share your music with others in perfect synchronization, while using spatial voice chat to find and communicate with other users naturally.
                         </p>
                     </section>
 
@@ -46,8 +46,8 @@ export default function About() {
                             <div className="flex items-start space-x-3">
                                 <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold text-sm">3</div>
                                 <div>
-                                    <h3 className="font-semibold text-gray-800">Start or Join Parties</h3>
-                                    <p className="text-gray-700">Create your own music party by sharing audio from your device at your preferred volume. Everyone who joins will hear it in perfect sync!</p>
+                                    <h3 className="font-semibold text-gray-800">Share Your Music</h3>
+                                    <p className="text-gray-700">Upload audio files from your device or capture audio from any browser tab (Spotify, YouTube, Apple Music, etc.). Your music will be shared with perfect synchronization to everyone who joins your party.</p>
                                 </div>
                             </div>
                             <div className="flex items-start space-x-3">

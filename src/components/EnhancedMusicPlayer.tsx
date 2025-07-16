@@ -284,21 +284,29 @@ export function EnhancedMusicPlayer({
 
     // This component is now only for music selection, not controls
     return (
-        <div className="p-4 bg-gray-50 rounded-lg">
+        <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
             <div className="mb-4">
-                <h3 className="text-lg font-semibold mb-2">🎵 Select Music Source</h3>
+                <h3 className="text-lg font-semibold mb-2 text-gray-800">🎵 Select Music Source</h3>
                 <p className="text-sm text-gray-600 mb-4">Choose how you want to share music with others</p>
 
-                <div className="flex space-x-2 mb-4">
+                <div className="flex flex-col sm:flex-row gap-2 mb-4">
                     <button
                         onClick={() => setActiveSource('file')}
-                        className={`px-3 py-2 rounded text-sm ${activeSource === 'file' ? 'bg-purple-500 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+                        className={`flex-1 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeSource === 'file'
+                            ? 'bg-purple-600 text-white shadow-md'
+                            : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
                     >
                         📁 Upload File
                     </button>
                     <button
                         onClick={() => setActiveSource('tab-capture')}
-                        className={`px-3 py-2 rounded text-sm ${activeSource === 'tab-capture' ? 'bg-purple-500 text-white' : isMobile ? 'bg-gray-100 text-gray-400' : 'bg-gray-200 hover:bg-gray-300'}`}
+                        className={`flex-1 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeSource === 'tab-capture'
+                            ? 'bg-purple-600 text-white shadow-md'
+                            : isMobile
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
                         disabled={isMobile}
                     >
                         🎵 Tab Audio {isMobile ? '(Desktop Only)' : ''}
@@ -306,59 +314,109 @@ export function EnhancedMusicPlayer({
                 </div>
 
                 {isMobile && (
-                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm text-blue-800">
-                            📱 <strong>Mobile:</strong> Tab audio capture is not supported. Upload an audio file instead.
-                        </p>
+                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                        <div className="flex items-start space-x-3">
+                            <div className="text-blue-600 text-lg">📱</div>
+                            <div>
+                                <p className="text-sm font-medium text-blue-900 mb-1">Mobile Device Detected</p>
+                                <p className="text-xs text-blue-700">
+                                    Tab audio capture is not supported on mobile. Upload an audio file instead.
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 )}
 
                 {activeSource === 'file' && (
-                    <div>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="audio/*"
-                            onChange={handleFileSelect}
-                            className="w-full p-2 border rounded"
-                            disabled={isLoading}
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                            {isLoading ? 'Loading...' : 'Upload an audio file from your device (MP3, WAV, etc.)'}
+                    <div className="space-y-3">
+                        <div className="relative">
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="audio/*"
+                                onChange={handleFileSelect}
+                                className="w-full p-3 border-2 border-dashed border-gray-300 rounded-xl bg-white focus:border-purple-500 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+                                disabled={isLoading}
+                            />
+                        </div>
+                        <p className="text-xs text-gray-600 text-center">
+                            {isLoading ? (
+                                <span className="flex items-center justify-center">
+                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Processing your music...
+                                </span>
+                            ) : (
+                                'Upload an audio file (MP3, WAV, FLAC, etc.) - Max 50MB'
+                            )}
                         </p>
                     </div>
                 )}
 
                 {activeSource === 'tab-capture' && (
-                    <div className="space-y-3">
-                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                            <h4 className="font-medium text-blue-900 mb-2">🎵 Tab Audio Capture</h4>
-                            <p className="text-sm text-blue-800">
-                                Share audio from any tab (Spotify, YouTube, Apple Music, etc.)
-                            </p>
+                    <div className="space-y-4">
+                        <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-xl border border-blue-200">
+                            <div className="flex items-start space-x-3">
+                                <div className="text-blue-600 text-xl">🎵</div>
+                                <div>
+                                    <h4 className="font-semibold text-blue-900 mb-1">Tab Audio Capture</h4>
+                                    <p className="text-sm text-blue-800">
+                                        Share audio from any tab (Spotify, YouTube, Apple Music, etc.)
+                                    </p>
+                                </div>
+                            </div>
                         </div>
 
                         <button
                             onClick={handleTabCapture}
                             disabled={isLoading || isMobile}
-                            className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+                            className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                         >
-                            {isLoading ? 'Starting...' : 'Capture Tab Audio'}
+                            {isLoading ? (
+                                <span className="flex items-center justify-center">
+                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Starting capture...
+                                </span>
+                            ) : (
+                                '🎵 Capture Tab Audio'
+                            )}
                         </button>
 
-                        <div className="text-xs text-gray-600 space-y-1">
-                            <p><strong>How to use:</strong></p>
-                            <p>1. Click &quot;Capture Tab Audio&quot;</p>
-                            <p>2. Select the tab playing music</p>
-                            <p>3. Make sure &quot;Share audio&quot; is checked</p>
-                            <p>4. Click &quot;Share&quot;</p>
+                        <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                            <p className="text-sm font-semibold text-blue-900 mb-3">📋 How to use:</p>
+                            <div className="text-sm text-blue-800 space-y-2">
+                                <div className="flex items-start space-x-2">
+                                    <span className="text-blue-600 font-semibold">1.</span>
+                                    <span>Click &quot;Capture Tab Audio&quot; above</span>
+                                </div>
+                                <div className="flex items-start space-x-2">
+                                    <span className="text-blue-600 font-semibold">2.</span>
+                                    <span>Select the tab playing music</span>
+                                </div>
+                                <div className="flex items-start space-x-2">
+                                    <span className="text-blue-600 font-semibold">3.</span>
+                                    <span>Make sure &quot;Share audio&quot; is checked</span>
+                                </div>
+                                <div className="flex items-start space-x-2">
+                                    <span className="text-blue-600 font-semibold">4.</span>
+                                    <span>Click &quot;Share&quot; to start broadcasting</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
             </div>
 
-            <div className="mt-4 space-y-2">
-                <label className="block text-sm font-medium">Broadcast Volume</label>
+            <div className="mt-6 p-4 bg-white rounded-xl border border-gray-200">
+                <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium text-gray-800">Broadcast Volume</label>
+                    <span className="text-sm font-medium text-purple-600">{Math.round(audioGain * 100)}%</span>
+                </div>
                 <input
                     type="range"
                     min="0"
@@ -366,9 +424,11 @@ export function EnhancedMusicPlayer({
                     step="0.1"
                     value={audioGain}
                     onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                    className="w-full"
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider:bg-purple-600"
                 />
-                <span className="text-xs text-gray-500">{Math.round(audioGain * 100)}%</span>
+                <p className="text-xs text-gray-600 mt-1 text-center">
+                    This controls how loud your music will be for other users
+                </p>
             </div>
         </div>
     );
