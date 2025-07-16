@@ -12,8 +12,11 @@ interface BoomboxMusicDialogProps {
     onJoin: () => void;
     room?: Room | null;
     isPublishing?: boolean;
+    isPaused?: boolean;
     onPublishStart?: (filename: string, track?: LocalAudioTrack, audioElement?: HTMLAudioElement) => void;
     onPublishStop?: () => void;
+    onPublishPause?: () => void;
+    onPublishResume?: () => void;
     isSelf?: boolean; // New prop to distinguish self vs others
 }
 
@@ -23,8 +26,11 @@ export function BoomboxMusicDialog({
     onJoin,
     room,
     isPublishing = false,
+    isPaused = false,
     onPublishStart,
     onPublishStop,
+    onPublishPause,
+    onPublishResume,
     isSelf = false
 }: BoomboxMusicDialogProps) {
     const [isJoining, setIsJoining] = useState(false);
@@ -74,12 +80,15 @@ export function BoomboxMusicDialog({
                                     <MusicPublisher
                                         room={room}
                                         isPublishing={isPublishing}
+                                        isPaused={isPaused}
                                         onPublishStart={(filename, track, audioElement) => {
                                             onPublishStart?.(filename, track, audioElement);
                                             // Auto-close dialog after starting to publish
                                             setTimeout(() => onClose(), 500);
                                         }}
                                         onPublishStop={onPublishStop || (() => { })}
+                                        onPublishPause={onPublishPause || (() => { })}
+                                        onPublishResume={onPublishResume || (() => { })}
                                     />
                                 </div>
                             )}

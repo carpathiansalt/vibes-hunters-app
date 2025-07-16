@@ -24,6 +24,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [livekitRoom, setLivekitRoom] = useState<Room | null>(null);
     const [selectedMusicUser, setSelectedMusicUser] = useState<UserPosition | null>(null);
     const [isPublishingMusic, setIsPublishingMusic] = useState(false);
+    const [isMusicPaused, setIsMusicPaused] = useState(false);
     const [isTrackingLocation, setIsTrackingLocation] = useState(false);
     const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
     const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
@@ -794,12 +795,14 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
             // Update state
             setIsPublishingMusic(false);
+            setIsMusicPaused(false);
             console.log('Music publishing stopped successfully');
 
         } catch (error) {
             console.error('Error stopping music:', error);
             // Still update state even if there's an error to prevent UI stuck state
             setIsPublishingMusic(false);
+            setIsMusicPaused(false);
             currentMusicTrackRef.current = null;
         }
     }, [livekitRoom]);
@@ -1013,8 +1016,25 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 <button
                     onClick={async () => {
                         if (isPublishingMusic) {
-                            // If currently publishing, directly stop the music
-                            await stopMusicPublishing();
+                            if (isMusicPaused) {
+                                // If paused, resume the music
+                                if (currentMusicTrackRef.current?.audioElement) {
+                                    try {
+                                        await currentMusicTrackRef.current.audioElement.play();
+                                        setIsMusicPaused(false);
+                                        console.log('Music resumed');
+                                    } catch (error) {
+                                        console.error('Error resuming music:', error);
+                                    }
+                                }
+                            } else {
+                                // If playing, pause the music
+                                if (currentMusicTrackRef.current?.audioElement) {
+                                    currentMusicTrackRef.current.audioElement.pause();
+                                    setIsMusicPaused(true);
+                                    console.log('Music paused');
+                                }
+                            }
                         } else {
                             // If not publishing, show dialog to start
                             setSelectedMusicUser({
@@ -1027,13 +1047,35 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         }
                     }}
                     className={`w-16 h-16 rounded-full shadow-2xl transition-all duration-300 ${isPublishingMusic
-                        ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700'
+                        ? isMusicPaused
+                            ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700'
+                            : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
                         : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
                         } flex items-center justify-center text-white text-2xl`}
-                    title={isPublishingMusic ? "Stop Music Party" : "Start Music Party"}
+                    title={isPublishingMusic
+                        ? isMusicPaused ? "Resume Music" : "Pause Music"
+                        : "Start Music Party"
+                    }
                 >
-                    {isPublishingMusic ? '⏹️' : '🎵'}
+                    {isPublishingMusic
+                        ? isMusicPaused ? '▶️' : '⏸️'
+                        : '🎵'
+                    }
                 </button>
+
+                {/* Stop Button - Only show when music is playing or paused */}
+                {isPublishingMusic && (
+                    <button
+                        onClick={async () => {
+                            await stopMusicPublishing();
+                            setIsMusicPaused(false);
+                        }}
+                        className="absolute -top-12 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-full shadow-lg transition-all duration-300 flex items-center justify-center text-white text-lg"
+                        title="Stop Music Party"
+                    >
+                        ⏹️
+                    </button>
+                )}
             </div>
 
             {selectedMusicUser && (
@@ -1067,17 +1109,28 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                     }}
                     room={livekitRoom}
                     isPublishing={isPublishingMusic}
+                    isPaused={isMusicPaused}
                     onPublishStart={(filename, track, audioElement) => {
                         if (track && audioElement) {
                             currentMusicTrackRef.current = { track, audioElement };
                         }
                         setIsPublishingMusic(true);
+                        setIsMusicPaused(false);
                         console.log(`Started publishing: ${filename}`);
                     }}
                     onPublishStop={() => {
                         setIsPublishingMusic(false);
+                        setIsMusicPaused(false);
                         currentMusicTrackRef.current = null;
                         console.log('Stopped publishing music');
+                    }}
+                    onPublishPause={() => {
+                        setIsMusicPaused(true);
+                        console.log('Paused publishing music');
+                    }}
+                    onPublishResume={() => {
+                        setIsMusicPaused(false);
+                        console.log('Resumed publishing music');
                     }}
                     isSelf={selectedMusicUser.userId === 'self'}
                 />

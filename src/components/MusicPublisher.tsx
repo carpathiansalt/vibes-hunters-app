@@ -8,7 +8,10 @@ interface MusicPublisherProps {
     room: Room | null;
     onPublishStart: (filename: string, track?: LocalAudioTrack, audioElement?: HTMLAudioElement) => void;
     onPublishStop: () => void;
+    onPublishPause?: () => void;
+    onPublishResume?: () => void;
     isPublishing: boolean;
+    isPaused?: boolean;
     volume?: number;
     onVolumeChange?: (volume: number) => void;
 }
@@ -17,7 +20,10 @@ export function MusicPublisher({
     room,
     onPublishStart,
     onPublishStop,
+    onPublishPause,
+    onPublishResume,
     isPublishing,
+    isPaused = false,
     volume = 1.0,
     onVolumeChange
 }: MusicPublisherProps) {
@@ -187,6 +193,32 @@ export function MusicPublisher({
         }
     };
 
+    const handlePauseMusic = async () => {
+        if (!audioElementRef.current || !currentTrackRef.current) return;
+
+        try {
+            // Pause the audio element
+            audioElementRef.current.pause();
+            onPublishPause?.();
+            console.log('Music paused');
+        } catch (error) {
+            console.error('Error pausing music:', error);
+        }
+    };
+
+    const handleResumeMusic = async () => {
+        if (!audioElementRef.current || !currentTrackRef.current) return;
+
+        try {
+            // Resume the audio element
+            await audioElementRef.current.play();
+            onPublishResume?.();
+            console.log('Music resumed');
+        } catch (error) {
+            console.error('Error resuming music:', error);
+        }
+    };
+
     const handleVolumeChange = (newVolume: number) => {
         setAudioGain(newVolume);
 
@@ -223,13 +255,22 @@ export function MusicPublisher({
                         {isLoading ? '🎵 Loading...' : '🎵 Share Music'}
                     </button>
                 ) : (
-                    <button
-                        onClick={handleStopPublishing}
-                        disabled={isLoading}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg transition-colors disabled:opacity-50"
-                    >
-                        {isLoading ? 'Stopping...' : '⏹️ Stop Music'}
-                    </button>
+                    <div className="flex items-center space-x-2">
+                        <button
+                            onClick={isPaused ? handleResumeMusic : handlePauseMusic}
+                            disabled={isLoading}
+                            className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg shadow-lg transition-colors disabled:opacity-50"
+                        >
+                            {isLoading ? 'Loading...' : isPaused ? '▶️ Resume' : '⏸️ Pause'}
+                        </button>
+                        <button
+                            onClick={handleStopPublishing}
+                            disabled={isLoading}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg transition-colors disabled:opacity-50"
+                        >
+                            {isLoading ? 'Stopping...' : '⏹️ Stop Music'}
+                        </button>
+                    </div>
                 )}
             </div>
 
