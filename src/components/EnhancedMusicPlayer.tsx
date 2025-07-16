@@ -81,8 +81,10 @@ export function EnhancedMusicPlayer({
         }
     };
 
-    const handleYouTubeSelect = (video: YouTubeVideo) => {
+    const handleYouTubeSelect = async (video: YouTubeVideo) => {
         setUrlInput(video.url);
+        // Automatically start playback when a YouTube video is selected
+        await startAudioPlayback(video.url, video.title);
     };
 
     const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,23 +107,38 @@ export function EnhancedMusicPlayer({
     const handleUrlPlay = async () => {
         if (!urlInput.trim()) return;
 
-        let videoTitle = 'Unknown';
+        setIsLoading(true);
 
-        // Check if it's a YouTube URL
-        if (youtubeService.isValidYouTubeUrl(urlInput)) {
-            const videoId = youtubeService.extractVideoId(urlInput);
-            if (videoId) {
-                const videoDetails = await youtubeService.getVideoDetails(videoId);
-                if (videoDetails) {
-                    videoTitle = videoDetails.title;
+        try {
+            let videoTitle = 'Unknown';
+
+            // Check if it's a YouTube URL
+            if (youtubeService.isValidYouTubeUrl(urlInput)) {
+                const videoId = youtubeService.extractVideoId(urlInput);
+                if (videoId) {
+                    try {
+                        const videoDetails = await youtubeService.getVideoDetails(videoId);
+                        if (videoDetails) {
+                            videoTitle = videoDetails.title;
+                        }
+                    } catch (error) {
+                        console.warn('Could not fetch YouTube video details:', error);
+                        videoTitle = 'YouTube Video';
+                    }
                 }
+            } else {
+                // For other URLs, use the URL as title
+                videoTitle = urlInput;
             }
-        } else {
-            // For other URLs, use the URL as title
-            videoTitle = urlInput;
-        }
 
-        await startAudioPlayback(urlInput, videoTitle);
+            await startAudioPlayback(urlInput, videoTitle);
+        } catch (error) {
+            console.error('Error in handleUrlPlay:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            alert(`Failed to play URL: ${errorMessage}`);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleTabCapture = async () => {
@@ -208,22 +225,48 @@ export function EnhancedMusicPlayer({
             if (source instanceof File) {
                 const audioURL = URL.createObjectURL(source);
                 audioElement.src = audioURL;
+                console.log('Playing file:', title);
             } else {
-                audioElement.src = source;
+                // Handle different URL types
+                const finalUrl = source;
+
+                if (youtubeService.isValidYouTubeUrl(source)) {
+                    // For YouTube URLs, we need to note that direct playback won't work
+                    // YouTube blocks direct audio streaming, so this will likely fail
+                    console.warn('YouTube direct playback attempted - this may not work due to YouTube restrictions');
+                    alert('YouTube direct playback is not supported. Please try the Tab Audio Capture method instead:\n\n1. Open YouTube in another tab\n2. Start playing the video\n3. Use "Tab Audio" option to capture the audio');
+                    return;
+                }
+
+                audioElement.src = finalUrl;
+                console.log('Playing URL:', finalUrl, 'Title:', title);
             }
 
             audioElement.loop = true;
             audioElement.volume = audioGain;
+            audioElement.crossOrigin = 'anonymous'; // Add CORS support
 
             // Wait for the audio to be ready
             await new Promise<void>((resolve, reject) => {
-                audioElement.oncanplaythrough = () => resolve();
-                audioElement.onerror = () => reject(new Error('Failed to load audio'));
+                const timeout = setTimeout(() => {
+                    reject(new Error('Audio loading timeout'));
+                }, 30000); // 30 second timeout
+
+                audioElement.oncanplaythrough = () => {
+                    clearTimeout(timeout);
+                    resolve();
+                };
+                audioElement.onerror = (e) => {
+                    clearTimeout(timeout);
+                    console.error('Audio loading error:', e);
+                    reject(new Error('Failed to load audio - check if URL is valid and supports CORS'));
+                };
                 audioElement.load();
             });
 
             // Start playing the audio first to ensure the stream has audio
             await audioElement.play();
+            console.log('Audio started playing');
 
             // Wait a bit for audio to start flowing
             await new Promise(resolve => setTimeout(resolve, 300));
@@ -243,11 +286,12 @@ export function EnhancedMusicPlayer({
                 throw new Error('Audio capture not supported in this browser');
             }
 
+            console.log('Audio stream captured, publishing...');
             await startAudioFromStream(mediaStream, title);
         } catch (error) {
             console.error('Audio playback error:', error);
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            alert(`Failed to start audio playback: ${errorMessage}`);
+            alert(`Failed to start audio playback: ${errorMessage}\n\nTip: For streaming services like Spotify or YouTube, try using the "Tab Audio Capture" method instead.`);
 
             // Clean up on error
             if (audioElementRef.current && audioElementRef.current.src.startsWith('blob:')) {
@@ -500,24 +544,42 @@ export function EnhancedMusicPlayer({
                             </button>
                         </div>
 
+                        <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                            <p className="text-sm text-yellow-800">
+                                <strong>⚠️ Note:</strong> YouTube videos cannot be played directly due to copyright restrictions.
+                                Results are shown for reference - use <strong>&quot;Tab Audio Capture&quot;</strong> to play YouTube music.
+                            </p>
+                        </div>
+
                         {youtubeResults.length > 0 && (
                             <div className="max-h-48 overflow-y-auto space-y-2">
                                 {youtubeResults.map((video) => (
                                     <div
                                         key={video.id}
                                         onClick={() => handleYouTubeSelect(video)}
-                                        className="flex items-center space-x-3 p-2 bg-white rounded cursor-pointer hover:bg-gray-100"
+                                        className="flex items-center space-x-3 p-2 bg-white rounded cursor-pointer hover:bg-gray-100 border border-gray-200"
                                     >
-                                        <Image
-                                            src={video.thumbnail}
-                                            alt={video.title}
-                                            width={64}
-                                            height={48}
-                                            className="w-16 h-12 object-cover rounded"
-                                        />
+                                        <div className="w-16 h-12 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
+                                            <Image
+                                                src={video.thumbnail}
+                                                alt={video.title}
+                                                width={64}
+                                                height={48}
+                                                className="w-full h-full object-cover rounded"
+                                                onError={(e) => {
+                                                    const target = e.target as HTMLImageElement;
+                                                    target.style.display = 'none';
+                                                    target.parentElement!.innerHTML = '🎬';
+                                                }}
+                                                unoptimized
+                                            />
+                                        </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-medium truncate">{video.title}</p>
                                             <p className="text-xs text-gray-500">{video.channelTitle} • {video.duration}</p>
+                                        </div>
+                                        <div className="text-xs text-gray-400">
+                                            Click to try
                                         </div>
                                     </div>
                                 ))}
@@ -532,7 +594,7 @@ export function EnhancedMusicPlayer({
                             type="url"
                             value={urlInput}
                             onChange={(e) => setUrlInput(e.target.value)}
-                            placeholder="Enter YouTube URL, Spotify Web URL, or any audio URL..."
+                            placeholder="Enter direct audio URL (MP3, WAV, etc.)..."
                             className="w-full p-2 border rounded"
                         />
                         <button
@@ -542,9 +604,11 @@ export function EnhancedMusicPlayer({
                         >
                             {isLoading ? 'Loading...' : 'Play from URL'}
                         </button>
-                        <p className="text-xs text-gray-500">
-                            Paste a URL from YouTube, Spotify Web Player, or any direct audio link
-                        </p>
+                        <div className="text-xs text-gray-600 space-y-1">
+                            <p><strong>✅ Supported:</strong> Direct audio files (MP3, WAV, OGG)</p>
+                            <p><strong>❌ Not supported:</strong> YouTube, Spotify, Apple Music URLs</p>
+                            <p><strong>💡 Tip:</strong> For streaming services, use &quot;Tab Audio Capture&quot; instead</p>
+                        </div>
                     </div>
                 )}
 
