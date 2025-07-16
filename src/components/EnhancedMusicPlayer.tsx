@@ -50,6 +50,22 @@ export function EnhancedMusicPlayer({
         }
     }, [audioGain, onVolumeChange]);
 
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (currentTrackRef.current) {
+                currentTrackRef.current.stop();
+            }
+            if (audioElementRef.current) {
+                audioElementRef.current.pause();
+                if (audioElementRef.current.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(audioElementRef.current.src);
+                }
+                audioElementRef.current.src = '';
+            }
+        };
+    }, []);
+
     const handleYouTubeSearch = async () => {
         if (!youtubeQuery.trim()) return;
 
@@ -109,17 +125,44 @@ export function EnhancedMusicPlayer({
     };
 
     const handleTabCapture = async () => {
+        setIsLoading(true);
+
         try {
+            // Check if we're on mobile
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+            if (isMobile) {
+                alert('Tab audio capture is not supported on mobile devices. Please use file upload or URL playback instead.');
+                return;
+            }
+
+            // Check if getDisplayMedia is supported
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                alert('Screen capture is not supported in this browser. Please try Chrome, Edge, or Firefox.');
+                return;
+            }
+
             // Request screen capture with audio
             const mediaStream = await navigator.mediaDevices.getDisplayMedia({
-                video: true,
-                audio: true
+                video: {
+                    width: 1,
+                    height: 1,
+                    frameRate: 1
+                },
+                audio: {
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false,
+                    sampleRate: 44100
+                }
             });
 
             // Extract only audio tracks
             const audioTracks = mediaStream.getAudioTracks();
             if (audioTracks.length === 0) {
-                alert('No audio found in the selected tab. Please make sure the tab is playing audio.');
+                alert('No audio found in the selected tab. Please make sure the tab is playing audio and try again.');
+                // Stop video tracks
+                mediaStream.getVideoTracks().forEach(track => track.stop());
                 return;
             }
 
@@ -129,10 +172,28 @@ export function EnhancedMusicPlayer({
             // Stop video tracks to save bandwidth
             mediaStream.getVideoTracks().forEach(track => track.stop());
 
+            // Add event listener for when the user stops sharing
+            audioTracks[0].addEventListener('ended', () => {
+                console.log('Tab sharing ended by user');
+                handleStop();
+            });
+
             await startAudioFromStream(audioStream, 'Tab Audio Capture');
         } catch (error) {
             console.error('Tab capture error:', error);
-            alert('Failed to capture tab audio. Please try again.');
+
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            const errorName = error instanceof Error ? error.name : '';
+
+            if (errorName === 'NotAllowedError') {
+                alert('Screen capture permission denied. Please allow screen sharing and try again.');
+            } else if (errorName === 'NotSupportedError') {
+                alert('Screen capture is not supported in this browser. Please try Chrome, Edge, or Firefox.');
+            } else {
+                alert(`Failed to capture tab audio: ${errorMessage}`);
+            }
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -154,13 +215,17 @@ export function EnhancedMusicPlayer({
             audioElement.loop = true;
             audioElement.volume = audioGain;
 
+            // Wait for the audio to be ready
             await new Promise<void>((resolve, reject) => {
                 audioElement.oncanplaythrough = () => resolve();
                 audioElement.onerror = () => reject(new Error('Failed to load audio'));
                 audioElement.load();
             });
 
+            // Start playing the audio first to ensure the stream has audio
             await audioElement.play();
+
+            // Wait a bit for audio to start flowing
             await new Promise(resolve => setTimeout(resolve, 300));
 
             // Capture audio stream
@@ -181,7 +246,20 @@ export function EnhancedMusicPlayer({
             await startAudioFromStream(mediaStream, title);
         } catch (error) {
             console.error('Audio playback error:', error);
-            alert('Failed to start audio playback. Please try again.');
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            alert(`Failed to start audio playback: ${errorMessage}`);
+
+            // Clean up on error
+            if (audioElementRef.current && audioElementRef.current.src.startsWith('blob:')) {
+                audioElementRef.current.pause();
+                URL.revokeObjectURL(audioElementRef.current.src);
+                audioElementRef.current.src = '';
+            }
+
+            if (currentTrackRef.current) {
+                currentTrackRef.current.stop();
+                currentTrackRef.current = null;
+            }
         } finally {
             setIsLoading(false);
         }
@@ -192,8 +270,15 @@ export function EnhancedMusicPlayer({
 
         try {
             // Get the audio track from the MediaStream
-            const audioTrack = mediaStream.getAudioTracks()[0];
-            if (!audioTrack || !audioTrack.enabled) {
+            const audioTracks = mediaStream.getAudioTracks();
+            if (audioTracks.length === 0) {
+                throw new Error('No audio tracks found in the media stream');
+            }
+
+            const audioTrack = audioTracks[0];
+
+            // Verify the audio track is active
+            if (audioTrack.readyState !== 'live') {
                 throw new Error('Audio track is not active');
             }
 
@@ -216,36 +301,91 @@ export function EnhancedMusicPlayer({
             onPublishStart(title, localAudioTrack, audioElementRef.current || undefined);
         } catch (error) {
             console.error('Error publishing audio track:', error);
-            alert('Failed to publish audio. Please try again.');
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            alert(`Failed to publish audio: ${errorMessage}`);
+
+            // Clean up on error
+            if (currentTrackRef.current) {
+                currentTrackRef.current.stop();
+                currentTrackRef.current = null;
+            }
         }
     };
 
     const handleStop = async () => {
-        if (currentTrackRef.current) {
-            await currentTrackRef.current.stop();
+        if (!room) return;
+
+        setIsLoading(true);
+
+        try {
+            // First stop the audio element to stop sound immediately
+            if (audioElementRef.current) {
+                audioElementRef.current.pause();
+                audioElementRef.current.currentTime = 0;
+            }
+
+            // Stop and unpublish the track
+            if (currentTrackRef.current) {
+                // Stop the track before unpublishing
+                currentTrackRef.current.stop();
+
+                // Unpublish the track
+                await room.localParticipant.unpublishTrack(currentTrackRef.current);
+            }
+
+            // Clean up audio element
+            if (audioElementRef.current) {
+                // Revoke the object URL to free memory
+                if (audioElementRef.current.src && audioElementRef.current.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(audioElementRef.current.src);
+                }
+                audioElementRef.current.src = '';
+            }
+
+            // Clean up references
             currentTrackRef.current = null;
-        }
 
-        if (audioElementRef.current) {
-            audioElementRef.current.pause();
-            audioElementRef.current.src = '';
-        }
+            onPublishStop();
 
-        onPublishStop();
+        } catch (error) {
+            console.error('Error stopping music:', error);
+            // Still call onPublishStop even if there's an error to update UI state
+            onPublishStop();
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    const handlePause = () => {
-        if (audioElementRef.current) {
-            audioElementRef.current.pause();
+    const handlePause = async () => {
+        try {
+            if (audioElementRef.current) {
+                audioElementRef.current.pause();
+            }
+
+            if (currentTrackRef.current) {
+                currentTrackRef.current.mute();
+            }
+
+            onPublishPause?.();
+        } catch (error) {
+            console.error('Error pausing music:', error);
         }
-        onPublishPause?.();
     };
 
-    const handleResume = () => {
-        if (audioElementRef.current) {
-            audioElementRef.current.play();
+    const handleResume = async () => {
+        try {
+            if (audioElementRef.current) {
+                await audioElementRef.current.play();
+            }
+
+            if (currentTrackRef.current) {
+                currentTrackRef.current.unmute();
+            }
+
+            onPublishResume?.();
+        } catch (error) {
+            console.error('Error resuming music:', error);
         }
-        onPublishResume?.();
     };
 
     const handleVolumeChange = (newVolume: number) => {
@@ -409,17 +549,34 @@ export function EnhancedMusicPlayer({
                 )}
 
                 {activeSource === 'tab-capture' && (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
+                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                            <h4 className="font-medium text-blue-900 mb-2">📱 Device Compatibility</h4>
+                            <p className="text-sm text-blue-800">
+                                • <strong>Desktop:</strong> Chrome, Edge, Firefox ✅<br />
+                                • <strong>Mobile:</strong> Not supported ❌
+                            </p>
+                        </div>
+
                         <button
                             onClick={handleTabCapture}
                             disabled={isLoading}
                             className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
                         >
-                            {isLoading ? 'Starting...' : 'Capture Tab Audio'}
+                            {isLoading ? 'Starting...' : 'Share Tab Audio'}
                         </button>
-                        <p className="text-xs text-gray-500">
-                            Share audio from any tab (Spotify, Apple Music, YouTube, etc.)
-                        </p>
+
+                        <div className="text-xs text-gray-600 space-y-1">
+                            <p><strong>How to use:</strong></p>
+                            <p>1. Click &quot;Share Tab Audio&quot;</p>
+                            <p>2. Select the tab playing music</p>
+                            <p>3. Make sure &quot;Share audio&quot; is checked</p>
+                            <p>4. Click &quot;Share&quot;</p>
+                        </div>
+
+                        <div className="text-xs text-gray-500">
+                            <p><strong>Compatible with:</strong> Spotify Web, Apple Music, YouTube, SoundCloud, and any web audio</p>
+                        </div>
                     </div>
                 )}
             </div>
