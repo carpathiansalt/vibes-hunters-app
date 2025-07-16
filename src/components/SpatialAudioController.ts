@@ -8,6 +8,8 @@ interface SpatialAudioSource {
     track: RemoteAudioTrack;
     pannerNode: PannerNode;
     gainNode: GainNode;
+    sourceNode: MediaStreamAudioSourceNode;
+    audioElement: HTMLAudioElement; // Critical: HTML audio element required for MediaStream playback
     position: Vector2;
 }
 
@@ -107,31 +109,62 @@ export class SpatialAudioController {
 
             console.log('Adding spatial audio source for voice track:', participant.identity);
 
-            // Get MediaStream from track
+            // Create MediaStream from track (following LiveKit documentation)
             const mediaStream = new MediaStream([track.mediaStreamTrack]);
-            const source = this._audioContext.createMediaStreamSource(mediaStream);
 
-            // Create spatial audio nodes
+            // Create HTML audio element (CRITICAL: Required for MediaStream playback with WebAudio)
+            const audioElement = document.createElement('audio');
+            audioElement.muted = true; // Muted because audio comes through WebAudio pipeline
+            audioElement.setAttribute('playsinline', 'true'); // For mobile compatibility
+            audioElement.srcObject = mediaStream;
+
+            // Create WebAudio nodes
+            const sourceNode = this._audioContext.createMediaStreamSource(mediaStream);
             const pannerNode = this._audioContext.createPanner();
             const gainNode = this._audioContext.createGain();
 
-            // Configure panner for 3D audio
+            // Configure panner for 3D audio (following LiveKit documentation)
             pannerNode.panningModel = 'HRTF';
-            pannerNode.distanceModel = 'inverse';
-            pannerNode.refDistance = 1;
-            pannerNode.maxDistance = 10000;
-            pannerNode.rolloffFactor = 1;
+            pannerNode.distanceModel = 'exponential';
+            pannerNode.coneOuterAngle = 360;
             pannerNode.coneInnerAngle = 360;
-            pannerNode.coneOuterAngle = 0;
-            pannerNode.coneOuterGain = 0;
+            pannerNode.coneOuterGain = 1;
+            pannerNode.refDistance = 10; // Reference distance in meters for voice chat
+            pannerNode.maxDistance = 100; // Maximum effective distance
+            pannerNode.rolloffFactor = 2;
 
-            // Set initial position
-            this.updateSourcePositionInternal(pannerNode, position);
+            // Set initial position using relative coordinates (following LiveKit example)
+            const relativePosition = {
+                x: position.x - this.listenerPosition.x,
+                y: position.y - this.listenerPosition.y
+            };
+            this.updatePannerPosition(pannerNode, relativePosition);
 
-            // Connect audio graph
-            source.connect(gainNode);
+            // Connect audio graph: source -> gain -> panner -> master -> destination
+            sourceNode.connect(gainNode);
             gainNode.connect(pannerNode);
             pannerNode.connect(this.masterGain);
+
+            // Start audio playback (CRITICAL: Required for MediaStream audio)
+            try {
+                await audioElement.play();
+                console.log('✅ Started spatial audio playback for:', participant.identity);
+            } catch (playError) {
+                console.warn('Autoplay blocked for spatial audio, will play on user interaction:', playError);
+                // Add event listeners to start playback on user interaction
+                const startPlayback = async () => {
+                    try {
+                        await audioElement.play();
+                        console.log('✅ Started spatial audio playback after user interaction:', participant.identity);
+                        document.removeEventListener('click', startPlayback);
+                        document.removeEventListener('touchstart', startPlayback);
+                    } catch (error) {
+                        console.error('Failed to start spatial audio playback:', error);
+                    }
+                };
+                document.addEventListener('click', startPlayback, { once: true });
+                document.addEventListener('touchstart', startPlayback, { once: true });
+            }
 
             // Store source reference
             const spatialSource: SpatialAudioSource = {
@@ -139,11 +172,13 @@ export class SpatialAudioController {
                 track,
                 pannerNode,
                 gainNode,
+                sourceNode,
+                audioElement,
                 position
             };
 
             this.sources.set(participant.identity, spatialSource);
-            console.log('Added spatial audio source for:', participant.identity);
+            console.log('✅ Added spatial audio source for:', participant.identity, 'at position:', position);
 
         } catch (error) {
             console.error('Failed to add audio source for', participant.identity, ':', error);
@@ -153,12 +188,18 @@ export class SpatialAudioController {
     removeAudioSource(participantIdentity: string): void {
         const source = this.sources.get(participantIdentity);
         if (source) {
-            // Disconnect audio nodes
+            // Disconnect WebAudio nodes
+            source.sourceNode.disconnect();
             source.gainNode.disconnect();
             source.pannerNode.disconnect();
 
+            // Clean up HTML audio element
+            source.audioElement.pause();
+            source.audioElement.srcObject = null;
+            source.audioElement.remove();
+
             this.sources.delete(participantIdentity);
-            console.log('Removed spatial audio source for:', participantIdentity);
+            console.log('✅ Removed spatial audio source for:', participantIdentity);
         }
     }
 
@@ -171,35 +212,57 @@ export class SpatialAudioController {
 
         this.listenerPosition = position;
 
+        // Update listener position in WebAudio
         if (this._audioContext.listener.positionX) {
-            // Modern browsers
-            this._audioContext.listener.positionX.setValueAtTime(position.x, this._audioContext.currentTime);
-            this._audioContext.listener.positionY.setValueAtTime(position.y, this._audioContext.currentTime);
+            // Modern browsers - keep listener at origin for relative positioning
+            this._audioContext.listener.positionX.setValueAtTime(0, this._audioContext.currentTime);
+            this._audioContext.listener.positionY.setValueAtTime(0, this._audioContext.currentTime);
+            this._audioContext.listener.positionZ.setValueAtTime(0, this._audioContext.currentTime);
         } else {
             // Fallback for older browsers
-            (this._audioContext.listener as AudioListener & { setPosition: (x: number, y: number, z: number) => void }).setPosition(position.x, position.y, 0);
+            (this._audioContext.listener as AudioListener & { setPosition: (x: number, y: number, z: number) => void }).setPosition(0, 0, 0);
         }
+
+        // Update all source positions relative to new listener position
+        this.sources.forEach((source) => {
+            const relativePosition = {
+                x: source.position.x - this.listenerPosition.x,
+                y: source.position.y - this.listenerPosition.y
+            };
+            this.updatePannerPosition(source.pannerNode, relativePosition);
+        });
+
+        console.log('Updated listener position to:', position, 'affecting', this.sources.size, 'spatial sources');
     }
 
     updateSourcePosition(participantIdentity: string, position: Vector2): void {
         const source = this.sources.get(participantIdentity);
         if (source) {
             source.position = position;
-            this.updateSourcePositionInternal(source.pannerNode, position);
+            // Update using relative position (following LiveKit documentation)
+            const relativePosition = {
+                x: position.x - this.listenerPosition.x,
+                y: position.y - this.listenerPosition.y
+            };
+            this.updatePannerPosition(source.pannerNode, relativePosition);
         }
     }
 
-    private updateSourcePositionInternal(pannerNode: PannerNode, position: Vector2): void {
+    private updatePannerPosition(pannerNode: PannerNode, relativePosition: Vector2): void {
         if (!this._audioContext) return;
 
+        // Use relative positioning as per LiveKit documentation
+        // Map 2D coordinates: x -> x, y -> z (since PannerNode uses y as vertical)
         if (pannerNode.positionX) {
-            // Modern browsers
-            pannerNode.positionX.setValueAtTime(position.x, this._audioContext.currentTime);
-            pannerNode.positionY.setValueAtTime(position.y, this._audioContext.currentTime);
-            pannerNode.positionZ.setValueAtTime(0, this._audioContext.currentTime);
+            // Modern browsers - use setTargetAtTime for smooth transitions
+            pannerNode.positionX.setTargetAtTime(relativePosition.x, this._audioContext.currentTime, 0.02);
+            pannerNode.positionY.setTargetAtTime(0, this._audioContext.currentTime, 0.02); // Keep at ground level
+            pannerNode.positionZ.setTargetAtTime(relativePosition.y, this._audioContext.currentTime, 0.02);
         } else {
             // Fallback for older browsers
-            (pannerNode as PannerNode & { setPosition: (x: number, y: number, z: number) => void }).setPosition(position.x, position.y, 0);
+            (pannerNode as PannerNode & { setPosition: (x: number, y: number, z: number) => void }).setPosition(
+                relativePosition.x, 0, relativePosition.y
+            );
         }
     }
 
@@ -218,8 +281,14 @@ export class SpatialAudioController {
 
     destroy(): void {
         this.sources.forEach((source) => {
+            // Clean up WebAudio nodes
+            source.sourceNode.disconnect();
             source.gainNode.disconnect();
             source.pannerNode.disconnect();
+
+            // Clean up HTML audio element
+            source.audioElement.pause();
+            source.audioElement.srcObject = null;
         });
         this.sources.clear();
 
