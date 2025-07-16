@@ -10,10 +10,7 @@ interface EnhancedMusicPlayerProps {
     room: Room | null;
     onPublishStart: (filename: string, track?: LocalAudioTrack, audioElement?: HTMLAudioElement) => void;
     onPublishStop: () => void;
-    onPublishPause?: () => void;
-    onPublishResume?: () => void;
-    isPublishing: boolean;
-    isPaused?: boolean;
+    onClose?: () => void; // Add onClose callback to close the dialog
     volume?: number;
     onVolumeChange?: (volume: number) => void;
 }
@@ -22,10 +19,7 @@ export function EnhancedMusicPlayer({
     room,
     onPublishStart,
     onPublishStop,
-    onPublishPause,
-    onPublishResume,
-    isPublishing,
-    isPaused = false,
+    onClose,
     volume = 1.0,
     onVolumeChange
 }: EnhancedMusicPlayerProps) {
@@ -160,6 +154,9 @@ export function EnhancedMusicPlayer({
 
             onPublishStart(file.name, localAudioTrack, audioElement);
 
+            // Close the dialog after successful music start
+            onClose?.();
+
         } catch (error) {
             console.error('Error publishing music:', error);
             alert('Failed to publish music. Please try again.');
@@ -246,6 +243,9 @@ export function EnhancedMusicPlayer({
 
             onPublishStart('Tab Audio Capture', localAudioTrack, undefined);
 
+            // Close the dialog after successful tab capture start
+            onClose?.();
+
         } catch (error) {
             console.error('Tab capture error:', error);
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -304,38 +304,6 @@ export function EnhancedMusicPlayer({
         }
     };
 
-    const handlePause = async () => {
-        if (!audioElementRef.current || !currentTrackRef.current) return;
-
-        try {
-            // Pause the audio element
-            audioElementRef.current.pause();
-
-            // Mute the track
-            currentTrackRef.current.mute();
-
-            onPublishPause?.();
-        } catch (error) {
-            console.error('Error pausing music:', error);
-        }
-    };
-
-    const handleResume = async () => {
-        if (!audioElementRef.current || !currentTrackRef.current) return;
-
-        try {
-            // Resume the audio element
-            await audioElementRef.current.play();
-
-            // Unmute the track
-            currentTrackRef.current.unmute();
-
-            onPublishResume?.();
-        } catch (error) {
-            console.error('Error resuming music:', error);
-        }
-    };
-
     const handleVolumeChange = (newVolume: number) => {
         setAudioGain(newVolume);
         if (audioElementRef.current) {
@@ -343,53 +311,13 @@ export function EnhancedMusicPlayer({
         }
     };
 
-    if (isPublishing) {
-        return (
-            <div className="p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-2">
-                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                        <span className="text-sm font-medium">Broadcasting Music</span>
-                    </div>
-                    <button
-                        onClick={handleStop}
-                        disabled={isLoading}
-                        className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50"
-                    >
-                        {isLoading ? 'Stopping...' : 'Stop'}
-                    </button>
-                </div>
-
-                <div className="flex items-center space-x-4 mb-4">
-                    <button
-                        onClick={isPaused ? handleResume : handlePause}
-                        disabled={isLoading}
-                        className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-                    >
-                        {isPaused ? 'Resume' : 'Pause'}
-                    </button>
-                </div>
-
-                <div className="space-y-2">
-                    <label className="block text-sm font-medium">Volume</label>
-                    <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.1"
-                        value={audioGain}
-                        onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                        className="w-full"
-                    />
-                    <span className="text-xs text-gray-500">{Math.round(audioGain * 100)}%</span>
-                </div>
-            </div>
-        );
-    }
-
+    // This component is now only for music selection, not controls
     return (
         <div className="p-4 bg-gray-50 rounded-lg">
             <div className="mb-4">
+                <h3 className="text-lg font-semibold mb-2">🎵 Select Music Source</h3>
+                <p className="text-sm text-gray-600 mb-4">Choose how you want to share music with others</p>
+
                 <div className="flex space-x-2 mb-4">
                     <button
                         onClick={() => setActiveSource('file')}
