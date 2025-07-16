@@ -216,75 +216,49 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                     console.log('Playing music track for joined party:', publication.trackName, 'from:', participant.identity);
 
                     // Remove any existing audio elements for this participant to prevent duplicates
-                    const existingElements = document.querySelectorAll(`audio[data-participant="${participant.identity}"]`);
+                    const existingElements = document.querySelectorAll(`audio[data-participant="${participant.identity}"][data-track-type="music"]`);
                     existingElements.forEach(element => {
                         const audioEl = element as HTMLAudioElement;
-                        audioEl.pause();
+                        track.detach(audioEl);
                         audioEl.remove();
                     });
 
-                    // Create audio element for direct playback
-                    const audioElement = document.createElement('audio');
-                    audioElement.autoplay = true;
-                    audioElement.setAttribute('playsinline', 'true'); // For mobile compatibility
-                    audioElement.volume = 1.0; // Full volume for music
+                    // Use LiveKit's recommended Track.attach() method for proper track management
+                    const audioElement = track.attach() as HTMLAudioElement;
                     audioElement.setAttribute('data-participant', participant.identity);
+                    audioElement.setAttribute('data-track-type', 'music');
                     audioElement.setAttribute('data-track', publication.trackName || 'music');
+                    audioElement.volume = 1.0; // Full volume for music
+                    audioElement.setAttribute('playsinline', 'true'); // For mobile compatibility
 
-                    // Set the media stream
-                    if (track.mediaStream) {
-                        audioElement.srcObject = track.mediaStream;
+                    // Append to document for playback
+                    document.body.appendChild(audioElement);
 
-                        // Handle autoplay restrictions
-                        const playPromise = audioElement.play();
-                        if (playPromise !== undefined) {
-                            playPromise
-                                .then(() => {
-                                    console.log('✅ Music track audio element playing for joined party:', participant.identity);
-                                })
-                                .catch((error) => {
-                                    console.warn('Autoplay prevented for music track. User interaction required:', error);
+                    // Handle autoplay restrictions more simply
+                    const playPromise = audioElement.play();
+                    if (playPromise !== undefined) {
+                        playPromise
+                            .then(() => {
+                                console.log('✅ Music track playing for joined party:', participant.identity);
+                            })
+                            .catch((error) => {
+                                console.warn('Autoplay prevented for music track. User interaction required:', error);
 
-                                    // Enhanced mobile detection and handling
-                                    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                                // Add single event listener to resume on next user interaction
+                                const resumeAudio = () => {
+                                    audioElement.play()
+                                        .then(() => {
+                                            console.log('✅ Music track resumed after user interaction');
+                                        })
+                                        .catch(resumeError => {
+                                            console.error('Failed to resume music after user interaction:', resumeError);
+                                        });
+                                };
 
-                                    if (isMobile) {
-                                        console.log('Mobile device detected, waiting for user interaction');
-                                    }
-
-                                    // Add multiple event handlers to resume playback
-                                    const resumeAudio = () => {
-                                        audioElement.play()
-                                            .then(() => {
-                                                console.log('✅ Music track resumed after user interaction');
-                                                // Remove all event listeners after successful play
-                                                document.removeEventListener('click', resumeAudio);
-                                                document.removeEventListener('touchstart', resumeAudio);
-                                                document.removeEventListener('keydown', resumeAudio);
-                                                window.removeEventListener('focus', resumeAudio);
-                                            })
-                                            .catch(resumeError => {
-                                                console.error('Failed to resume music after user interaction:', resumeError);
-                                            });
-                                    };
-
-                                    // Multiple interaction event listeners for better compatibility
-                                    document.addEventListener('click', resumeAudio, { once: true });
-                                    document.addEventListener('touchstart', resumeAudio, { once: true });
-                                    document.addEventListener('keydown', resumeAudio, { once: true });
-                                    window.addEventListener('focus', resumeAudio, { once: true });
-
-                                    // Cleanup after 30 seconds to prevent memory leaks
-                                    setTimeout(() => {
-                                        document.removeEventListener('click', resumeAudio);
-                                        document.removeEventListener('touchstart', resumeAudio);
-                                        document.removeEventListener('keydown', resumeAudio);
-                                        window.removeEventListener('focus', resumeAudio);
-                                    }, 30000);
-                                });
-                        }
-                    } else {
-                        console.error('No media stream available for music track:', participant.identity);
+                                // Use once option to automatically remove listener
+                                document.addEventListener('click', resumeAudio, { once: true });
+                                document.addEventListener('touchstart', resumeAudio, { once: true });
+                            });
                     }
                 } else {
                     // Voice tracks: Use spatial audio processing with proximity check
@@ -320,17 +294,18 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
             const isMusicTrack = publication.trackName?.startsWith('music-');
 
             if (isMusicTrack) {
-                // Clean up music track audio element
+                // Clean up music track audio elements using proper detach method
                 console.log('Cleaning up music track audio element for:', participant.identity);
-                const audioElements = document.querySelectorAll(`audio[data-participant="${participant.identity}"]`);
+                const audioElements = document.querySelectorAll(`audio[data-participant="${participant.identity}"][data-track-type="music"]`);
                 audioElements.forEach(element => {
                     const audioElement = element as HTMLAudioElement;
-                    audioElement.pause();
-                    // Revoke object URL if it exists to prevent memory leaks
-                    if (audioElement.src && audioElement.src.startsWith('blob:')) {
-                        URL.revokeObjectURL(audioElement.src);
+                    // Use track.detach() for proper cleanup if available
+                    if (track instanceof RemoteAudioTrack) {
+                        track.detach(audioElement);
+                    } else {
+                        audioElement.pause();
+                        audioElement.srcObject = null;
                     }
-                    audioElement.srcObject = null;
                     audioElement.remove();
                 });
             } else {
@@ -513,12 +488,18 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                                 // Wait a bit for subscription to take effect
                                 await new Promise(resolve => setTimeout(resolve, 1000));
 
-                                // Verify that we now have the actual track
-                                if (publication.track) {
-                                    subscribedToMusic = true;
-                                    console.log(`✅ Successfully subscribed to ${trackType} with actual track from:`, participantIdentity);
+                                // Verify that we now have the actual track with valid media stream
+                                if (publication.track && publication.track.mediaStreamTrack) {
+                                    // Additional validation: Check if the track is active and has valid state
+                                    const trackState = publication.track.mediaStreamTrack.readyState;
+                                    if (trackState === 'live') {
+                                        subscribedToMusic = true;
+                                        console.log(`✅ Successfully subscribed to ${trackType} with valid live track from:`, participantIdentity);
+                                    } else {
+                                        console.warn(`⚠️ Subscribed to ${trackType} but track is not live (state: ${trackState}) from:`, participantIdentity);
+                                    }
                                 } else {
-                                    console.warn(`⚠️ Subscribed to ${trackType} but no track available from:`, participantIdentity);
+                                    console.warn(`⚠️ Subscribed to ${trackType} but no valid media stream track available from:`, participantIdentity);
                                 }
                             } catch (subError) {
                                 console.error(`❌ Failed to subscribe to ${trackType}:`, subError);
@@ -534,13 +515,17 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                 }
 
                 if (subscribedToMusic) {
-                    // Double-check that we actually have a playable music track
+                    // Double-check that we actually have a playable music track with valid media stream
                     const musicTrackExists = Array.from(audioTracks.values()).some(pub =>
-                        pub.trackName?.startsWith('music-') && pub.track && pub.isSubscribed
+                        pub.trackName?.startsWith('music-') &&
+                        pub.track &&
+                        pub.isSubscribed &&
+                        pub.track.mediaStreamTrack &&
+                        pub.track.mediaStreamTrack.readyState === 'live'
                     );
 
                     if (!musicTrackExists) {
-                        console.warn('⚠️ Thought we subscribed to music but no playable track found for:', participantIdentity);
+                        console.warn('⚠️ Thought we subscribed to music but no valid live track found for:', participantIdentity);
                         return false;
                     }
 
