@@ -20,9 +20,9 @@ export default function About() {
                     <section>
                         <h2 className="text-2xl font-bold mb-4 text-gray-800">What is Vibes Hunters?</h2>
                         <p className="text-gray-700 leading-relaxed">
-                            Vibes Hunters is a revolutionary spatial audio social experience that transforms how you share and discover music.
-                            Using cutting-edge WebRTC technology and spatial audio, we create virtual &ldquo;music parties&rdquo; where you can
-                            broadcast your music to others in your area or join existing parties to experience music together in real-time.
+                            Vibes Hunters is a revolutionary social music experience that combines synchronized music broadcasting with spatial voice communication.
+                            Using cutting-edge WebRTC technology, we create virtual &ldquo;music parties&rdquo; where you can
+                            broadcast your music to others with perfect synchronization, while using spatial voice chat to find and communicate with other users naturally.
                         </p>
                     </section>
 
@@ -47,14 +47,14 @@ export default function About() {
                                 <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold text-sm">3</div>
                                 <div>
                                     <h3 className="font-semibold text-gray-800">Start or Join Parties</h3>
-                                    <p className="text-gray-700">Create your own music party by sharing audio from your device, or join others to experience their musical taste.</p>
+                                    <p className="text-gray-700">Create your own music party by sharing audio from your device at your preferred volume. Everyone who joins will hear it in perfect sync!</p>
                                 </div>
                             </div>
                             <div className="flex items-start space-x-3">
                                 <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold text-sm">4</div>
                                 <div>
-                                    <h3 className="font-semibold text-gray-800">Experience Spatial Audio</h3>
-                                    <p className="text-gray-700">Move around the virtual space and hear how the music changes based on your position relative to the source.</p>
+                                    <h3 className="font-semibold text-gray-800">Discover Through Voice</h3>
+                                    <p className="text-gray-700">Use spatial voice chat to find other users - their voices get louder as you get closer, making it easy and fun to discover new people and music!</p>
                                 </div>
                             </div>
                         </div>
@@ -67,10 +67,11 @@ export default function About() {
                                 Vibes Hunters is built on a foundation of modern web technologies:
                             </p>
                             <ul className="list-disc list-inside space-y-2 ml-4">
-                                <li><strong>LiveKit WebRTC:</strong> Enables real-time, low-latency audio streaming</li>
-                                <li><strong>Web Audio API:</strong> Powers our spatial audio positioning system</li>
+                                <li><strong>LiveKit WebRTC:</strong> Enables real-time, low-latency audio streaming for both music and voice</li>
+                                <li><strong>Web Audio API:</strong> Powers our spatial voice positioning system for natural communication</li>
                                 <li><strong>Google Maps Integration:</strong> Provides the visual mapping experience</li>
                                 <li><strong>Next.js 14:</strong> Delivers a fast, responsive web application</li>
+                                <li><strong>Synchronized Broadcasting:</strong> Ensures perfect music sync for all party participants</li>
                             </ul>
                         </div>
                     </section>
@@ -78,9 +79,9 @@ export default function About() {
                     <section>
                         <h2 className="text-2xl font-bold mb-4 text-gray-800">Our Mission</h2>
                         <p className="text-gray-700 leading-relaxed">
-                            We believe music is meant to be shared. Vibes Hunters breaks down the barriers between individual music listening
-                            and social experiences, creating new ways for people to discover music, connect with others who share their taste,
-                            and experience the joy of music together in innovative spatial environments.
+                            We believe music is meant to be shared and people should connect naturally. Vibes Hunters combines synchronized music broadcasting
+                            with spatial voice communication, creating new ways for people to discover music, find others who share their taste,
+                            and connect through both music and conversation in an innovative virtual environment.
                         </p>
                     </section>
 

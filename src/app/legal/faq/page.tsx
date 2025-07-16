@@ -11,11 +11,11 @@ interface FAQItem {
 const faqData: FAQItem[] = [
     {
         question: "What is Vibes Hunters?",
-        answer: "Vibes Hunters is a spatial audio social experience that lets you share music in real-time with other users. You can create \"music parties\" by broadcasting audio from your device or join others to experience their music together in a virtual space."
+        answer: "Vibes Hunters is a social music experience that combines synchronized music broadcasting with spatial voice communication. You can share music in real-time with perfect sync, while using spatial voice chat to find and communicate with other users - your voices get louder as you get closer on the map!"
     },
     {
         question: "How do I start a music party?",
-        answer: "After joining a room, click the \"🎵 Start Music Party\" button and select the audio source you want to share (like music playing from Spotify, YouTube, or any other app on your device). Other users will then be able to join your party and hear your music."
+        answer: "After joining a room, click the \"🎵 Start Music Party\" button and select the audio source you want to share (like music playing from Spotify, YouTube, or any other app on your device). The music will be broadcast at the volume level you set on your device, and all users who join your party will hear it in perfect sync at that same volume."
     },
     {
         question: "Can I play music from Spotify, Apple Music, or YouTube?",
@@ -23,7 +23,11 @@ const faqData: FAQItem[] = [
     },
     {
         question: "What is spatial audio?",
-        answer: "Spatial audio makes music sound like it's coming from specific locations in a virtual space. As you move your avatar around the map, the music will get louder or quieter and change direction based on your position relative to the music source, creating an immersive 3D audio experience."
+        answer: "Spatial audio in Vibes Hunters is used only for voice communication, not for music. When you talk to other users, your voice gets louder or quieter based on how close you are to each other on the map. This creates an immersive way to find and communicate with other users - the closer you get, the clearer you can hear each other!"
+    },
+    {
+        question: "How does voice communication work compared to music?",
+        answer: "Voice communication uses spatial audio - your voice gets louder as other users get closer to you on the map, helping everyone find each other naturally. Music broadcasting, however, plays at the same volume for everyone who joins the party, ensuring perfect synchronization so everyone hears the same thing at the same time."
     },
     {
         question: "Do I need to download any software?",
