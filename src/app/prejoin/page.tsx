@@ -104,13 +104,12 @@ export default function PreJoinPage() {
 
                 {/* New streaming capabilities highlight */}
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 max-w-md mx-auto">
-                    <h3 className="font-bold text-white mb-2">🎵 Stream Music From Anywhere</h3>
+                    <h3 className="font-bold text-white mb-2">🎵 Share Your Music</h3>
                     <div className="text-xs space-y-1">
-                        <p>• Upload files directly from your device</p>
-                        <p>• Search and play YouTube videos</p>
-                        <p>• Listen to 24/7 radio stations</p>
+                        <p>• Upload audio files from your device</p>
                         <p>• Capture audio from any tab (desktop)</p>
-                        <p>• Compatible with Spotify, Apple Music & more</p>
+                        <p>• Works with Spotify, YouTube, Apple Music</p>
+                        <p>• Real-time spatial audio experience</p>
                     </div>
                 </div>
 

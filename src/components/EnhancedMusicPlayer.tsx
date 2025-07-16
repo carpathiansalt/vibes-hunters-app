@@ -1,21 +1,10 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import Image from 'next/image';
-import { YouTubeService, YouTubeVideo } from '@/core/YouTubeService';
 import type { Room, LocalAudioTrack } from 'livekit-client';
 import { LocalAudioTrack as LiveKitLocalAudioTrack } from 'livekit-client';
 
-export type MusicSource = 'file' | 'youtube' | 'url' | 'tab-capture' | 'radio' | 'podcast';
-
-interface RadioStation {
-    id: string;
-    name: string;
-    url: string;
-    genre: string;
-    country: string;
-    logo?: string;
-}
+export type MusicSource = 'file' | 'tab-capture';
 
 interface EnhancedMusicPlayerProps {
     room: Room | null;
@@ -42,39 +31,19 @@ export function EnhancedMusicPlayer({
 }: EnhancedMusicPlayerProps) {
     const [activeSource, setActiveSource] = useState<MusicSource>('file');
     const [isLoading, setIsLoading] = useState(false);
-    const [youtubeQuery, setYoutubeQuery] = useState('');
-    const [youtubeResults, setYoutubeResults] = useState<YouTubeVideo[]>([]);
-    const [urlInput, setUrlInput] = useState('');
     const [audioGain, setAudioGain] = useState(volume);
-    const [isSearching, setIsSearching] = useState(false);
-    const [radioStations, setRadioStations] = useState<RadioStation[]>([]);
     const [isMobile, setIsMobile] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const audioElementRef = useRef<HTMLAudioElement>(null);
     const currentTrackRef = useRef<LocalAudioTrack | null>(null);
-    const youtubeService = YouTubeService.getInstance();
 
     useEffect(() => {
-        // Detect mobile device
         const checkMobile = () => {
             const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             setIsMobile(mobile);
         };
-
         checkMobile();
-
-        // Popular radio stations (works on both mobile and desktop)
-        const popularRadioStations: RadioStation[] = [
-            { id: '1', name: 'Lofi Hip Hop Radio', url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk', genre: 'Lofi', country: 'Global' },
-            { id: '2', name: 'Chillhop Radio', url: 'https://www.youtube.com/watch?v=5yx6BWlEVcY', genre: 'Chillhop', country: 'Global' },
-            { id: '3', name: 'Jazz Radio', url: 'https://www.youtube.com/watch?v=Dx5qFachd3A', genre: 'Jazz', country: 'Global' },
-            { id: '4', name: 'Deep House Radio', url: 'https://www.youtube.com/watch?v=lTRiuFIWV54', genre: 'Electronic', country: 'Global' },
-            { id: '5', name: 'Synthwave Radio', url: 'https://www.youtube.com/watch?v=4xDzrJKXOOY', genre: 'Synthwave', country: 'Global' },
-            { id: '6', name: 'Ambient Radio', url: 'https://www.youtube.com/watch?v=1fueZCTYkpA', genre: 'Ambient', country: 'Global' },
-        ];
-
-        setRadioStations(popularRadioStations);
     }, []);
 
     useEffect(() => {
@@ -83,7 +52,6 @@ export function EnhancedMusicPlayer({
         }
     }, [audioGain, onVolumeChange]);
 
-    // Cleanup on unmount
     useEffect(() => {
         return () => {
             if (currentTrackRef.current) {
@@ -98,62 +66,6 @@ export function EnhancedMusicPlayer({
             }
         };
     }, []);
-
-    const handleYouTubeSearch = async () => {
-        if (!youtubeQuery.trim()) return;
-
-        setIsSearching(true);
-        try {
-            const results = await youtubeService.searchVideos(youtubeQuery);
-            setYoutubeResults(results.videos);
-        } catch (error) {
-            console.error('YouTube search error:', error);
-            alert('Failed to search YouTube. Please try again.');
-        } finally {
-            setIsSearching(false);
-        }
-    };
-
-    const handleYouTubeSelect = async (video: YouTubeVideo) => {
-        setUrlInput(video.url);
-        // Automatically start playback when a YouTube video is selected
-        await startAudioPlayback(video.url, video.title);
-    };
-
-    const handleRadioSelect = async (station: RadioStation) => {
-        setIsLoading(true);
-        try {
-            if (isMobile) {
-                // For mobile, try to use the YouTube URL directly in tab capture instructions
-                alert(`To play ${station.name} on mobile:\n\n1. Open this link in another tab: ${station.url}\n2. Start playing the stream\n3. Return here and use "Tab Audio Capture" if available, or enjoy in the background!`);
-                return;
-            }
-
-            // For desktop, try direct streaming
-            await startAudioPlayback(station.url, station.name);
-        } catch (error) {
-            console.error('Radio streaming error:', error);
-            alert(`Could not stream ${station.name} directly. Try opening the link in another tab and use "Tab Audio Capture".`);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleStreamingServiceHelper = () => {
-        const services = [
-            { name: 'Spotify', url: 'https://open.spotify.com' },
-            { name: 'Apple Music', url: 'https://music.apple.com' },
-            { name: 'SoundCloud', url: 'https://soundcloud.com' },
-            { name: 'Bandcamp', url: 'https://bandcamp.com' },
-            { name: 'Mixcloud', url: 'https://mixcloud.com' },
-        ];
-
-        const instructions = isMobile
-            ? 'Mobile Instructions:\n\n1. Open your preferred streaming app\n2. Start playing music\n3. Return to this app to enjoy with others!'
-            : 'Desktop Instructions:\n\n1. Open your preferred streaming service in another tab\n2. Start playing music\n3. Use "Tab Audio Capture" to share the audio\n4. Select the tab and make sure "Share audio" is checked';
-
-        alert(`Stream from Popular Services:\n\n${services.map(s => `• ${s.name}: ${s.url}`).join('\n')}\n\n${instructions}`);
-    };
 
     const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -172,68 +84,22 @@ export function EnhancedMusicPlayer({
         await startAudioPlayback(file, file.name);
     };
 
-    const handleUrlPlay = async () => {
-        if (!urlInput.trim()) return;
-
-        setIsLoading(true);
-
-        try {
-            let videoTitle = 'Unknown';
-
-            // Check if it's a YouTube URL
-            if (youtubeService.isValidYouTubeUrl(urlInput)) {
-                const videoId = youtubeService.extractVideoId(urlInput);
-                if (videoId) {
-                    try {
-                        const videoDetails = await youtubeService.getVideoDetails(videoId);
-                        if (videoDetails) {
-                            videoTitle = videoDetails.title;
-                        }
-                    } catch (error) {
-                        console.warn('Could not fetch YouTube video details:', error);
-                        videoTitle = 'YouTube Video';
-                    }
-                }
-            } else {
-                // For other URLs, use the URL as title
-                videoTitle = urlInput;
-            }
-
-            await startAudioPlayback(urlInput, videoTitle);
-        } catch (error) {
-            console.error('Error in handleUrlPlay:', error);
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            alert(`Failed to play URL: ${errorMessage}`);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     const handleTabCapture = async () => {
         setIsLoading(true);
 
         try {
-            // Check if we're on mobile
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
             if (isMobile) {
-                alert('Tab audio capture is not supported on mobile devices. Please use file upload or URL playback instead.');
+                alert('Tab audio capture is not supported on mobile devices. Please use file upload instead.');
                 return;
             }
 
-            // Check if getDisplayMedia is supported
             if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
                 alert('Screen capture is not supported in this browser. Please try Chrome, Edge, or Firefox.');
                 return;
             }
 
-            // Request screen capture with audio
             const mediaStream = await navigator.mediaDevices.getDisplayMedia({
-                video: {
-                    width: 1,
-                    height: 1,
-                    frameRate: 1
-                },
+                video: { width: 1, height: 1, frameRate: 1 },
                 audio: {
                     echoCancellation: false,
                     noiseSuppression: false,
@@ -242,22 +108,16 @@ export function EnhancedMusicPlayer({
                 }
             });
 
-            // Extract only audio tracks
             const audioTracks = mediaStream.getAudioTracks();
             if (audioTracks.length === 0) {
                 alert('No audio found in the selected tab. Please make sure the tab is playing audio and try again.');
-                // Stop video tracks
                 mediaStream.getVideoTracks().forEach(track => track.stop());
                 return;
             }
 
-            // Create audio-only stream
             const audioStream = new MediaStream(audioTracks);
-
-            // Stop video tracks to save bandwidth
             mediaStream.getVideoTracks().forEach(track => track.stop());
 
-            // Add event listener for when the user stops sharing
             audioTracks[0].addEventListener('ended', () => {
                 console.log('Tab sharing ended by user');
                 handleStop();
@@ -266,7 +126,6 @@ export function EnhancedMusicPlayer({
             await startAudioFromStream(audioStream, 'Tab Audio Capture');
         } catch (error) {
             console.error('Tab capture error:', error);
-
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             const errorName = error instanceof Error ? error.name : '';
 
@@ -282,7 +141,7 @@ export function EnhancedMusicPlayer({
         }
     };
 
-    const startAudioPlayback = async (source: File | string, title: string) => {
+    const startAudioPlayback = async (source: File, title: string) => {
         if (!room) return;
 
         setIsLoading(true);
@@ -290,35 +149,15 @@ export function EnhancedMusicPlayer({
             const audioElement = audioElementRef.current || new Audio();
             audioElementRef.current = audioElement;
 
-            if (source instanceof File) {
-                const audioURL = URL.createObjectURL(source);
-                audioElement.src = audioURL;
-                console.log('Playing file:', title);
-            } else {
-                // Handle different URL types
-                const finalUrl = source;
-
-                if (youtubeService.isValidYouTubeUrl(source)) {
-                    // For YouTube URLs, we need to note that direct playback won't work
-                    // YouTube blocks direct audio streaming, so this will likely fail
-                    console.warn('YouTube direct playback attempted - this may not work due to YouTube restrictions');
-                    alert('YouTube direct playback is not supported. Please try the Tab Audio Capture method instead:\n\n1. Open YouTube in another tab\n2. Start playing the video\n3. Use "Tab Audio" option to capture the audio');
-                    return;
-                }
-
-                audioElement.src = finalUrl;
-                console.log('Playing URL:', finalUrl, 'Title:', title);
-            }
-
+            const audioURL = URL.createObjectURL(source);
+            audioElement.src = audioURL;
             audioElement.loop = true;
             audioElement.volume = audioGain;
-            audioElement.crossOrigin = 'anonymous'; // Add CORS support
 
-            // Wait for the audio to be ready
             await new Promise<void>((resolve, reject) => {
                 const timeout = setTimeout(() => {
                     reject(new Error('Audio loading timeout'));
-                }, 30000); // 30 second timeout
+                }, 30000);
 
                 audioElement.oncanplaythrough = () => {
                     clearTimeout(timeout);
@@ -327,19 +166,14 @@ export function EnhancedMusicPlayer({
                 audioElement.onerror = (e) => {
                     clearTimeout(timeout);
                     console.error('Audio loading error:', e);
-                    reject(new Error('Failed to load audio - check if URL is valid and supports CORS'));
+                    reject(new Error('Failed to load audio file'));
                 };
                 audioElement.load();
             });
 
-            // Start playing the audio first to ensure the stream has audio
             await audioElement.play();
-            console.log('Audio started playing');
+            await new Promise(resolve => setTimeout(resolve, 500));
 
-            // Wait a bit for audio to start flowing
-            await new Promise(resolve => setTimeout(resolve, 300));
-
-            // Capture audio stream
             const audioWithCapture = audioElement as HTMLAudioElement & {
                 captureStream?: () => MediaStream;
                 mozCaptureStream?: () => MediaStream;
@@ -354,17 +188,17 @@ export function EnhancedMusicPlayer({
                 throw new Error('Audio capture not supported in this browser');
             }
 
-            console.log('Audio stream captured, publishing...');
             await startAudioFromStream(mediaStream, title);
         } catch (error) {
             console.error('Audio playback error:', error);
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            alert(`Failed to start audio playback: ${errorMessage}\n\nTip: For streaming services like Spotify or YouTube, try using the "Tab Audio Capture" method instead.`);
+            alert(`Failed to start audio playback: ${errorMessage}`);
 
-            // Clean up on error
-            if (audioElementRef.current && audioElementRef.current.src.startsWith('blob:')) {
+            if (audioElementRef.current) {
                 audioElementRef.current.pause();
-                URL.revokeObjectURL(audioElementRef.current.src);
+                if (audioElementRef.current.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(audioElementRef.current.src);
+                }
                 audioElementRef.current.src = '';
             }
 
@@ -381,20 +215,16 @@ export function EnhancedMusicPlayer({
         if (!room) return;
 
         try {
-            // Get the audio track from the MediaStream
             const audioTracks = mediaStream.getAudioTracks();
             if (audioTracks.length === 0) {
                 throw new Error('No audio tracks found in the media stream');
             }
 
             const audioTrack = audioTracks[0];
-
-            // Verify the audio track is active
             if (audioTrack.readyState !== 'live') {
                 throw new Error('Audio track is not active');
             }
 
-            // Create LocalAudioTrack directly from the MediaStreamTrack
             const localAudioTrack = new LiveKitLocalAudioTrack(
                 audioTrack,
                 undefined,
@@ -404,10 +234,9 @@ export function EnhancedMusicPlayer({
 
             currentTrackRef.current = localAudioTrack;
 
-            // Publish the track with additional options to prevent silence detection
             await room.localParticipant.publishTrack(localAudioTrack, {
                 name: `music-${title}`,
-                dtx: false, // Disable discontinuous transmission
+                dtx: false,
             });
 
             onPublishStart(title, localAudioTrack, audioElementRef.current || undefined);
@@ -416,7 +245,6 @@ export function EnhancedMusicPlayer({
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             alert(`Failed to publish audio: ${errorMessage}`);
 
-            // Clean up on error
             if (currentTrackRef.current) {
                 currentTrackRef.current.stop();
                 currentTrackRef.current = null;
@@ -430,38 +258,28 @@ export function EnhancedMusicPlayer({
         setIsLoading(true);
 
         try {
-            // First stop the audio element to stop sound immediately
             if (audioElementRef.current) {
                 audioElementRef.current.pause();
                 audioElementRef.current.currentTime = 0;
             }
 
-            // Stop and unpublish the track
             if (currentTrackRef.current) {
-                // Stop the track before unpublishing
-                currentTrackRef.current.stop();
-
-                // Unpublish the track
                 await room.localParticipant.unpublishTrack(currentTrackRef.current);
+                currentTrackRef.current.stop();
             }
 
-            // Clean up audio element
             if (audioElementRef.current) {
-                // Revoke the object URL to free memory
                 if (audioElementRef.current.src && audioElementRef.current.src.startsWith('blob:')) {
                     URL.revokeObjectURL(audioElementRef.current.src);
                 }
                 audioElementRef.current.src = '';
             }
 
-            // Clean up references
             currentTrackRef.current = null;
-
             onPublishStop();
 
         } catch (error) {
             console.error('Error stopping music:', error);
-            // Still call onPublishStop even if there's an error to update UI state
             onPublishStop();
         } finally {
             setIsLoading(false);
@@ -473,11 +291,9 @@ export function EnhancedMusicPlayer({
             if (audioElementRef.current) {
                 audioElementRef.current.pause();
             }
-
             if (currentTrackRef.current) {
                 currentTrackRef.current.mute();
             }
-
             onPublishPause?.();
         } catch (error) {
             console.error('Error pausing music:', error);
@@ -489,11 +305,9 @@ export function EnhancedMusicPlayer({
             if (audioElementRef.current) {
                 await audioElementRef.current.play();
             }
-
             if (currentTrackRef.current) {
                 currentTrackRef.current.unmute();
             }
-
             onPublishResume?.();
         } catch (error) {
             console.error('Error resuming music:', error);
@@ -517,9 +331,10 @@ export function EnhancedMusicPlayer({
                     </div>
                     <button
                         onClick={handleStop}
-                        className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                        disabled={isLoading}
+                        className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50"
                     >
-                        Stop
+                        {isLoading ? 'Stopping...' : 'Stop'}
                     </button>
                 </div>
 
@@ -552,85 +367,27 @@ export function EnhancedMusicPlayer({
     return (
         <div className="p-4 bg-gray-50 rounded-lg">
             <div className="mb-4">
-                {/* Mobile-optimized tab grid */}
-                <div className={`grid gap-2 mb-4 ${isMobile ? 'grid-cols-2' : 'flex flex-wrap'}`}>
+                <div className="flex space-x-2 mb-4">
                     <button
                         onClick={() => setActiveSource('file')}
-                        className={`px-3 py-2 rounded text-sm transition-all ${activeSource === 'file' ? 'bg-purple-500 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+                        className={`px-3 py-2 rounded text-sm ${activeSource === 'file' ? 'bg-purple-500 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
                     >
-                        📁 File
-                    </button>
-                    <button
-                        onClick={() => setActiveSource('youtube')}
-                        className={`px-3 py-2 rounded text-sm transition-all ${activeSource === 'youtube' ? 'bg-purple-500 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
-                    >
-                        🎬 YouTube
-                    </button>
-                    <button
-                        onClick={() => setActiveSource('radio')}
-                        className={`px-3 py-2 rounded text-sm transition-all ${activeSource === 'radio' ? 'bg-purple-500 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
-                    >
-                        📻 Radio
-                    </button>
-                    <button
-                        onClick={() => setActiveSource('url')}
-                        className={`px-3 py-2 rounded text-sm transition-all ${activeSource === 'url' ? 'bg-purple-500 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
-                    >
-                        🔗 URL
+                        📁 Upload File
                     </button>
                     <button
                         onClick={() => setActiveSource('tab-capture')}
-                        className={`px-3 py-2 rounded text-sm transition-all ${activeSource === 'tab-capture' ? 'bg-purple-500 text-white' : isMobile ? 'bg-gray-100 text-gray-400' : 'bg-gray-200 hover:bg-gray-300'}`}
+                        className={`px-3 py-2 rounded text-sm ${activeSource === 'tab-capture' ? 'bg-purple-500 text-white' : isMobile ? 'bg-gray-100 text-gray-400' : 'bg-gray-200 hover:bg-gray-300'}`}
                         disabled={isMobile}
                     >
-                        🎵 Tab Audio {isMobile ? '(Desktop)' : ''}
-                    </button>
-                    <button
-                        onClick={handleStreamingServiceHelper}
-                        className="px-3 py-2 rounded text-sm bg-gradient-to-r from-green-500 to-blue-500 text-white hover:from-green-600 hover:to-blue-600 transition-all"
-                    >
-                        🎵 Streaming Apps
+                        🎵 Tab Audio {isMobile ? '(Desktop Only)' : ''}
                     </button>
                 </div>
 
-                {/* Mobile compatibility notice */}
                 {isMobile && (
                     <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <p className="text-sm text-blue-800">
-                            📱 <strong>Mobile Mode:</strong> File upload, YouTube search, and radio work great!
-                            For full streaming service support, try on desktop.
+                            📱 <strong>Mobile Mode:</strong> File upload works great! For streaming services, use desktop version.
                         </p>
-                    </div>
-                )}
-
-                {activeSource === 'radio' && (
-                    <div className="space-y-4">
-                        <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-                            <h4 className="font-medium text-green-900 mb-2">📻 Popular Radio Stations</h4>
-                            <p className="text-sm text-green-800">
-                                24/7 music streams from around the world
-                            </p>
-                        </div>
-
-                        <div className="grid gap-3">
-                            {radioStations.map((station) => (
-                                <button
-                                    key={station.id}
-                                    onClick={() => handleRadioSelect(station)}
-                                    className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-left"
-                                >
-                                    <div className="flex-1">
-                                        <h5 className="font-medium text-gray-900">{station.name}</h5>
-                                        <p className="text-sm text-gray-500">{station.genre} • {station.country}</p>
-                                    </div>
-                                    <div className="text-2xl">📻</div>
-                                </button>
-                            ))}
-                        </div>
-
-                        <div className="text-xs text-gray-500 text-center">
-                            <p>More radio stations coming soon!</p>
-                        </div>
                     </div>
                 )}
 
@@ -642,106 +399,20 @@ export function EnhancedMusicPlayer({
                             accept="audio/*"
                             onChange={handleFileSelect}
                             className="w-full p-2 border rounded"
+                            disabled={isLoading}
                         />
-                        <p className="text-xs text-gray-500 mt-1">Upload an audio file from your device</p>
-                    </div>
-                )}
-
-                {activeSource === 'youtube' && (
-                    <div className="space-y-4">
-                        <div className="flex space-x-2">
-                            <input
-                                type="text"
-                                value={youtubeQuery}
-                                onChange={(e) => setYoutubeQuery(e.target.value)}
-                                placeholder="Search YouTube..."
-                                className="flex-1 p-2 border rounded"
-                                onKeyPress={(e) => e.key === 'Enter' && handleYouTubeSearch()}
-                            />
-                            <button
-                                onClick={handleYouTubeSearch}
-                                disabled={isSearching}
-                                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50"
-                            >
-                                {isSearching ? 'Searching...' : 'Search'}
-                            </button>
-                        </div>
-
-                        <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-                            <p className="text-sm text-yellow-800">
-                                <strong>⚠️ Note:</strong> YouTube videos cannot be played directly due to copyright restrictions.
-                                Results are shown for reference - use <strong>&quot;Tab Audio Capture&quot;</strong> to play YouTube music.
-                            </p>
-                        </div>
-
-                        {youtubeResults.length > 0 && (
-                            <div className="max-h-48 overflow-y-auto space-y-2">
-                                {youtubeResults.map((video) => (
-                                    <div
-                                        key={video.id}
-                                        onClick={() => handleYouTubeSelect(video)}
-                                        className="flex items-center space-x-3 p-2 bg-white rounded cursor-pointer hover:bg-gray-100 border border-gray-200"
-                                    >
-                                        <div className="w-16 h-12 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
-                                            <Image
-                                                src={video.thumbnail}
-                                                alt={video.title}
-                                                width={64}
-                                                height={48}
-                                                className="w-full h-full object-cover rounded"
-                                                onError={(e) => {
-                                                    const target = e.target as HTMLImageElement;
-                                                    target.style.display = 'none';
-                                                    target.parentElement!.innerHTML = '🎬';
-                                                }}
-                                                unoptimized
-                                            />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium truncate">{video.title}</p>
-                                            <p className="text-xs text-gray-500">{video.channelTitle} • {video.duration}</p>
-                                        </div>
-                                        <div className="text-xs text-gray-400">
-                                            Click to try
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {activeSource === 'url' && (
-                    <div className="space-y-2">
-                        <input
-                            type="url"
-                            value={urlInput}
-                            onChange={(e) => setUrlInput(e.target.value)}
-                            placeholder="Enter direct audio URL (MP3, WAV, etc.)..."
-                            className="w-full p-2 border rounded"
-                        />
-                        <button
-                            onClick={handleUrlPlay}
-                            disabled={!urlInput.trim() || isLoading}
-                            className="w-full px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
-                        >
-                            {isLoading ? 'Loading...' : 'Play from URL'}
-                        </button>
-                        <div className="text-xs text-gray-600 space-y-1">
-                            <p><strong>✅ Supported:</strong> Direct audio files (MP3, WAV, OGG)</p>
-                            <p><strong>❌ Not supported:</strong> YouTube, Spotify, Apple Music URLs</p>
-                            <p><strong>💡 Tip:</strong> For streaming services, use &quot;Tab Audio Capture&quot; instead</p>
-                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                            {isLoading ? 'Loading...' : 'Upload an audio file from your device (MP3, WAV, etc.)'}
+                        </p>
                     </div>
                 )}
 
                 {activeSource === 'tab-capture' && (
                     <div className="space-y-3">
                         <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                            <h4 className="font-medium text-blue-900 mb-2">📱 Device Compatibility</h4>
+                            <h4 className="font-medium text-blue-900 mb-2">🎵 Capture Tab Audio</h4>
                             <p className="text-sm text-blue-800">
-                                • <strong>Desktop:</strong> Chrome, Edge, Firefox ✅<br />
-                                • <strong>Mobile:</strong> Not supported ❌
+                                Share audio from any tab playing music (Spotify, YouTube, Apple Music, etc.)
                             </p>
                         </div>
 
@@ -750,19 +421,15 @@ export function EnhancedMusicPlayer({
                             disabled={isLoading}
                             className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
                         >
-                            {isLoading ? 'Starting...' : 'Share Tab Audio'}
+                            {isLoading ? 'Starting...' : 'Start Tab Audio Capture'}
                         </button>
 
                         <div className="text-xs text-gray-600 space-y-1">
                             <p><strong>How to use:</strong></p>
-                            <p>1. Click &quot;Share Tab Audio&quot;</p>
+                            <p>1. Click &quot;Start Tab Audio Capture&quot;</p>
                             <p>2. Select the tab playing music</p>
                             <p>3. Make sure &quot;Share audio&quot; is checked</p>
                             <p>4. Click &quot;Share&quot;</p>
-                        </div>
-
-                        <div className="text-xs text-gray-500">
-                            <p><strong>Compatible with:</strong> Spotify Web, Apple Music, YouTube, SoundCloud, and any web audio</p>
                         </div>
                     </div>
                 )}
