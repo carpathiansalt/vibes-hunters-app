@@ -11,12 +11,8 @@ interface BoomboxMusicDialogProps {
     onClose: () => void;
     onJoin: () => void;
     room?: Room | null;
-    isPublishing?: boolean;
-    isPaused?: boolean;
     onPublishStart?: (filename: string, track?: LocalAudioTrack, audioElement?: HTMLAudioElement) => void;
     onPublishStop?: () => void;
-    onPublishPause?: () => void;
-    onPublishResume?: () => void;
     isSelf?: boolean; // New prop to distinguish self vs others
     isListening?: boolean; // Whether the user is currently listening to this participant's music
 }
@@ -26,12 +22,8 @@ export function BoomboxMusicDialog({
     onClose,
     onJoin,
     room,
-    isPublishing = false,
-    isPaused = false,
     onPublishStart,
     onPublishStop,
-    onPublishPause,
-    onPublishResume,
     isSelf = false,
     isListening = false
 }: BoomboxMusicDialogProps) {
@@ -83,15 +75,11 @@ export function BoomboxMusicDialog({
                                 <div className="p-4 bg-gray-50 rounded-xl">
                                     <EnhancedMusicPlayer
                                         room={room}
-                                        isPublishing={isPublishing}
-                                        isPaused={isPaused}
                                         onPublishStart={(filename, track, audioElement) => {
                                             onPublishStart?.(filename, track, audioElement);
-                                            // Don't auto-close dialog - let user close it manually
                                         }}
                                         onPublishStop={onPublishStop || (() => { })}
-                                        onPublishPause={onPublishPause || (() => { })}
-                                        onPublishResume={onPublishResume || (() => { })}
+                                        onClose={onClose}
                                     />
                                 </div>
                             )}

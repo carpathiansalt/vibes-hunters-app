@@ -1173,8 +1173,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         setSelectedMusicUser(null);
                     }}
                     room={livekitRoom}
-                    isPublishing={isPublishingMusic}
-                    isPaused={isMusicPaused}
                     onPublishStart={(filename, track, audioElement) => {
                         if (track && audioElement) {
                             currentMusicTrackRef.current = { track, audioElement };
@@ -1188,14 +1186,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         setIsMusicPaused(false);
                         currentMusicTrackRef.current = null;
                         console.log('Stopped publishing music');
-                    }}
-                    onPublishPause={() => {
-                        setIsMusicPaused(true);
-                        console.log('Paused publishing music');
-                    }}
-                    onPublishResume={() => {
-                        setIsMusicPaused(false);
-                        console.log('Resumed publishing music');
                     }}
                     isListening={listeningToMusic === selectedMusicUser.userId}
                     isSelf={selectedMusicUser.userId === 'self'}
