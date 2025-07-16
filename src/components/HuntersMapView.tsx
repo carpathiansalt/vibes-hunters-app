@@ -832,7 +832,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 </div>
             )}
 
-            <div className="absolute top-4 right-4 z-10 bg-black/80 text-white rounded-lg backdrop-blur-sm">
+            <div className="absolute top-4 left-4 z-10 bg-black/80 text-white rounded-lg backdrop-blur-sm">
                 <button
                     onClick={() => setRoomInfoExpanded(!roomInfoExpanded)}
                     className="w-full p-3 text-left hover:bg-white/10 transition-colors rounded-lg"
@@ -917,34 +917,25 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                     🔧 Debug & Refresh
                                 </button>
                             )}
+                            <button
+                                onClick={() => setShowVoiceRange(!showVoiceRange)}
+                                className="mt-2 bg-blue-600 hover:bg-blue-500 px-2 py-1 rounded text-xs font-medium transition-colors w-full flex items-center justify-between"
+                            >
+                                <span>🎤 Voice Range</span>
+                                <span className="text-xs">{showVoiceRange ? '✓' : '○'}</span>
+                            </button>
+                            {showVoiceRange && (
+                                <div className="mt-2 p-2 bg-black/40 rounded">
+                                    <EarshotRadius
+                                        show={showVoiceRange}
+                                        radius={50}
+                                        onToggle={() => setShowVoiceRange(!showVoiceRange)}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
-            </div>
-
-            {/* Voice Chat Range Controls */}
-            <div className="absolute top-4 left-4 z-10">
-                <div className="bg-black/80 text-white rounded-lg backdrop-blur-sm">
-                    <button
-                        onClick={() => setShowVoiceRange(!showVoiceRange)}
-                        className="w-full p-3 text-left hover:bg-white/10 transition-colors rounded-lg"
-                    >
-                        <div className="text-sm font-bold text-blue-400 flex items-center justify-between">
-                            <span>🎤 Voice Chat</span>
-                            <span className="text-xs">{showVoiceRange ? '▼' : '▶'}</span>
-                        </div>
-                    </button>
-
-                    {showVoiceRange && (
-                        <div className="p-3 pt-0">
-                            <EarshotRadius
-                                show={showVoiceRange}
-                                radius={50}
-                                onToggle={() => setShowVoiceRange(!showVoiceRange)}
-                            />
-                        </div>
-                    )}
-                </div>
             </div>
 
             {!error && (
