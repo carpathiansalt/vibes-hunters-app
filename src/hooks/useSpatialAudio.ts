@@ -18,6 +18,8 @@ function calculateDistance(pos1: Vector2, pos2: Vector2): number {
 export function useSpatialAudio(room: Room | null, participants: Map<string, UserPosition>, myPosition: Vector2) {
     const controllerRef = useRef<SpatialAudioController | null>(null);
     const isInitializedRef = useRef(false);
+    const subscriptionRetryTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
+    const reconnectionAttempts = useRef<Map<string, number>>(new Map());
 
     // Initialize spatial audio controller
     useEffect(() => {
@@ -78,6 +80,60 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                 controllerRef.current = null;
                 isInitializedRef.current = false;
             }
+        };
+    }, [room]);
+
+    // Cleanup on room disconnection or component unmount
+    useEffect(() => {
+        const cleanup = () => {
+            // Clear all retry timeouts
+            subscriptionRetryTimeouts.current.forEach(timeout => clearTimeout(timeout));
+            subscriptionRetryTimeouts.current.clear();
+
+            // Clear reconnection attempts
+            reconnectionAttempts.current.clear();
+
+            // Clean up all audio elements
+            const audioElements = document.querySelectorAll('audio[data-participant]');
+            audioElements.forEach(element => {
+                const audioEl = element as HTMLAudioElement;
+                audioEl.pause();
+                audioEl.remove();
+            });
+
+            console.log('Spatial audio cleanup completed');
+        };
+
+        if (!room) {
+            cleanup();
+            return;
+        }
+
+        // Handle room disconnection
+        const handleDisconnected = () => {
+            console.log('Room disconnected, cleaning up spatial audio');
+            cleanup();
+        };
+
+        const handleRoomReconnecting = () => {
+            console.log('Room reconnecting...');
+        };
+
+        const handleRoomReconnected = () => {
+            console.log('Room reconnected, reinitializing spatial audio');
+            // Reset initialization state to allow re-initialization
+            isInitializedRef.current = false;
+        };
+
+        room.on('disconnected', handleDisconnected);
+        room.on('reconnecting', handleRoomReconnecting);
+        room.on('reconnected', handleRoomReconnected);
+
+        return () => {
+            room.off('disconnected', handleDisconnected);
+            room.off('reconnecting', handleRoomReconnecting);
+            room.off('reconnected', handleRoomReconnected);
+            cleanup();
         };
     }, [room]);
 
@@ -148,8 +204,16 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                 const isMusicTrack = publication.trackName?.startsWith('music-');
 
                 if (isMusicTrack) {
-                    // Music tracks: Play directly through HTML audio for full volume global playback
+                    // Music tracks: Play directly through HTML audio for full volume global playbook
                     console.log('Setting up direct audio playback for music track:', publication.trackName);
+
+                    // Remove any existing audio elements for this participant to prevent duplicates
+                    const existingElements = document.querySelectorAll(`audio[data-participant="${participant.identity}"]`);
+                    existingElements.forEach(element => {
+                        const audioEl = element as HTMLAudioElement;
+                        audioEl.pause();
+                        audioEl.remove();
+                    });
 
                     // Create audio element for direct playback
                     const audioElement = document.createElement('audio');
@@ -173,25 +237,42 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                                 .catch((error) => {
                                     console.warn('Autoplay prevented for music track. User interaction required:', error);
 
-                                    // Show user notification for mobile compatibility
+                                    // Enhanced mobile detection and handling
                                     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
                                     if (isMobile) {
-                                        // For mobile, show a more prominent notification
-                                        alert('🎵 Tap anywhere to start hearing the music!');
+                                        console.log('Mobile device detected, waiting for user interaction');
                                     }
 
-                                    // Add click handler to resume playback
+                                    // Add multiple event handlers to resume playback
                                     const resumeAudio = () => {
                                         audioElement.play()
                                             .then(() => {
                                                 console.log('✅ Music track resumed after user interaction');
+                                                // Remove all event listeners after successful play
                                                 document.removeEventListener('click', resumeAudio);
                                                 document.removeEventListener('touchstart', resumeAudio);
+                                                document.removeEventListener('keydown', resumeAudio);
+                                                window.removeEventListener('focus', resumeAudio);
                                             })
-                                            .catch(console.error);
+                                            .catch(resumeError => {
+                                                console.error('Failed to resume music after user interaction:', resumeError);
+                                            });
                                     };
+
+                                    // Multiple interaction event listeners for better compatibility
                                     document.addEventListener('click', resumeAudio, { once: true });
                                     document.addEventListener('touchstart', resumeAudio, { once: true });
+                                    document.addEventListener('keydown', resumeAudio, { once: true });
+                                    window.addEventListener('focus', resumeAudio, { once: true });
+
+                                    // Cleanup after 30 seconds to prevent memory leaks
+                                    setTimeout(() => {
+                                        document.removeEventListener('click', resumeAudio);
+                                        document.removeEventListener('touchstart', resumeAudio);
+                                        document.removeEventListener('keydown', resumeAudio);
+                                        window.removeEventListener('focus', resumeAudio);
+                                    }, 30000);
                                 });
                         }
                     } else {
@@ -223,7 +304,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         }
     }, [participants, myPosition]);
 
-    // Handle removed remote audio tracks
+    // Handle removed remote audio tracks with enhanced cleanup
     const handleTrackUnsubscribed = useCallback((track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
         if (!controllerRef.current || track.kind !== 'audio') return;
 
@@ -237,6 +318,11 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                 audioElements.forEach(element => {
                     const audioElement = element as HTMLAudioElement;
                     audioElement.pause();
+                    // Revoke object URL if it exists to prevent memory leaks
+                    if (audioElement.src && audioElement.src.startsWith('blob:')) {
+                        URL.revokeObjectURL(audioElement.src);
+                    }
+                    audioElement.srcObject = null;
                     audioElement.remove();
                 });
             } else {
@@ -244,6 +330,18 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                 console.log('Removing spatial audio source for:', participant.identity);
                 controllerRef.current.removeAudioSource(participant.identity);
             }
+
+            // Clear any retry attempts for this participant
+            const participantRetryKeys = Array.from(reconnectionAttempts.current.keys())
+                .filter(key => key.startsWith(participant.identity));
+            participantRetryKeys.forEach(key => {
+                reconnectionAttempts.current.delete(key);
+                const timeout = subscriptionRetryTimeouts.current.get(key);
+                if (timeout) {
+                    clearTimeout(timeout);
+                    subscriptionRetryTimeouts.current.delete(key);
+                }
+            });
         } catch (error) {
             console.error('Error handling track unsubscription:', error);
         }
@@ -284,7 +382,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
             }
         }
         return true;
-    }, []); const subscribeToParticipant = useCallback(async (participantIdentity: string) => {
+    }, []); const subscribeToParticipant = useCallback(async (participantIdentity: string, maxRetries: number = 3) => {
         if (!room) {
             console.error('Room not available for subscription');
             return false;
@@ -298,54 +396,76 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         // Ensure audio context is enabled (especially important for mobile)
         await enableAudioContext();
 
-        try {
-            const participant = room.remoteParticipants.get(participantIdentity);
-            if (!participant) {
-                console.error('Participant not found:', participantIdentity, 'Available participants:', Array.from(room.remoteParticipants.keys()));
-                return false;
-            }
+        let attempts = 0;
 
-            console.log('Attempting to subscribe to participant:', participantIdentity);
+        const attemptSubscription = async (): Promise<boolean> => {
+            attempts++;
 
-            // Subscribe to audio tracks (both music and voice)
-            const audioTracks = participant.audioTrackPublications;
-            let subscribed = false;
+            try {
+                const participant = room.remoteParticipants.get(participantIdentity);
+                if (!participant) {
+                    console.error('Participant not found:', participantIdentity, 'Available participants:', Array.from(room.remoteParticipants.keys()));
+                    return false;
+                }
 
-            console.log('Available audio tracks:', audioTracks.size);
+                console.log(`Attempting to subscribe to participant: ${participantIdentity} (attempt ${attempts})`);
 
-            for (const publication of audioTracks.values()) {
-                // Priority for music tracks - users joining music parties want to hear the music
-                const isMusicTrack = publication.trackName?.startsWith('music-');
-                const trackType = isMusicTrack ? 'music track' : 'voice track';
+                // Subscribe to audio tracks (both music and voice)
+                const audioTracks = participant.audioTrackPublications;
+                let subscribed = false;
 
-                console.log(`Processing ${trackType}:`, publication.trackName, 'isSubscribed:', publication.isSubscribed, 'hasTrack:', !!publication.track);
+                console.log('Available audio tracks:', audioTracks.size);
 
-                if (!publication.isSubscribed && publication.track === undefined) {
-                    try {
-                        console.log(`Subscribing to ${trackType}:`, publication.trackName);
-                        await publication.setSubscribed(true);
+                for (const publication of audioTracks.values()) {
+                    // Priority for music tracks - users joining music parties want to hear the music
+                    const isMusicTrack = publication.trackName?.startsWith('music-');
+                    const trackType = isMusicTrack ? 'music track' : 'voice track';
+
+                    console.log(`Processing ${trackType}:`, publication.trackName, 'isSubscribed:', publication.isSubscribed, 'hasTrack:', !!publication.track);
+
+                    if (!publication.isSubscribed && publication.track === undefined) {
+                        try {
+                            console.log(`Subscribing to ${trackType}:`, publication.trackName);
+                            await publication.setSubscribed(true);
+
+                            // Wait a bit for subscription to take effect
+                            await new Promise(resolve => setTimeout(resolve, 500));
+
+                            subscribed = true;
+                            console.log(`✅ Successfully subscribed to ${trackType} from:`, participantIdentity);
+                        } catch (subError) {
+                            console.error(`❌ Failed to subscribe to ${trackType}:`, subError);
+                            throw subError; // Re-throw to trigger retry
+                        }
+                    } else if (publication.track) {
+                        console.log(`✅ Already subscribed to ${trackType} from:`, participantIdentity);
                         subscribed = true;
-                        console.log(`✅ Successfully subscribed to ${trackType} from:`, participantIdentity);
-                    } catch (subError) {
-                        console.error(`❌ Failed to subscribe to ${trackType}:`, subError);
                     }
-                } else if (publication.track) {
-                    console.log(`✅ Already subscribed to ${trackType} from:`, participantIdentity);
-                    subscribed = true;
+                }
+
+                if (subscribed) {
+                    console.log('🎵 Successfully joined music party from:', participantIdentity);
+                    return true;
+                } else {
+                    console.warn('⚠️ No tracks were subscribed for participant:', participantIdentity);
+                    return false;
+                }
+            } catch (error) {
+                console.error(`❌ Failed to subscribe to participant (attempt ${attempts}):`, error);
+
+                if (attempts < maxRetries) {
+                    const delay = Math.pow(2, attempts) * 1000; // Exponential backoff
+                    console.log(`Retrying subscription to ${participantIdentity} in ${delay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    return attemptSubscription();
+                } else {
+                    console.error(`❌ Failed to subscribe after ${maxRetries} attempts`);
+                    return false;
                 }
             }
+        };
 
-            if (subscribed) {
-                console.log('🎵 Successfully joined music party from:', participantIdentity);
-            } else {
-                console.warn('⚠️ No tracks were subscribed for participant:', participantIdentity);
-            }
-
-            return subscribed;
-        } catch (error) {
-            console.error('❌ Failed to subscribe to participant:', error);
-            return false;
-        }
+        return attemptSubscription();
     }, [room, enableAudioContext]);
 
     // Debug function to list active audio elements
@@ -357,14 +477,92 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
             console.log('- Participant:', audioEl.getAttribute('data-participant'),
                 'Track:', audioEl.getAttribute('data-track'),
                 'Playing:', !audioEl.paused,
-                'Volume:', audioEl.volume);
+                'Volume:', audioEl.volume,
+                'ReadyState:', audioEl.readyState);
         });
         return audioElements;
     }, []);
 
-    // Function to manage proximity-based voice subscriptions
+    // Connection health monitoring
+    const checkConnectionHealth = useCallback(() => {
+        if (!room) return null;
+
+        const health = {
+            roomState: room.state,
+            participantCount: room.remoteParticipants.size,
+            localTracks: room.localParticipant.audioTrackPublications.size,
+            subscribedTracks: 0,
+            spatialSources: 0, // TODO: Add public method to get source count
+            audioElements: document.querySelectorAll('audio[data-participant]').length
+        };
+
+        // Count subscribed tracks
+        room.remoteParticipants.forEach(participant => {
+            participant.audioTrackPublications.forEach(publication => {
+                if (publication.isSubscribed && publication.track) {
+                    health.subscribedTracks++;
+                }
+            });
+        });
+
+        console.log('🏥 Connection Health:', health);
+        return health;
+    }, [room]);
+
+    // Retry subscription with exponential backoff
+    const retrySubscription = useCallback(async (
+        participantId: string,
+        publication: RemoteTrackPublication,
+        subscribe: boolean
+    ) => {
+        const maxRetries = 3;
+        const retryKey = `${participantId}-${publication.trackSid}`;
+
+        let attempts = reconnectionAttempts.current.get(retryKey) || 0;
+
+        const attemptSubscription = async (): Promise<boolean> => {
+            try {
+                console.log(`${subscribe ? 'Subscribing to' : 'Unsubscribing from'} voice track for ${participantId} (attempt ${attempts + 1})`);
+                await publication.setSubscribed(subscribe);
+
+                // Reset attempts on success
+                reconnectionAttempts.current.delete(retryKey);
+                return true;
+            } catch (error) {
+                console.error(`Failed to ${subscribe ? 'subscribe' : 'unsubscribe'} voice track for ${participantId}:`, error);
+                attempts++;
+                reconnectionAttempts.current.set(retryKey, attempts);
+
+                if (attempts < maxRetries) {
+                    // Exponential backoff: 1s, 2s, 4s
+                    const delay = Math.pow(2, attempts) * 1000;
+                    console.log(`Retrying ${subscribe ? 'subscription' : 'unsubscription'} for ${participantId} in ${delay}ms`);
+
+                    const timeout = setTimeout(() => {
+                        attemptSubscription();
+                        subscriptionRetryTimeouts.current.delete(retryKey);
+                    }, delay);
+
+                    subscriptionRetryTimeouts.current.set(retryKey, timeout);
+                    return false;
+                } else {
+                    console.error(`Failed to ${subscribe ? 'subscribe' : 'unsubscribe'} after ${maxRetries} attempts for ${participantId}`);
+                    reconnectionAttempts.current.delete(retryKey);
+                    return false;
+                }
+            }
+        };
+
+        return attemptSubscription();
+    }, []);
+
+    // Function to manage proximity-based voice subscriptions with retry logic
     const manageVoiceProximity = useCallback(async () => {
         if (!room || !myPosition) return;
+
+        // Clear any previous retry timeouts
+        subscriptionRetryTimeouts.current.forEach(timeout => clearTimeout(timeout));
+        subscriptionRetryTimeouts.current.clear();
 
         // Iterate through all remote participants
         for (const [participantId, participant] of room.remoteParticipants) {
@@ -381,25 +579,15 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                 if (isVoiceTrack) {
                     if (isWithinVoiceRange && !publication.isSubscribed) {
                         // Subscribe to voice track if within range and not subscribed
-                        try {
-                            console.log(`🎤 Subscribing to voice track for ${participantId} (distance: ${distance.toFixed(1)}m)`);
-                            await publication.setSubscribed(true);
-                        } catch (error) {
-                            console.error(`Failed to subscribe to voice track for ${participantId}:`, error);
-                        }
+                        await retrySubscription(participantId, publication, true);
                     } else if (!isWithinVoiceRange && publication.isSubscribed) {
                         // Unsubscribe from voice track if out of range
-                        try {
-                            console.log(`🔇 Unsubscribing from voice track for ${participantId} (distance: ${distance.toFixed(1)}m)`);
-                            await publication.setSubscribed(false);
-                        } catch (error) {
-                            console.error(`Failed to unsubscribe from voice track for ${participantId}:`, error);
-                        }
+                        await retrySubscription(participantId, publication, false);
                     }
                 }
             }
         }
-    }, [room, myPosition, participants]);
+    }, [room, myPosition, participants, retrySubscription]);
 
     // Trigger proximity management when positions change
     useEffect(() => {
@@ -414,6 +602,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         enableAudioContext,
         getActiveAudioElements,
         manageVoiceProximity,
+        checkConnectionHealth,
         controller: controllerRef.current
     };
 }

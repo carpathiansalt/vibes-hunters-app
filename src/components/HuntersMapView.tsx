@@ -28,8 +28,10 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
     const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
     const [spatialAudioEnabled, setSpatialAudioEnabled] = useState(true);
-    const [masterVolume, setMasterVolume] = useState(0.8);
+    
     const [showVoiceRange, setShowVoiceRange] = useState(false);
+    const [spatialAudioExpanded, setSpatialAudioExpanded] = useState(false);
+    const [roomInfoExpanded, setRoomInfoExpanded] = useState(false);
 
     const mapContainerRef = useRef<HTMLDivElement>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,7 +47,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     // Initialize spatial audio
     const {
         isInitialized: spatialAudioInitialized,
-        setMasterVolume: setSpatialMasterVolume,
         subscribeToParticipant,
         enableAudioContext
     } = useSpatialAudio(livekitRoom, participants, myPosition);
@@ -759,137 +760,154 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 </div>
             )}
 
-            <div className="absolute top-4 right-4 z-10 bg-black/80 text-white p-3 rounded-lg backdrop-blur-sm max-w-xs">
-                <div className="text-sm space-y-1">
-                    <div className="font-bold text-green-400">🎵 Vibes Hunters</div>
-                    <div>Room: <span className="text-blue-300">{room}</span></div>
-                    <div>Hunter: <span className="text-yellow-300">{username}</span></div>
-                    <div>Status: {
-                        isConnecting ? '🟡 Connecting...' :
-                            isConnected ? '🟢 Connected' :
-                                '🔴 Disconnected'
-                    }</div>
-                    <div>GPS: {
-                        locationPermission === 'granted' ?
-                            isTrackingLocation ? '🟢 Tracking' : '🟡 Available' :
-                            locationPermission === 'denied' ? '🔴 Denied' :
-                                '🟡 Requesting...'
-                    }</div>
-                    {gpsAccuracy && (
-                        <div>Accuracy: <span className="text-cyan-300">{Math.round(gpsAccuracy)}m</span></div>
-                    )}
-                    <div className="border-t border-gray-600 pt-1 mt-2">
-                        <div>Hunters Online: <span className="text-purple-300">{participants.size}</span></div>
-                        {participants.size > 0 && (
-                            <div className="mt-1 text-xs">
-                                <div className="text-gray-300">Active Hunters:</div>
-                                {Array.from(participants.values()).slice(0, 5).map((participant) => (
-                                    <div
-                                        key={participant.userId}
-                                        className="text-gray-400 truncate flex items-center justify-between hover:text-white hover:bg-gray-700 px-1 rounded cursor-pointer transition-colors"
-                                        onClick={() => {
-                                            centerMapOnUser(participant.position);
-                                            console.log('Centered map on participant:', participant.username);
-                                        }}
-                                        title={`Click to center map on ${participant.username}`}
-                                    >
-                                        <span>
-                                            {participant.isPublishingMusic ? '🎵' : '👤'} {participant.username}
-                                        </span>
-                                        <div className="text-xs text-gray-500">
-                                            {Math.round(Math.sqrt(
-                                                Math.pow((participant.position.x - myPosition.x) * 111000, 2) +
-                                                Math.pow((participant.position.y - myPosition.y) * 111000, 2)
-                                            ))}m
-                                        </div>
+            <div className="absolute top-4 right-4 z-10 bg-black/80 text-white rounded-lg backdrop-blur-sm">
+                <button
+                    onClick={() => setRoomInfoExpanded(!roomInfoExpanded)}
+                    className="w-full p-3 text-left hover:bg-white/10 transition-colors rounded-lg"
+                >
+                    <div className="text-sm font-bold text-green-400 flex items-center justify-between">
+                        <span>🎵 Vibes Hunters</span>
+                        <span className="text-xs">{roomInfoExpanded ? '▼' : '▶'}</span>
+                    </div>
+                </button>
+
+                {roomInfoExpanded && (
+                    <div className="p-3 pt-0 space-y-1 max-w-xs">
+                        <div className="text-sm">
+                            <div>Room: <span className="text-blue-300">{room}</span></div>
+                            <div>Hunter: <span className="text-yellow-300">{username}</span></div>
+                            <div>Status: {
+                                isConnecting ? '🟡 Connecting...' :
+                                    isConnected ? '🟢 Connected' :
+                                        '🔴 Disconnected'
+                            }</div>
+                            <div>GPS: {
+                                locationPermission === 'granted' ?
+                                    isTrackingLocation ? '🟢 Tracking' : '🟡 Available' :
+                                    locationPermission === 'denied' ? '🔴 Denied' :
+                                        '🟡 Requesting...'
+                            }</div>
+                            {gpsAccuracy && (
+                                <div>Accuracy: <span className="text-cyan-300">{Math.round(gpsAccuracy)}m</span></div>
+                            )}
+                            <div className="border-t border-gray-600 pt-1 mt-2">
+                                <div>Hunters Online: <span className="text-purple-300">{participants.size}</span></div>
+                                {participants.size > 0 && (
+                                    <div className="mt-1 text-xs">
+                                        <div className="text-gray-300">Active Hunters:</div>
+                                        {Array.from(participants.values()).slice(0, 5).map((participant) => (
+                                            <div
+                                                key={participant.userId}
+                                                className="text-gray-400 truncate flex items-center justify-between hover:text-white hover:bg-gray-700 px-1 rounded cursor-pointer transition-colors"
+                                                onClick={() => {
+                                                    centerMapOnUser(participant.position);
+                                                    console.log('Centered map on participant:', participant.username);
+                                                }}
+                                                title={`Click to center map on ${participant.username}`}
+                                            >
+                                                <span>
+                                                    {participant.isPublishingMusic ? '🎵' : '👤'} {participant.username}
+                                                </span>
+                                                <div className="text-xs text-gray-500">
+                                                    {Math.round(Math.sqrt(
+                                                        Math.pow((participant.position.x - myPosition.x) * 111000, 2) +
+                                                        Math.pow((participant.position.y - myPosition.y) * 111000, 2)
+                                                    ))}m
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {participants.size > 5 && (
+                                            <div className="text-gray-500">...and {participants.size - 5} more</div>
+                                        )}
                                     </div>
-                                ))}
-                                {participants.size > 5 && (
-                                    <div className="text-gray-500">...and {participants.size - 5} more</div>
                                 )}
                             </div>
-                        )}
+                            <button
+                                onClick={() => centerMapOnUser()}
+                                className="mt-2 bg-blue-600 hover:bg-blue-500 px-2 py-1 rounded text-xs font-medium transition-colors w-full"
+                            >
+                                📍 Center on Me
+                            </button>
+                            <button
+                                onClick={() => showAllParticipants()}
+                                className="mt-1 bg-green-600 hover:bg-green-500 px-2 py-1 rounded text-xs font-medium transition-colors w-full"
+                            >
+                                🌍 Show All Hunters
+                            </button>
+                            {process.env.NODE_ENV === 'development' && (
+                                <button
+                                    onClick={() => {
+                                        logParticipantState();
+                                        refreshAllMarkers();
+                                    }}
+                                    className="mt-1 bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-xs font-medium transition-colors w-full"
+                                >
+                                    🔧 Debug & Refresh
+                                </button>
+                            )}
+                        </div>
                     </div>
-                    <button
-                        onClick={() => centerMapOnUser()}
-                        className="mt-2 bg-blue-600 hover:bg-blue-500 px-2 py-1 rounded text-xs font-medium transition-colors w-full"
-                    >
-                        📍 Center on Me
-                    </button>
-                    <button
-                        onClick={() => showAllParticipants()}
-                        className="mt-1 bg-green-600 hover:bg-green-500 px-2 py-1 rounded text-xs font-medium transition-colors w-full"
-                    >
-                        🌍 Show All Hunters
-                    </button>
-                    {process.env.NODE_ENV === 'development' && (
-                        <button
-                            onClick={() => {
-                                logParticipantState();
-                                refreshAllMarkers();
-                            }}
-                            className="mt-1 bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-xs font-medium transition-colors w-full"
-                        >
-                            🔧 Debug & Refresh
-                        </button>
-                    )}
-                </div>
+                )}
             </div>
 
             {/* Spatial Audio Controls */}
-            <div className="absolute top-4 left-4 z-10 bg-black/80 text-white p-3 rounded-lg backdrop-blur-sm max-w-xs">
-                <div className="text-sm space-y-2">
-                    <div className="font-bold text-purple-400 flex items-center space-x-2">
-                        <span>🎧 Spatial Audio</span>
-                        {spatialAudioInitialized && <span className="text-green-400 text-xs">●</span>}
+            <div className="absolute top-4 left-4 z-10 bg-black/80 text-white rounded-lg backdrop-blur-sm">
+                <button
+                    onClick={() => setSpatialAudioExpanded(!spatialAudioExpanded)}
+                    className="w-full p-3 text-left hover:bg-white/10 transition-colors rounded-lg"
+                >
+                    <div className="text-sm font-bold text-purple-400 flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                            <span>🎧 Spatial Audio</span>
+                            {spatialAudioInitialized && <span className="text-green-400 text-xs">●</span>}
+                        </div>
+                        <span className="text-xs">{spatialAudioExpanded ? '▼' : '▶'}</span>
                     </div>
+                </button>
 
-                    <div className="flex items-center space-x-2">
-                        <button
-                            onClick={() => setSpatialAudioEnabled(!spatialAudioEnabled)}
-                            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${spatialAudioEnabled
-                                ? 'bg-purple-600 hover:bg-purple-500'
-                                : 'bg-gray-600 hover:bg-gray-500'
-                                }`}
-                        >
-                            {spatialAudioEnabled ? '🔊 ON' : '🔇 OFF'}
-                        </button>
-                        <span className="text-xs text-gray-300">
-                            {spatialAudioEnabled ? 'Spatial' : 'Stereo'}
-                        </span>
+                {spatialAudioExpanded && (
+                    <div className="p-3 pt-0 space-y-2 max-w-xs">
+                        <div className="flex items-center space-x-2">
+                            <button
+                                onClick={() => setSpatialAudioEnabled(!spatialAudioEnabled)}
+                                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${spatialAudioEnabled
+                                    ? 'bg-purple-600 hover:bg-purple-500'
+                                    : 'bg-gray-600 hover:bg-gray-500'
+                                    }`}
+                            >
+                                {spatialAudioEnabled ? '🔊 ON' : '🔇 OFF'}
+                            </button>
+                            <span className="text-xs text-gray-300">
+                                {spatialAudioEnabled ? 'Spatial' : 'Stereo'}
+                            </span>
+                        </div>
                     </div>
+                )}
+            </div>
 
-                    {spatialAudioEnabled && (
-                        <div className="space-y-1">
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs text-gray-300">Master Volume</span>
-                                <span className="text-xs text-gray-400">{Math.round(masterVolume * 100)}%</span>
-                            </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max="1"
-                                step="0.1"
-                                value={masterVolume}
-                                onChange={(e) => {
-                                    const newVolume = parseFloat(e.target.value);
-                                    setMasterVolume(newVolume);
-                                    setSpatialMasterVolume(newVolume);
-                                }}
-                                className="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+            {/* Voice Chat Range Controls */}
+            <div className="absolute top-20 left-4 z-10">
+                <div className="bg-black/80 text-white rounded-lg backdrop-blur-sm">
+                    <button
+                        onClick={() => setShowVoiceRange(!showVoiceRange)}
+                        className="w-full p-3 text-left hover:bg-white/10 transition-colors rounded-lg"
+                    >
+                        <div className="text-sm font-bold text-blue-400 flex items-center justify-between">
+                            <span>🎤 Voice Chat</span>
+                            <span className="text-xs">{showVoiceRange ? '▼' : '▶'}</span>
+                        </div>
+                    </button>
+
+                    {showVoiceRange && (
+                        <div className="p-3 pt-0">
+                            <EarshotRadius
+                                show={showVoiceRange}
+                                radius={50}
+                                onToggle={() => setShowVoiceRange(!showVoiceRange)}
                             />
                         </div>
                     )}
                 </div>
-            </div>
-
-            {/* Voice Chat Range Controls */}
-            <div className="absolute top-56 left-4 z-10">
-                <EarshotRadius
-                    show={showVoiceRange}
-                    radius={50}
-                    onToggle={() => setShowVoiceRange(!showVoiceRange)}
-                />
             </div>
 
             {!error && (
@@ -940,13 +958,27 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             {/* Bottom Center Music Button */}
             <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10">
                 <button
-                    onClick={() => setSelectedMusicUser({
-                        userId: 'self',
-                        username,
-                        avatar,
-                        position: myPosition,
-                        isPublishingMusic
-                    })}
+                    onClick={() => {
+                        if (isPublishingMusic) {
+                            // If currently publishing, show dialog to stop
+                            setSelectedMusicUser({
+                                userId: 'self',
+                                username,
+                                avatar,
+                                position: myPosition,
+                                isPublishingMusic
+                            });
+                        } else {
+                            // If not publishing, show dialog to start
+                            setSelectedMusicUser({
+                                userId: 'self',
+                                username,
+                                avatar,
+                                position: myPosition,
+                                isPublishingMusic
+                            });
+                        }
+                    }}
                     className={`w-16 h-16 rounded-full shadow-2xl transition-all duration-300 ${isPublishingMusic
                         ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700'
                         : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'

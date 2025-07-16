@@ -74,7 +74,11 @@ export function BoomboxMusicDialog({
                                     <MusicPublisher
                                         room={room}
                                         isPublishing={isPublishing}
-                                        onPublishStart={onPublishStart || (() => { })}
+                                        onPublishStart={(filename) => {
+                                            onPublishStart?.(filename);
+                                            // Auto-close dialog after starting to publish
+                                            setTimeout(() => onClose(), 500);
+                                        }}
                                         onPublishStop={onPublishStop || (() => { })}
                                     />
                                 </div>
