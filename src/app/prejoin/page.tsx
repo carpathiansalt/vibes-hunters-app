@@ -102,6 +102,18 @@ export default function PreJoinPage() {
             <div className="text-center text-purple-200 text-sm mt-8 pb-8 space-y-4">
                 <p>Connect with others who share your musical taste</p>
 
+                {/* New streaming capabilities highlight */}
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 max-w-md mx-auto">
+                    <h3 className="font-bold text-white mb-2">🎵 Stream Music From Anywhere</h3>
+                    <div className="text-xs space-y-1">
+                        <p>• Upload files directly from your device</p>
+                        <p>• Search and play YouTube videos</p>
+                        <p>• Listen to 24/7 radio stations</p>
+                        <p>• Capture audio from any tab (desktop)</p>
+                        <p>• Compatible with Spotify, Apple Music & more</p>
+                    </div>
+                </div>
+
                 {/* Legal Links */}
                 <div className="flex flex-wrap justify-center gap-4 text-xs">
                     <Link href="/legal/about" className="hover:text-white transition-colors underline">
