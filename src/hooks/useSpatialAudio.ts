@@ -20,6 +20,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
     const isInitializedRef = useRef(false);
     const subscriptionRetryTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
     const reconnectionAttempts = useRef<Map<string, number>>(new Map());
+    const joinedMusicTracks = useRef<Set<string>>(new Set()); // Track which music parties the user has explicitly joined
 
     // Initialize spatial audio controller
     useEffect(() => {
@@ -204,8 +205,15 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                 const isMusicTrack = publication.trackName?.startsWith('music-');
 
                 if (isMusicTrack) {
-                    // Music tracks: Play directly through HTML audio for full volume global playbook
-                    console.log('Setting up direct audio playback for music track:', publication.trackName);
+                    // Music tracks: Only play if user has explicitly joined this participant's music party
+                    const hasJoinedParty = joinedMusicTracks.current.has(participant.identity);
+
+                    if (!hasJoinedParty) {
+                        console.log('Music track available but user has not joined party for:', participant.identity);
+                        return; // Don't auto-play music tracks
+                    }
+
+                    console.log('Playing music track for joined party:', publication.trackName, 'from:', participant.identity);
 
                     // Remove any existing audio elements for this participant to prevent duplicates
                     const existingElements = document.querySelectorAll(`audio[data-participant="${participant.identity}"]`);
@@ -232,7 +240,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                         if (playPromise !== undefined) {
                             playPromise
                                 .then(() => {
-                                    console.log('✅ Music track audio element playing for:', participant.identity);
+                                    console.log('✅ Music track audio element playing for joined party:', participant.identity);
                                 })
                                 .catch((error) => {
                                     console.warn('Autoplay prevented for music track. User interaction required:', error);
@@ -444,7 +452,10 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                 }
 
                 if (subscribed) {
+                    // Add participant to joined music tracks set
+                    joinedMusicTracks.current.add(participantIdentity);
                     console.log('🎵 Successfully joined music party from:', participantIdentity);
+                    console.log('👥 Currently joined music parties:', Array.from(joinedMusicTracks.current));
                     return true;
                 } else {
                     console.warn('⚠️ No tracks were subscribed for participant:', participantIdentity);
@@ -556,6 +567,61 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         return attemptSubscription();
     }, []);
 
+    // Function to leave a music party (disconnect from a participant's music tracks)
+    const leaveMusicParty = useCallback(async (participantIdentity: string) => {
+        if (!room) {
+            console.error('Room not available for leaving music party');
+            return false;
+        }
+
+        try {
+            const participant = room.remoteParticipants.get(participantIdentity);
+            if (!participant) {
+                console.error('Participant not found:', participantIdentity);
+                return false;
+            }
+
+            console.log('Leaving music party from:', participantIdentity);
+
+            // Remove from joined music tracks set
+            joinedMusicTracks.current.delete(participantIdentity);
+
+            // Stop and remove any audio elements for this participant
+            const audioElements = document.querySelectorAll(`audio[data-participant="${participantIdentity}"]`);
+            audioElements.forEach(element => {
+                const audioEl = element as HTMLAudioElement;
+                audioEl.pause();
+                audioEl.remove();
+            });
+
+            // Unsubscribe from music tracks only (keep voice tracks if in proximity)
+            for (const publication of participant.audioTrackPublications.values()) {
+                const isMusicTrack = publication.trackName?.startsWith('music-');
+                if (isMusicTrack && publication.isSubscribed) {
+                    try {
+                        await publication.setSubscribed(false);
+                        console.log('Unsubscribed from music track:', publication.trackName);
+                    } catch (error) {
+                        console.error('Failed to unsubscribe from music track:', error);
+                    }
+                }
+            }
+
+            console.log('✅ Successfully left music party from:', participantIdentity);
+            console.log('👥 Currently joined music parties:', Array.from(joinedMusicTracks.current));
+            return true;
+
+        } catch (error) {
+            console.error('Error leaving music party:', error);
+            return false;
+        }
+    }, [room]);
+
+    // Check if user has joined a specific participant's music party
+    const hasJoinedMusicParty = useCallback((participantIdentity: string) => {
+        return joinedMusicTracks.current.has(participantIdentity);
+    }, []);
+
     // Function to manage proximity-based voice subscriptions with retry logic
     const manageVoiceProximity = useCallback(async () => {
         if (!room || !myPosition) return;
@@ -603,6 +669,8 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         getActiveAudioElements,
         manageVoiceProximity,
         checkConnectionHealth,
-        controller: controllerRef.current
+        controller: controllerRef.current,
+        leaveMusicParty,
+        hasJoinedMusicParty
     };
 }

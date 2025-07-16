@@ -18,6 +18,7 @@ interface BoomboxMusicDialogProps {
     onPublishPause?: () => void;
     onPublishResume?: () => void;
     isSelf?: boolean; // New prop to distinguish self vs others
+    isListening?: boolean; // Whether the user is currently listening to this participant's music
 }
 
 export function BoomboxMusicDialog({
@@ -31,7 +32,8 @@ export function BoomboxMusicDialog({
     onPublishStop,
     onPublishPause,
     onPublishResume,
-    isSelf = false
+    isSelf = false,
+    isListening = false
 }: BoomboxMusicDialogProps) {
     const [isJoining, setIsJoining] = useState(false);
 
@@ -54,10 +56,12 @@ export function BoomboxMusicDialog({
                 <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 text-white text-center">
                     <div className="text-4xl mb-2">{isSelf ? '🎵' : '🎧'}</div>
                     <h2 className="text-2xl font-bold">
-                        {isSelf ? 'Start Music Party!' : 'Join Music Party!'}
+                        {isSelf ? 'Start Music Party!' : isListening ? 'Leave Music Party?' : 'Join Music Party!'}
                     </h2>
                     <p className="text-purple-100 text-sm mt-1">
-                        {isSelf ? 'Share your music with nearby hunters' : 'Someone is sharing their vibe'}
+                        {isSelf ? 'Share your music with nearby hunters' :
+                            isListening ? 'You are currently listening to this party' :
+                                'Someone is sharing their vibe'}
                     </p>
                 </div>
 
@@ -122,16 +126,31 @@ export function BoomboxMusicDialog({
                             </div>
 
                             {/* Info */}
-                            <div className="bg-blue-50 rounded-xl p-4 mb-6 border border-blue-200">
+                            <div className={`${isListening ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'} rounded-xl p-4 mb-6 border`}>
                                 <div className="flex items-start space-x-3">
-                                    <div className="text-blue-500 text-lg">ℹ️</div>
-                                    <div className="text-blue-700 text-sm">
-                                        <p className="font-medium mb-1">Join this music party to:</p>
-                                        <ul className="text-xs space-y-1">
-                                            <li>• Listen to the same music together</li>
-                                            <li>• Experience spatial audio as you move</li>
-                                            <li>• Chat while the music plays</li>
-                                        </ul>
+                                    <div className={`${isListening ? 'text-green-500' : 'text-blue-500'} text-lg`}>
+                                        {isListening ? '🎵' : 'ℹ️'}
+                                    </div>
+                                    <div className={`${isListening ? 'text-green-700' : 'text-blue-700'} text-sm`}>
+                                        {isListening ? (
+                                            <div>
+                                                <p className="font-medium mb-1">You are listening to this music party!</p>
+                                                <ul className="text-xs space-y-1">
+                                                    <li>• Click &quot;Leave Party&quot; to stop listening</li>
+                                                    <li>• You can join other parties while listening</li>
+                                                    <li>• Move around to experience spatial audio</li>
+                                                </ul>
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <p className="font-medium mb-1">Join this music party to:</p>
+                                                <ul className="text-xs space-y-1">
+                                                    <li>• Listen to the same music together</li>
+                                                    <li>• Experience spatial audio as you move</li>
+                                                    <li>• Chat while the music plays</li>
+                                                </ul>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -154,7 +173,10 @@ export function BoomboxMusicDialog({
                                 <button
                                     onClick={handleJoin}
                                     disabled={isJoining}
-                                    className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className={`flex-1 ${isListening
+                                        ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800'
+                                        : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
+                                        } text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
                                 >
                                     {isJoining ? (
                                         <span className="flex items-center justify-center">
@@ -162,10 +184,10 @@ export function BoomboxMusicDialog({
                                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                             </svg>
-                                            Joining...
+                                            {isListening ? 'Leaving...' : 'Joining...'}
                                         </span>
                                     ) : (
-                                        '🎧 Join Party'
+                                        isListening ? '🚪 Leave Party' : '🎧 Join Party'
                                     )}
                                 </button>
                                 <button
