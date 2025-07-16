@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { YouTubeService, YouTubeVideo } from '@/core/YouTubeService';
 import type { Room, LocalAudioTrack } from 'livekit-client';
-import { createLocalAudioTrack } from 'livekit-client';
+import { createLocalAudioTrack, Track } from 'livekit-client';
 
 export type MusicSource = 'file' | 'youtube' | 'url' | 'tab-capture';
 
@@ -192,11 +192,17 @@ export function EnhancedMusicPlayer({
 
         try {
             // Create LiveKit audio track from MediaStream
-            const audioTrack = await createLocalAudioTrack(mediaStream.getAudioTracks()[0]);
-            audioTrack.setName?.('music');
+            const audioTrack = await createLocalAudioTrack({
+                deviceId: {
+                    exact: mediaStream.getAudioTracks()[0].id
+                }
+            });
 
-            // Publish the track
-            await room.localParticipant.publishTrack(audioTrack);
+            // Publish the track with metadata
+            await room.localParticipant.publishTrack(audioTrack, {
+                name: 'music',
+                source: Track.Source.Microphone
+            });
             currentTrackRef.current = audioTrack;
 
             onPublishStart(title, audioTrack, audioElementRef.current || undefined);
