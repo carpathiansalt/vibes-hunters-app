@@ -6,7 +6,7 @@ import { LocalAudioTrack as LocalAudioTrackClass } from 'livekit-client';
 
 interface MusicPublisherProps {
     room: Room | null;
-    onPublishStart: (filename: string) => void;
+    onPublishStart: (filename: string, track?: LocalAudioTrack, audioElement?: HTMLAudioElement) => void;
     onPublishStop: () => void;
     isPublishing: boolean;
     volume?: number;
@@ -120,7 +120,7 @@ export function MusicPublisher({
                 dtx: false, // Disable discontinuous transmission
             });
 
-            onPublishStart(file.name);
+            onPublishStart(file.name, localAudioTrack, audioElement);
 
         } catch (error) {
             console.error('Error publishing music:', error);

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import type { UserPosition } from '@/types';
-import type { Room } from 'livekit-client';
+import type { Room, LocalAudioTrack } from 'livekit-client';
 import { MusicPublisher } from './MusicPublisher';
 
 interface BoomboxMusicDialogProps {
@@ -12,7 +12,7 @@ interface BoomboxMusicDialogProps {
     onJoin: () => void;
     room?: Room | null;
     isPublishing?: boolean;
-    onPublishStart?: (filename: string) => void;
+    onPublishStart?: (filename: string, track?: LocalAudioTrack, audioElement?: HTMLAudioElement) => void;
     onPublishStop?: () => void;
     isSelf?: boolean; // New prop to distinguish self vs others
 }
@@ -74,8 +74,8 @@ export function BoomboxMusicDialog({
                                     <MusicPublisher
                                         room={room}
                                         isPublishing={isPublishing}
-                                        onPublishStart={(filename) => {
-                                            onPublishStart?.(filename);
+                                        onPublishStart={(filename, track, audioElement) => {
+                                            onPublishStart?.(filename, track, audioElement);
                                             // Auto-close dialog after starting to publish
                                             setTimeout(() => onClose(), 500);
                                         }}

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Room, RoomEvent, RemoteParticipant } from 'livekit-client';
+import { Room, RoomEvent, RemoteParticipant, LocalAudioTrack } from 'livekit-client';
 import { Loader } from '@googlemaps/js-api-loader';
 import { Vector2, ParticipantMetadata, UserPosition } from '@/types';
 import { BoomboxMusicDialog } from './BoomboxMusicDialog';
@@ -28,7 +28,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
     const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
     const [spatialAudioEnabled, setSpatialAudioEnabled] = useState(true);
-    
+
     const [showVoiceRange, setShowVoiceRange] = useState(false);
     const [spatialAudioExpanded, setSpatialAudioExpanded] = useState(false);
     const [roomInfoExpanded, setRoomInfoExpanded] = useState(false);
@@ -43,6 +43,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const watchIdRef = useRef<number | null>(null);
     const lastMetadataUpdateRef = useRef<number>(0);
     const metadataUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const currentMusicTrackRef = useRef<{ track: LocalAudioTrack; audioElement: HTMLAudioElement } | null>(null);
 
     // Initialize spatial audio
     const {
@@ -709,6 +710,10 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             if (metadataUpdateTimeoutRef.current) {
                 clearTimeout(metadataUpdateTimeoutRef.current);
             }
+            // Stop music if publishing
+            if (currentMusicTrackRef.current) {
+                stopMusicPublishing();
+            }
             if (livekitRoom) {
                 console.log('Disconnecting from LiveKit room');
                 livekitRoom.disconnect();
@@ -750,6 +755,54 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             refreshAllMarkers();
         }
     }, [participants.size, refreshAllMarkers]); // Trigger when participant count changes
+
+    // Stop music publishing
+    const stopMusicPublishing = useCallback(async () => {
+        if (!livekitRoom || !currentMusicTrackRef.current) {
+            console.log('No room or track to stop');
+            return;
+        }
+
+        try {
+            console.log('Stopping music publishing...');
+
+            // First stop the audio element to stop sound immediately
+            if (currentMusicTrackRef.current.audioElement) {
+                currentMusicTrackRef.current.audioElement.pause();
+                currentMusicTrackRef.current.audioElement.currentTime = 0;
+            }
+
+            // Stop the track before unpublishing
+            if (currentMusicTrackRef.current.track) {
+                currentMusicTrackRef.current.track.stop();
+
+                // Unpublish the track
+                await livekitRoom.localParticipant.unpublishTrack(currentMusicTrackRef.current.track);
+            }
+
+            // Clean up audio element
+            if (currentMusicTrackRef.current.audioElement) {
+                // Revoke the object URL to free memory
+                if (currentMusicTrackRef.current.audioElement.src && currentMusicTrackRef.current.audioElement.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(currentMusicTrackRef.current.audioElement.src);
+                }
+                currentMusicTrackRef.current.audioElement.src = '';
+            }
+
+            // Clean up references
+            currentMusicTrackRef.current = null;
+
+            // Update state
+            setIsPublishingMusic(false);
+            console.log('Music publishing stopped successfully');
+
+        } catch (error) {
+            console.error('Error stopping music:', error);
+            // Still update state even if there's an error to prevent UI stuck state
+            setIsPublishingMusic(false);
+            currentMusicTrackRef.current = null;
+        }
+    }, [livekitRoom]);
 
     return (
         <div className="relative w-full h-screen bg-gray-900">
@@ -958,16 +1011,10 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             {/* Bottom Center Music Button */}
             <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10">
                 <button
-                    onClick={() => {
+                    onClick={async () => {
                         if (isPublishingMusic) {
-                            // If currently publishing, show dialog to stop
-                            setSelectedMusicUser({
-                                userId: 'self',
-                                username,
-                                avatar,
-                                position: myPosition,
-                                isPublishingMusic
-                            });
+                            // If currently publishing, directly stop the music
+                            await stopMusicPublishing();
                         } else {
                             // If not publishing, show dialog to start
                             setSelectedMusicUser({
@@ -1020,12 +1067,16 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                     }}
                     room={livekitRoom}
                     isPublishing={isPublishingMusic}
-                    onPublishStart={(filename) => {
+                    onPublishStart={(filename, track, audioElement) => {
+                        if (track && audioElement) {
+                            currentMusicTrackRef.current = { track, audioElement };
+                        }
                         setIsPublishingMusic(true);
                         console.log(`Started publishing: ${filename}`);
                     }}
                     onPublishStop={() => {
                         setIsPublishingMusic(false);
+                        currentMusicTrackRef.current = null;
                         console.log('Stopped publishing music');
                     }}
                     isSelf={selectedMusicUser.userId === 'self'}
