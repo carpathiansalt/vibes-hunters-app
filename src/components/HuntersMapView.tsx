@@ -29,11 +29,10 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [isTrackingLocation, setIsTrackingLocation] = useState(false);
     const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
     const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
-    const [spatialAudioEnabled, setSpatialAudioEnabled] = useState(true);
 
     const [showVoiceRange, setShowVoiceRange] = useState(false);
-    const [spatialAudioExpanded, setSpatialAudioExpanded] = useState(false);
     const [roomInfoExpanded, setRoomInfoExpanded] = useState(false);
+    const [instructionsExpanded, setInstructionsExpanded] = useState(false);
 
     const mapContainerRef = useRef<HTMLDivElement>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -49,7 +48,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
     // Initialize spatial audio
     const {
-        isInitialized: spatialAudioInitialized,
         subscribeToParticipant,
         leaveMusicParty,
         enableAudioContext,
@@ -924,43 +922,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 )}
             </div>
 
-            {/* Spatial Audio Controls */}
-            <div className="absolute top-4 left-4 z-10 bg-black/80 text-white rounded-lg backdrop-blur-sm">
-                <button
-                    onClick={() => setSpatialAudioExpanded(!spatialAudioExpanded)}
-                    className="w-full p-3 text-left hover:bg-white/10 transition-colors rounded-lg"
-                >
-                    <div className="text-sm font-bold text-purple-400 flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                            <span>🎧 Spatial Audio</span>
-                            {spatialAudioInitialized && <span className="text-green-400 text-xs">●</span>}
-                        </div>
-                        <span className="text-xs">{spatialAudioExpanded ? '▼' : '▶'}</span>
-                    </div>
-                </button>
-
-                {spatialAudioExpanded && (
-                    <div className="p-3 pt-0 space-y-2 max-w-xs">
-                        <div className="flex items-center space-x-2">
-                            <button
-                                onClick={() => setSpatialAudioEnabled(!spatialAudioEnabled)}
-                                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${spatialAudioEnabled
-                                    ? 'bg-purple-600 hover:bg-purple-500'
-                                    : 'bg-gray-600 hover:bg-gray-500'
-                                    }`}
-                            >
-                                {spatialAudioEnabled ? '🔊 ON' : '🔇 OFF'}
-                            </button>
-                            <span className="text-xs text-gray-300">
-                                {spatialAudioEnabled ? 'Spatial' : 'Stereo'}
-                            </span>
-                        </div>
-                    </div>
-                )}
-            </div>
-
             {/* Voice Chat Range Controls */}
-            <div className="absolute top-20 left-4 z-10">
+            <div className="absolute top-4 left-4 z-10">
                 <div className="bg-black/80 text-white rounded-lg backdrop-blur-sm">
                     <button
                         onClick={() => setShowVoiceRange(!showVoiceRange)}
@@ -985,15 +948,29 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             </div>
 
             {!error && (
-                <div className="absolute bottom-4 left-4 z-10 bg-black/80 text-white p-3 rounded-lg backdrop-blur-sm">
-                    <div className="text-sm">
-                        <div className="text-green-400 mb-1">🎯 Instructions</div>
-                        <div>• Your position updates automatically via GPS</div>
-                        <div>• Click on the map for manual positioning</div>
-                        <div>• Click on 📻 boombox to join music parties</div>
-                        <div>• Use 🎤 button for proximity voice chat</div>
-                        <div>• Experience spatial audio as you move around</div>
-                    </div>
+                <div className="absolute bottom-4 left-4 z-10 bg-black/80 text-white rounded-lg backdrop-blur-sm">
+                    <button
+                        onClick={() => setInstructionsExpanded(!instructionsExpanded)}
+                        className="w-full p-3 text-left hover:bg-white/10 transition-colors rounded-lg"
+                        title="Help & Instructions"
+                    >
+                        <div className="text-sm font-bold text-green-400 flex items-center justify-between">
+                            <span>❓ Help</span>
+                            <span className="text-xs">{instructionsExpanded ? '▼' : '▶'}</span>
+                        </div>
+                    </button>
+
+                    {instructionsExpanded && (
+                        <div className="p-3 pt-0">
+                            <div className="text-sm space-y-1">
+                                <div>• Your position updates automatically via GPS</div>
+                                <div>• Click on the map for manual positioning</div>
+                                <div>• Click on 📻 boombox to join music parties</div>
+                                <div>• Use 🎤 button for proximity voice chat</div>
+                                <div>• Experience spatial audio as you move around</div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
