@@ -82,9 +82,16 @@ export default function PreJoinPage() {
                         {/* Join Button */}
                         <button
                             onClick={handleJoinRoom}
-                            className="w-full mt-8 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 active:scale-95"
+                            className="w-full mt-8 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 active:scale-95 flex items-center justify-center gap-3"
                         >
-                            🚀 Enter the Map
+                            <Image
+                                src="/logo.png"
+                                alt="Vibes Hunters Logo"
+                                width={24}
+                                height={24}
+                                className="w-6 h-6"
+                            />
+                            Join
                         </button>
                     </div>
                 </div>
@@ -101,7 +108,26 @@ export default function PreJoinPage() {
 // AvatarCarousel component for scrolling avatars
 function AvatarCarousel({ avatars, avatar, setAvatar }: { avatars: string[], avatar: string, setAvatar: (a: string) => void }) {
     const [start, setStart] = React.useState(0);
-    const visibleCount = 5;
+    const [visibleCount, setVisibleCount] = React.useState(4); // Default to 4 for mobile
+
+    // Adjust visible count based on screen size
+    React.useEffect(() => {
+        const updateVisibleCount = () => {
+            const width = window.innerWidth;
+            if (width >= 640) { // sm breakpoint
+                setVisibleCount(5);
+            } else if (width >= 480) {
+                setVisibleCount(4);
+            } else {
+                setVisibleCount(3);
+            }
+        };
+
+        updateVisibleCount();
+        window.addEventListener('resize', updateVisibleCount);
+        return () => window.removeEventListener('resize', updateVisibleCount);
+    }, []);
+
     const end = Math.min(start + visibleCount, avatars.length);
 
     const handlePrev = () => setStart(s => Math.max(0, s - 1));
@@ -113,18 +139,18 @@ function AvatarCarousel({ avatars, avatar, setAvatar }: { avatars: string[], ava
                 type="button"
                 onClick={handlePrev}
                 disabled={start === 0}
-                className="px-2 py-1 rounded bg-gray-200 text-gray-600 disabled:opacity-50"
+                className="px-2 py-2 rounded bg-gray-200 text-gray-600 disabled:opacity-50 min-w-[32px]"
                 aria-label="Previous avatars"
             >
                 &#8592;
             </button>
-            <div className="flex gap-3">
+            <div className="flex gap-2 overflow-hidden">
                 {avatars.slice(start, end).map(a => (
                     <button
                         type="button"
                         key={a}
                         onClick={() => setAvatar(a)}
-                        className={`relative rounded-2xl border-3 p-2 transition-all ${avatar === a
+                        className={`relative rounded-2xl border-3 p-2 transition-all min-w-[72px] min-h-[72px] ${avatar === a
                             ? 'border-purple-500 bg-purple-50 scale-105'
                             : 'border-gray-200 hover:border-gray-300'
                             }`}
@@ -132,10 +158,10 @@ function AvatarCarousel({ avatars, avatar, setAvatar }: { avatars: string[], ava
                         <Image
                             src={`/characters_001/${a}.png`}
                             alt={a}
-                            width={48}
-                            height={48}
-                            className="w-12 h-12 rounded-xl object-cover"
-                            style={{ width: 'auto', height: 'auto' }}
+                            width={56}
+                            height={56}
+                            className="min-w-[56px] min-h-[56px] w-14 h-14 rounded-xl object-cover"
+                            style={{ width: '56px', height: '56px' }}
                         />
                         {avatar === a && (
                             <div className="absolute -top-1 -right-1 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
@@ -151,7 +177,7 @@ function AvatarCarousel({ avatars, avatar, setAvatar }: { avatars: string[], ava
                 type="button"
                 onClick={handleNext}
                 disabled={end >= avatars.length}
-                className="px-2 py-1 rounded bg-gray-200 text-gray-600 disabled:opacity-50"
+                className="px-2 py-2 rounded bg-gray-200 text-gray-600 disabled:opacity-50 min-w-[32px]"
                 aria-label="Next avatars"
             >
                 &#8594;
