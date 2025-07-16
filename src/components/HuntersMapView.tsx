@@ -25,6 +25,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [selectedMusicUser, setSelectedMusicUser] = useState<UserPosition | null>(null);
     const [isPublishingMusic, setIsPublishingMusic] = useState(false);
     const [isMusicPaused, setIsMusicPaused] = useState(false);
+    const [musicSource, setMusicSource] = useState<'file' | 'tab-capture' | null>(null); // Track the source of music
     const [listeningToMusic, setListeningToMusic] = useState<string | null>(null); // Track which participant's music we're listening to (only one at a time)
     const [isTrackingLocation, setIsTrackingLocation] = useState(false);
     const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
@@ -44,7 +45,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const watchIdRef = useRef<number | null>(null);
     const lastMetadataUpdateRef = useRef<number>(0);
     const metadataUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const currentMusicTrackRef = useRef<{ track: LocalAudioTrack; audioElement: HTMLAudioElement } | null>(null);
+    const currentMusicTrackRef = useRef<{ track: LocalAudioTrack; audioElement: HTMLAudioElement | null } | null>(null);
 
     // Initialize spatial audio
     const {
@@ -728,6 +729,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             }
             // Clear listening state
             setListeningToMusic(null);
+            setMusicSource(null);
             if (livekitRoom) {
                 console.log('Disconnecting from LiveKit room');
                 livekitRoom.disconnect();
@@ -783,8 +785,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         try {
             console.log('Stopping music publishing...');
 
-            // First stop the audio element to stop sound immediately
-            if (currentMusicTrackRef.current.audioElement) {
+            // Handle audio element cleanup for file uploads
+            if (currentMusicTrackRef.current.audioElement && musicSource === 'file') {
                 currentMusicTrackRef.current.audioElement.pause();
                 currentMusicTrackRef.current.audioElement.currentTime = 0;
             }
@@ -797,8 +799,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 await livekitRoom.localParticipant.unpublishTrack(currentMusicTrackRef.current.track);
             }
 
-            // Clean up audio element
-            if (currentMusicTrackRef.current.audioElement) {
+            // Clean up audio element for file uploads
+            if (currentMusicTrackRef.current.audioElement && musicSource === 'file') {
                 // Revoke the object URL to free memory
                 if (currentMusicTrackRef.current.audioElement.src && currentMusicTrackRef.current.audioElement.src.startsWith('blob:')) {
                     URL.revokeObjectURL(currentMusicTrackRef.current.audioElement.src);
@@ -808,6 +810,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
             // Clean up references
             currentMusicTrackRef.current = null;
+            setMusicSource(null);
 
             // Update state
             setIsPublishingMusic(false);
@@ -820,8 +823,9 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             setIsPublishingMusic(false);
             setIsMusicPaused(false);
             currentMusicTrackRef.current = null;
+            setMusicSource(null);
         }
-    }, [livekitRoom]);
+    }, [livekitRoom, musicSource]);
 
     return (
         <div className="relative w-full h-screen bg-gray-900">
@@ -1018,24 +1022,30 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 <button
                     onClick={async () => {
                         if (isPublishingMusic) {
-                            if (isMusicPaused) {
-                                // If paused, resume the music
-                                if (currentMusicTrackRef.current?.audioElement) {
-                                    try {
-                                        await currentMusicTrackRef.current.audioElement.play();
-                                        setIsMusicPaused(false);
-                                        console.log('Music resumed');
-                                    } catch (error) {
-                                        console.error('Error resuming music:', error);
+                            if (musicSource === 'file') {
+                                // File upload - can pause/resume
+                                if (isMusicPaused) {
+                                    // If paused, resume the music
+                                    if (currentMusicTrackRef.current?.audioElement) {
+                                        try {
+                                            await currentMusicTrackRef.current.audioElement.play();
+                                            setIsMusicPaused(false);
+                                            console.log('Music resumed');
+                                        } catch (error) {
+                                            console.error('Error resuming music:', error);
+                                        }
+                                    }
+                                } else {
+                                    // If playing, pause the music
+                                    if (currentMusicTrackRef.current?.audioElement) {
+                                        currentMusicTrackRef.current.audioElement.pause();
+                                        setIsMusicPaused(true);
+                                        console.log('Music paused');
                                     }
                                 }
-                            } else {
-                                // If playing, pause the music
-                                if (currentMusicTrackRef.current?.audioElement) {
-                                    currentMusicTrackRef.current.audioElement.pause();
-                                    setIsMusicPaused(true);
-                                    console.log('Music paused');
-                                }
+                            } else if (musicSource === 'tab-capture') {
+                                // Tab capture - can't pause, only stop
+                                alert('Tab audio capture cannot be paused. Use the stop button to end the music party or control playback in the source tab.');
                             }
                         } else if (isListeningToAnyMusic) {
                             // If listening to someone else's music, show option to disconnect
@@ -1057,23 +1067,29 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         }
                     }}
                     className={`w-16 h-16 rounded-full shadow-2xl transition-all duration-300 ${isPublishingMusic
-                        ? isMusicPaused
-                            ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700'
-                            : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
+                        ? musicSource === 'file'
+                            ? isMusicPaused
+                                ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700'
+                                : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
+                            : 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700' // Tab capture
                         : isListeningToAnyMusic
                             ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700'
                             : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
                         } flex items-center justify-center text-white text-2xl`}
                     title={
                         isPublishingMusic
-                            ? isMusicPaused ? "Resume Music" : "Pause Music"
+                            ? musicSource === 'file'
+                                ? isMusicPaused ? "Resume Music" : "Pause Music"
+                                : "Tab Audio Capture (Control in source tab)"
                             : isListeningToAnyMusic
                                 ? "Disconnect from Music"
                                 : "Start Music Party"
                     }
                 >
                     {isPublishingMusic
-                        ? isMusicPaused ? '▶️' : '⏸️'
+                        ? musicSource === 'file'
+                            ? isMusicPaused ? '▶️' : '⏸️'
+                            : '📺' // Tab capture icon
                         : isListeningToAnyMusic ? '🎧' : '🎵'
                     }
                 </button>
@@ -1096,6 +1112,13 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 {isListeningToAnyMusic && (
                     <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-2 py-1 rounded-lg text-xs font-medium">
                         Listening to music party
+                    </div>
+                )}
+
+                {/* Music Source Indicator for Publishing */}
+                {isPublishingMusic && musicSource === 'tab-capture' && (
+                    <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-orange-600 text-white px-2 py-1 rounded-lg text-xs font-medium">
+                        Tab Audio Capture
                     </div>
                 )}
             </div>
@@ -1176,10 +1199,15 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                     onPublishStart={(filename, track, audioElement) => {
                         if (track && audioElement) {
                             currentMusicTrackRef.current = { track, audioElement };
+                            setMusicSource('file');
+                        } else if (track && !audioElement) {
+                            // Tab capture - no audio element to control
+                            currentMusicTrackRef.current = { track, audioElement: null };
+                            setMusicSource('tab-capture');
                         }
                         setIsPublishingMusic(true);
                         setIsMusicPaused(false);
-                        console.log(`Started publishing: ${filename}`);
+                        console.log(`Started publishing: ${filename}, source: ${audioElement ? 'file' : 'tab-capture'}`);
 
                         // Don't close the dialog automatically - let the user close it manually
                         // The music will continue playing even after dialog closes
