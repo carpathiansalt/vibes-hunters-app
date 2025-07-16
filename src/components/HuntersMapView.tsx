@@ -1180,12 +1180,13 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         setIsPublishingMusic(true);
                         setIsMusicPaused(false);
                         console.log(`Started publishing: ${filename}`);
+
+                        // Don't close the dialog automatically - let the user close it manually
+                        // The music will continue playing even after dialog closes
                     }}
                     onPublishStop={() => {
-                        setIsPublishingMusic(false);
-                        setIsMusicPaused(false);
-                        currentMusicTrackRef.current = null;
-                        console.log('Stopped publishing music');
+                        // This will be called from the dialog, but we also have our own stop function
+                        stopMusicPublishing();
                     }}
                     isListening={listeningToMusic === selectedMusicUser.userId}
                     isSelf={selectedMusicUser.userId === 'self'}

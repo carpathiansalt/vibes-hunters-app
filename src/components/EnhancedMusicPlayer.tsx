@@ -48,16 +48,9 @@ export function EnhancedMusicPlayer({
 
     useEffect(() => {
         return () => {
-            if (currentTrackRef.current) {
-                currentTrackRef.current.stop();
-            }
-            if (audioElementRef.current) {
-                audioElementRef.current.pause();
-                if (audioElementRef.current.src.startsWith('blob:')) {
-                    URL.revokeObjectURL(audioElementRef.current.src);
-                }
-                audioElementRef.current.src = '';
-            }
+            // Don't clean up the audio element or track here!
+            // The parent component (HuntersMapView) will manage their lifecycle
+            // This prevents the music from stopping when the dialog closes
         };
     }, []);
 
@@ -161,13 +154,7 @@ export function EnhancedMusicPlayer({
             console.error('Error publishing music:', error);
             alert('Failed to publish music. Please try again.');
 
-            // Clean up on error
-            if (audioElementRef.current && audioElementRef.current.src.startsWith('blob:')) {
-                audioElementRef.current.pause();
-                URL.revokeObjectURL(audioElementRef.current.src);
-                audioElementRef.current.src = '';
-            }
-
+            // Clean up on error - but let parent handle the audio element lifecycle
             if (currentTrackRef.current) {
                 currentTrackRef.current.stop();
                 currentTrackRef.current = null;
@@ -269,26 +256,10 @@ export function EnhancedMusicPlayer({
         setIsLoading(true);
 
         try {
-            // First stop the audio element to stop sound immediately
-            if (audioElementRef.current) {
-                audioElementRef.current.pause();
-                audioElementRef.current.currentTime = 0;
-            }
-
-            // Stop the track before unpublishing
+            // Don't touch the audio element here - let the parent handle it
+            // Just stop and unpublish the track
             currentTrackRef.current.stop();
-
-            // Unpublish the track
             await room.localParticipant.unpublishTrack(currentTrackRef.current);
-
-            // Clean up audio element
-            if (audioElementRef.current) {
-                // Revoke the object URL to free memory
-                if (audioElementRef.current.src && audioElementRef.current.src.startsWith('blob:')) {
-                    URL.revokeObjectURL(audioElementRef.current.src);
-                }
-                audioElementRef.current.src = '';
-            }
 
             // Clean up references
             currentTrackRef.current = null;
