@@ -25,7 +25,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [selectedMusicUser, setSelectedMusicUser] = useState<UserPosition | null>(null);
     const [isPublishingMusic, setIsPublishingMusic] = useState(false);
     const [isMusicPaused, setIsMusicPaused] = useState(false);
-    const [listeningToMusic, setListeningToMusic] = useState<Set<string>>(new Set()); // Track which participants' music we're listening to
+    const [listeningToMusic, setListeningToMusic] = useState<string | null>(null); // Track which participant's music we're listening to (only one at a time)
     const [isTrackingLocation, setIsTrackingLocation] = useState(false);
     const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
     const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
@@ -52,7 +52,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         isInitialized: spatialAudioInitialized,
         subscribeToParticipant,
         leaveMusicParty,
-        enableAudioContext
+        enableAudioContext,
+        getCurrentMusicParty
     } = useSpatialAudio(livekitRoom, participants, myPosition);
 
     // Throttled metadata publishing to prevent timeout errors
@@ -718,7 +719,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 stopMusicPublishing();
             }
             // Clear listening state
-            setListeningToMusic(new Set());
+            setListeningToMusic(null);
             if (livekitRoom) {
                 console.log('Disconnecting from LiveKit room');
                 livekitRoom.disconnect();
@@ -762,7 +763,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     }, [participants.size, refreshAllMarkers]); // Trigger when participant count changes
 
     // Helper function to check if user is listening to any music
-    const isListeningToAnyMusic = listeningToMusic.size > 0;
+    const isListeningToAnyMusic = listeningToMusic !== null;
 
     // Stop music publishing
     const stopMusicPublishing = useCallback(async () => {
@@ -1043,14 +1044,12 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                 }
                             }
                         } else if (isListeningToAnyMusic) {
-                            // If listening to someone else's music, show option to disconnect from all
-                            const confirmLeave = confirm(`You are listening to ${listeningToMusic.size} music ${listeningToMusic.size === 1 ? 'party' : 'parties'}. Leave all?`);
-                            if (confirmLeave) {
-                                for (const participantId of listeningToMusic) {
-                                    await leaveMusicParty(participantId);
-                                }
-                                setListeningToMusic(new Set());
-                                console.log('Left all music parties');
+                            // If listening to someone else's music, show option to disconnect
+                            const confirmLeave = confirm(`You are listening to a music party. Leave it?`);
+                            if (confirmLeave && listeningToMusic) {
+                                await leaveMusicParty(listeningToMusic);
+                                setListeningToMusic(null);
+                                console.log('Left music party');
                             }
                         } else {
                             // If not publishing or listening, show dialog to start
@@ -1064,12 +1063,12 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         }
                     }}
                     className={`w-16 h-16 rounded-full shadow-2xl transition-all duration-300 ${isPublishingMusic
-                            ? isMusicPaused
-                                ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700'
-                                : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
-                            : isListeningToAnyMusic
-                                ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700'
-                                : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
+                        ? isMusicPaused
+                            ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700'
+                            : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
+                        : isListeningToAnyMusic
+                            ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700'
+                            : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
                         } flex items-center justify-center text-white text-2xl`}
                     title={
                         isPublishingMusic
@@ -1102,7 +1101,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 {/* Music Status Indicator */}
                 {isListeningToAnyMusic && (
                     <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-2 py-1 rounded-lg text-xs font-medium">
-                        Listening to {listeningToMusic.size} {listeningToMusic.size === 1 ? 'party' : 'parties'}
+                        Listening to music party
                     </div>
                 )}
             </div>
@@ -1116,21 +1115,17 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         if (selectedMusicUser.userId !== 'self') {
                             console.log('Managing music party for:', selectedMusicUser.username, 'userId:', selectedMusicUser.userId);
 
-                            const isCurrentlyListening = listeningToMusic.has(selectedMusicUser.userId);
+                            const isCurrentlyListening = listeningToMusic === selectedMusicUser.userId;
 
                             try {
                                 // Enable audio context first (important for mobile)
                                 await enableAudioContext();
 
                                 if (isCurrentlyListening) {
-                                    // Leave the music party
+                                    // Leave the current music party
                                     const success = await leaveMusicParty(selectedMusicUser.userId);
                                     if (success) {
-                                        setListeningToMusic(prev => {
-                                            const newSet = new Set(prev);
-                                            newSet.delete(selectedMusicUser.userId);
-                                            return newSet;
-                                        });
+                                        setListeningToMusic(null);
                                         console.log('Successfully left music party:', selectedMusicUser.username);
                                         alert(`Left ${selectedMusicUser.username}'s music party! 🎵`);
                                     } else {
@@ -1138,14 +1133,28 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                         alert('Failed to leave music party. Please try again.');
                                     }
                                 } else {
-                                    // Join the music party
+                                    // Check if user is already listening to a different music party
+                                    const currentMusicParty = getCurrentMusicParty();
+                                    if (currentMusicParty && currentMusicParty !== selectedMusicUser.userId) {
+                                        const currentPartyUser = participants.get(currentMusicParty);
+                                        const confirmSwitch = confirm(`You are currently listening to ${currentPartyUser?.username || 'another user'}'s music party. Switch to ${selectedMusicUser.username}'s party?`);
+                                        if (!confirmSwitch) {
+                                            setSelectedMusicUser(null);
+                                            return;
+                                        }
+                                    }
+
+                                    // If already listening to another music party, leave it first
+                                    if (listeningToMusic && listeningToMusic !== selectedMusicUser.userId) {
+                                        console.log('Leaving current music party before joining new one');
+                                        await leaveMusicParty(listeningToMusic);
+                                        setListeningToMusic(null);
+                                    }
+
+                                    // Join the new music party
                                     const success = await subscribeToParticipant(selectedMusicUser.userId);
                                     if (success) {
-                                        setListeningToMusic(prev => {
-                                            const newSet = new Set(prev);
-                                            newSet.add(selectedMusicUser.userId);
-                                            return newSet;
-                                        });
+                                        setListeningToMusic(selectedMusicUser.userId);
                                         console.log('Successfully joined music party:', selectedMusicUser.username);
                                         alert(`Joined ${selectedMusicUser.username}'s music party! 🎵`);
                                     } else {
@@ -1187,7 +1196,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         setIsMusicPaused(false);
                         console.log('Resumed publishing music');
                     }}
-                    isListening={listeningToMusic.has(selectedMusicUser.userId)}
+                    isListening={listeningToMusic === selectedMusicUser.userId}
                     isSelf={selectedMusicUser.userId === 'self'}
                 />
             )}

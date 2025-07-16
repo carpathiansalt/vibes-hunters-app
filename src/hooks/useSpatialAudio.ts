@@ -404,6 +404,44 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         // Ensure audio context is enabled (especially important for mobile)
         await enableAudioContext();
 
+        // Before joining a new music party, leave any currently joined party (only one party at a time)
+        if (joinedMusicTracks.current.size > 0) {
+            console.log('Leaving current music parties before joining new one (only one party allowed at a time)');
+            const currentParties = Array.from(joinedMusicTracks.current);
+            for (const currentPartyId of currentParties) {
+                if (currentPartyId !== participantIdentity) {
+                    console.log('Auto-leaving music party:', currentPartyId);
+
+                    // Stop and remove audio elements for the current party
+                    const audioElements = document.querySelectorAll(`audio[data-participant="${currentPartyId}"]`);
+                    audioElements.forEach(element => {
+                        const audioEl = element as HTMLAudioElement;
+                        audioEl.pause();
+                        audioEl.remove();
+                    });
+
+                    // Remove from joined set
+                    joinedMusicTracks.current.delete(currentPartyId);
+
+                    // Unsubscribe from music tracks
+                    const currentParticipant = room.remoteParticipants.get(currentPartyId);
+                    if (currentParticipant) {
+                        for (const publication of currentParticipant.audioTrackPublications.values()) {
+                            const isMusicTrack = publication.trackName?.startsWith('music-');
+                            if (isMusicTrack && publication.isSubscribed) {
+                                try {
+                                    await publication.setSubscribed(false);
+                                    console.log('Unsubscribed from music track for auto-leave:', publication.trackName);
+                                } catch (error) {
+                                    console.error('Failed to unsubscribe from music track during auto-leave:', error);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         let attempts = 0;
 
         const attemptSubscription = async (): Promise<boolean> => {
@@ -622,6 +660,12 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         return joinedMusicTracks.current.has(participantIdentity);
     }, []);
 
+    // Get the current music party the user is listening to (should be at most one)
+    const getCurrentMusicParty = useCallback(() => {
+        const parties = Array.from(joinedMusicTracks.current);
+        return parties.length > 0 ? parties[0] : null;
+    }, []);
+
     // Function to manage proximity-based voice subscriptions with retry logic
     const manageVoiceProximity = useCallback(async () => {
         if (!room || !myPosition) return;
@@ -671,6 +715,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         checkConnectionHealth,
         controller: controllerRef.current,
         leaveMusicParty,
-        hasJoinedMusicParty
+        hasJoinedMusicParty,
+        getCurrentMusicParty
     };
 }
