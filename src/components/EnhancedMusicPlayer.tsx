@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { YouTubeService, YouTubeVideo } from '@/core/YouTubeService';
 import type { Room, LocalAudioTrack } from 'livekit-client';
-import { createLocalAudioTrack, Track } from 'livekit-client';
+import { LocalAudioTrack as LiveKitLocalAudioTrack } from 'livekit-client';
 
 export type MusicSource = 'file' | 'youtube' | 'url' | 'tab-capture';
 
@@ -191,21 +191,29 @@ export function EnhancedMusicPlayer({
         if (!room) return;
 
         try {
-            // Create LiveKit audio track from MediaStream
-            const audioTrack = await createLocalAudioTrack({
-                deviceId: {
-                    exact: mediaStream.getAudioTracks()[0].id
-                }
+            // Get the audio track from the MediaStream
+            const audioTrack = mediaStream.getAudioTracks()[0];
+            if (!audioTrack || !audioTrack.enabled) {
+                throw new Error('Audio track is not active');
+            }
+
+            // Create LocalAudioTrack directly from the MediaStreamTrack
+            const localAudioTrack = new LiveKitLocalAudioTrack(
+                audioTrack,
+                undefined,
+                false,
+                undefined
+            );
+
+            currentTrackRef.current = localAudioTrack;
+
+            // Publish the track with additional options to prevent silence detection
+            await room.localParticipant.publishTrack(localAudioTrack, {
+                name: `music-${title}`,
+                dtx: false, // Disable discontinuous transmission
             });
 
-            // Publish the track with metadata
-            await room.localParticipant.publishTrack(audioTrack, {
-                name: 'music',
-                source: Track.Source.Microphone
-            });
-            currentTrackRef.current = audioTrack;
-
-            onPublishStart(title, audioTrack, audioElementRef.current || undefined);
+            onPublishStart(title, localAudioTrack, audioElementRef.current || undefined);
         } catch (error) {
             console.error('Error publishing audio track:', error);
             alert('Failed to publish audio. Please try again.');
