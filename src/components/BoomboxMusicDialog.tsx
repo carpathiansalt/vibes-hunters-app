@@ -80,14 +80,6 @@ export function BoomboxMusicDialog({
                     {isSelf ? (
                         /* Self - Show Music Upload */
                         <div>
-                            <div className="text-center mb-6 mt-2">
-                                <div className="text-6xl mb-4">🎵</div>
-                                <h3 className="font-bold text-gray-800 text-lg mb-2">Share Your Music</h3>
-                                <p className="text-gray-600 text-sm">
-                                    Play music from YouTube, Spotify, Apple Music, or upload from your device!
-                                </p>
-                            </div>
-
                             {/* Enhanced Music Player Section */}
                             {room && (
                                 <div className="p-4 bg-gray-50 rounded-xl">

@@ -301,7 +301,7 @@ export function EnhancedMusicPlayer({
 
                 {/* Event Title and Description Fields */}
                 <div className="mb-4">
-                    <label className="block text-sm font-medium mb-1">Event or Venue Name <span className="text-xs text-gray-400">(max 50 chars)</span></label>
+                    <label className="block text-sm font-medium mb-1 text-gray-900">Event or Venue Name <span className="text-xs text-gray-400">(max 50 chars)</span></label>
                     <input
                         type="text"
                         maxLength={50}
@@ -310,7 +310,7 @@ export function EnhancedMusicPlayer({
                         className="w-full p-2 border rounded mb-2 text-gray-900 placeholder-gray-500 bg-white focus:border-purple-600 focus:outline-none border-gray-400"
                         placeholder="e.g. Friday Night at Club XYZ, Rooftop Party, etc."
                     />
-                    <label className="block text-sm font-medium mb-1">Event Description <span className="text-xs text-gray-400">(max 200 chars)</span></label>
+                    <label className="block text-sm font-medium mb-1 text-gray-900">Event Description <span className="text-xs text-gray-400">(max 200 chars)</span></label>
                     <textarea
                         maxLength={200}
                         value={musicDescription}
