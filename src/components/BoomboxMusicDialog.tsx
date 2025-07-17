@@ -24,26 +24,27 @@ type BoomboxMusicDialogProps = {
     onPublishStop?: () => void;
     isSelf?: boolean; // New prop to distinguish self vs others
     isListening?: boolean; // Whether the user is currently listening to this participant's music
-    musicTitle?: string;
-    setMusicTitle?: (title: string) => void;
-    musicDescription?: string;
-    setMusicDescription?: (desc: string) => void;
+    partyTitle?: string;
+    setPartyTitle?: (title: string) => void;
+    partyDescription?: string;
+    setPartyDescription?: (desc: string) => void;
 };
 
-export function BoomboxMusicDialog({
-    user,
-    onClose,
-    onJoin,
-    room,
-    onPublishStart,
-    onPublishStop,
-    isSelf = false,
-    isListening = false,
-    musicTitle,
-    setMusicTitle,
-    musicDescription,
-    setMusicDescription
-}: BoomboxMusicDialogProps) {
+export function BoomboxMusicDialog(props: BoomboxMusicDialogProps) {
+    const {
+        user,
+        onClose,
+        onJoin,
+        room,
+        onPublishStart,
+        onPublishStop,
+        isSelf = false,
+        isListening = false,
+        partyTitle,
+        setPartyTitle,
+        partyDescription,
+        setPartyDescription
+    } = props;
     const [isJoining, setIsJoining] = useState(false);
 
     const handleJoin = async () => {
@@ -59,8 +60,8 @@ export function BoomboxMusicDialog({
     };
 
     // Extract partyTitle and partyDescription from user.metadata if available (for remote users)
-    let remotePartyTitle = undefined;
-    let remotePartyDescription = undefined;
+    let remotePartyTitle = '';
+    let remotePartyDescription = '';
     if (user.metadata) {
         try {
             const meta: UserMetadata = typeof user.metadata === 'string' ? JSON.parse(user.metadata) : user.metadata;
@@ -112,10 +113,10 @@ export function BoomboxMusicDialog({
                                         }}
                                         onPublishStop={onPublishStop || (() => { })}
                                         onClose={onClose}
-                                        partyTitle={musicTitle}
-                                        setPartyTitle={setMusicTitle}
-                                        partyDescription={musicDescription}
-                                        setPartyDescription={setMusicDescription}
+                                        partyTitle={partyTitle}
+                                        setPartyTitle={setPartyTitle}
+                                        partyDescription={partyDescription}
+                                        setPartyDescription={setPartyDescription}
                                     />
                                 </div>
                             )}

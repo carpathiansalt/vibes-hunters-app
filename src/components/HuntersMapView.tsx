@@ -26,8 +26,12 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [isPublishingMusic, setIsPublishingMusic] = useState(false);
     const [isMusicPaused, setIsMusicPaused] = useState(false);
     const [musicSource, setMusicSource] = useState<'file' | 'tab-capture' | null>(null); // Track the source of music
-    const [musicTitle, setMusicTitle] = useState<string>('');
-    const [musicDescription, setMusicDescription] = useState<string>('');
+    // Party (event/venue) info
+    const [partyTitle, setPartyTitle] = useState<string>('');
+    const [partyDescription, setPartyDescription] = useState<string>('');
+    // Music (track) info
+    const [musicTitle] = useState<string>('');
+    const [musicDescription] = useState<string>('');
     const [listeningToMusic, setListeningToMusic] = useState<string | null>(null); // Track which participant's music we're listening to (only one at a time)
     const [isTrackingLocation, setIsTrackingLocation] = useState(false);
     const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
@@ -1201,10 +1205,10 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                 }
                             }}
                             room={livekitRoom}
-                            musicTitle={musicTitle}
-                            setMusicTitle={setMusicTitle}
-                            musicDescription={musicDescription}
-                            setMusicDescription={setMusicDescription}
+                            partyTitle={partyTitle}
+                            setPartyTitle={setPartyTitle}
+                            partyDescription={partyDescription}
+                            setPartyDescription={setPartyDescription}
                             onPublishStart={(filename, track, audioElement) => {
                                 if (track && audioElement) {
                                     currentMusicTrackRef.current = { track, audioElement, musicTitle, musicDescription };
@@ -1216,7 +1220,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                 }
                                 setIsPublishingMusic(true);
                                 setIsMusicPaused(false);
-                                console.log(`Started publishing: ${filename}, source: ${audioElement ? 'file' : 'tab-capture'}, title: ${musicTitle}, description: ${musicDescription}`);
+                                console.log(`Started publishing: ${filename}, source: ${audioElement ? 'file' : 'tab-capture'}, musicTitle: ${musicTitle}, musicDescription: ${musicDescription}`);
                                 // Don't close the dialog automatically - let the user close it manually
                                 // The music will continue playing even after dialog closes
                             }}
