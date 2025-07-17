@@ -13,10 +13,10 @@ interface EnhancedMusicPlayerProps {
     onClose?: () => void; // Add onClose callback to close the dialog
     volume?: number;
     onVolumeChange?: (volume: number) => void;
-    musicTitle?: string;
-    setMusicTitle?: (title: string) => void;
-    musicDescription?: string;
-    setMusicDescription?: (desc: string) => void;
+    partyTitle?: string;
+    setPartyTitle?: (title: string) => void;
+    partyDescription?: string;
+    setPartyDescription?: (desc: string) => void;
 }
 
 export function EnhancedMusicPlayer({
@@ -26,10 +26,10 @@ export function EnhancedMusicPlayer({
     onClose,
     volume = 1.0,
     onVolumeChange,
-    musicTitle = '',
-    setMusicTitle,
-    musicDescription = '',
-    setMusicDescription
+    partyTitle = '',
+    setPartyTitle,
+    partyDescription = '',
+    setPartyDescription
 }: EnhancedMusicPlayerProps) {
     const [activeSource, setActiveSource] = useState<MusicSource>('file');
     const [isLoading, setIsLoading] = useState(false);
@@ -84,8 +84,8 @@ export function EnhancedMusicPlayer({
             // Always set party metadata (title and description) on the local participant
             if (room.localParticipant) {
                 const metadata = {
-                    musicTitle: musicTitle || '',
-                    musicDescription: musicDescription || ''
+                    partyTitle: partyTitle || '',
+                    partyDescription: partyDescription || ''
                 };
                 await room.localParticipant.setMetadata(JSON.stringify(metadata));
             }
@@ -227,8 +227,8 @@ export function EnhancedMusicPlayer({
             // Always set party metadata (title and description) on the local participant
             if (room.localParticipant) {
                 const metadata = {
-                    musicTitle: musicTitle || '',
-                    musicDescription: musicDescription || ''
+                    partyTitle: partyTitle || '',
+                    partyDescription: partyDescription || ''
                 };
                 await room.localParticipant.setMetadata(JSON.stringify(metadata));
             }
@@ -321,16 +321,16 @@ export function EnhancedMusicPlayer({
                     <input
                         type="text"
                         maxLength={50}
-                        value={musicTitle}
-                        onChange={e => setMusicTitle && setMusicTitle(e.target.value)}
+                        value={partyTitle}
+                        onChange={e => setPartyTitle && setPartyTitle(e.target.value)}
                         className="w-full p-2 border rounded mb-2 text-gray-900 placeholder-gray-500 bg-white focus:border-purple-600 focus:outline-none border-gray-400"
                         placeholder="e.g. Friday Night at Club XYZ, Rooftop Party, etc."
                     />
                     <label className="block text-sm font-medium mb-1 text-gray-900">Event Description <span className="text-xs text-gray-400">(max 200 chars)</span></label>
                     <textarea
                         maxLength={200}
-                        value={musicDescription}
-                        onChange={e => setMusicDescription && setMusicDescription(e.target.value)}
+                        value={partyDescription}
+                        onChange={e => setPartyDescription && setPartyDescription(e.target.value)}
                         className="w-full p-2 border rounded text-gray-900 placeholder-gray-500 bg-white focus:border-purple-600 focus:outline-none border-gray-400 mb-2"
                         placeholder="Describe your event, venue, or vibe..."
                         rows={2}
@@ -478,6 +478,6 @@ export function EnhancedMusicPlayer({
                     This controls how loud your music will be for other users
                 </p>
             </div>
-        </div>
+        </div >
     );
 }
