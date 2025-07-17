@@ -62,15 +62,21 @@ export function BoomboxMusicDialog(props: BoomboxMusicDialogProps) {
     // Extract partyTitle and partyDescription from user.metadata if available (for remote users)
     let remotePartyTitle = '';
     let remotePartyDescription = '';
+    
     if (user.metadata) {
         try {
             const meta: UserMetadata = typeof user.metadata === 'string' ? JSON.parse(user.metadata) : user.metadata;
-            if (meta.partyTitle) remotePartyTitle = meta.partyTitle;
-            if (meta.partyDescription) remotePartyDescription = meta.partyDescription;
-        } catch {
-            // ignore parse errors
+            remotePartyTitle = meta.partyTitle || '';
+            remotePartyDescription = meta.partyDescription || '';
+        } catch (error) {
+            console.warn('Failed to parse user metadata:', error);
         }
     }
+
+    // For self, use the props directly; for others, use parsed metadata
+    const displayPartyTitle = isSelf ? (partyTitle || '') : remotePartyTitle;
+    const displayPartyDescription = isSelf ? (partyDescription || '') : remotePartyDescription;
+
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 flex flex-col max-h-[90vh] relative">
@@ -87,11 +93,11 @@ export function BoomboxMusicDialog(props: BoomboxMusicDialogProps) {
                 <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 pt-10 text-white text-center rounded-t-2xl">
                     <div className="text-4xl mb-2">{isSelf ? '🎵' : '🎧'}</div>
                     <h2 className="text-2xl font-bold truncate max-w-full">
-                        {isSelf ? (partyTitle && partyTitle.trim() !== '' ? partyTitle : 'No Event/Venue Name') : (remotePartyTitle && remotePartyTitle.trim() !== '' ? remotePartyTitle : 'No Event/Venue Name')}
+                        {displayPartyTitle.trim() !== '' ? displayPartyTitle : 'No Event/Venue Name'}
                     </h2>
-                    {(isSelf ? partyDescription : remotePartyDescription) && ((isSelf ? partyDescription : remotePartyDescription) ?? "").trim() !== '' && (
+                    {displayPartyDescription.trim() !== '' && (
                         <p className="text-purple-100 text-xs mt-1 truncate max-w-full">
-                            {(isSelf ? partyDescription : remotePartyDescription)}
+                            {displayPartyDescription}
                         </p>
                     )}
                     <p className="text-purple-100 text-sm mt-1">
@@ -146,14 +152,16 @@ export function BoomboxMusicDialog(props: BoomboxMusicDialogProps) {
                                 <div>
                                     <h3 className="font-bold text-gray-800 text-lg">{user.username}</h3>
                                     <p className="text-gray-600 text-sm">is sharing music nearby</p>
-                                    {remotePartyTitle && remotePartyTitle.trim() !== '' && (
+
+                                    {displayPartyTitle.trim() !== '' && (
                                         <p className="text-purple-700 text-base font-bold mt-1">
-                                            <span className="font-bold">Event/Venue:</span> {remotePartyTitle}
+                                            <span className="font-bold">Event/Venue:</span> {displayPartyTitle}
                                         </p>
                                     )}
-                                    {remotePartyDescription && remotePartyDescription.trim() !== '' && (
+
+                                    {displayPartyDescription.trim() !== '' && (
                                         <p className="text-gray-800 text-sm mt-1">
-                                            <span className="font-bold">Description:</span> {remotePartyDescription}
+                                            <span className="font-bold">Description:</span> {displayPartyDescription}
                                         </p>
                                     )}
                                 </div>
