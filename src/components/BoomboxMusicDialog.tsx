@@ -82,7 +82,7 @@ export function BoomboxMusicDialog(props: BoomboxMusicDialogProps) {
                         {displayPartyTitle.trim() !== '' ? displayPartyTitle : 'No Event/Venue Name'}
                     </h2>
                     {displayPartyDescription.trim() !== '' && (
-                        <p className="text-purple-100 text-xs mt-1 truncate max-w-full">
+                        <p className="text-purple-100 text-xs mt-1 max-w-full whitespace-pre-line">
                             {displayPartyDescription}
                         </p>
                     )}
