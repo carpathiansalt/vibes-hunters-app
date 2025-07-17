@@ -3,11 +3,18 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import type { UserPosition } from '@/types';
+
 import type { Room, LocalAudioTrack } from 'livekit-client';
 import { EnhancedMusicPlayer } from './EnhancedMusicPlayer';
 
-interface BoomboxMusicDialogProps {
-    user: UserPosition;
+type UserMetadata = {
+    musicTitle?: string;
+    musicDescription?: string;
+    [key: string]: unknown;
+};
+
+type BoomboxMusicDialogProps = {
+    user: UserPosition & { metadata?: string | UserMetadata };
     onClose: () => void;
     onJoin: () => void;
     room?: Room | null;
@@ -19,7 +26,7 @@ interface BoomboxMusicDialogProps {
     setMusicTitle?: (title: string) => void;
     musicDescription?: string;
     setMusicDescription?: (desc: string) => void;
-}
+};
 
 export function BoomboxMusicDialog({
     user,
@@ -49,6 +56,18 @@ export function BoomboxMusicDialog({
         }
     };
 
+    // Extract musicTitle and musicDescription from user.metadata if available (for remote users)
+    let remoteMusicTitle = user.musicTitle;
+    let remoteMusicDescription = user.musicDescription;
+    if (user.metadata) {
+        try {
+            const meta: UserMetadata = typeof user.metadata === 'string' ? JSON.parse(user.metadata) : user.metadata;
+            if (meta.musicTitle) remoteMusicTitle = meta.musicTitle;
+            if (meta.musicDescription) remoteMusicDescription = meta.musicDescription;
+        } catch {
+            // ignore parse errors
+        }
+    }
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 flex flex-col max-h-[90vh] relative">
@@ -120,14 +139,14 @@ export function BoomboxMusicDialog({
                                 <div>
                                     <h3 className="font-bold text-gray-800 text-lg">{user.username}</h3>
                                     <p className="text-gray-600 text-sm">is sharing music nearby</p>
-                                    {user.musicTitle && (
+                                    {remoteMusicTitle && (
                                         <p className="text-purple-700 text-base font-bold mt-1">
-                                            <span className="font-bold">Event/Venue:</span> {user.musicTitle}
+                                            <span className="font-bold">Event/Venue:</span> {remoteMusicTitle}
                                         </p>
                                     )}
-                                    {user.musicDescription && user.musicDescription.trim() !== '' && (
+                                    {remoteMusicDescription && remoteMusicDescription.trim() !== '' && (
                                         <p className="text-gray-800 text-sm mt-1">
-                                            <span className="font-bold">Description:</span> {user.musicDescription}
+                                            <span className="font-bold">Description:</span> {remoteMusicDescription}
                                         </p>
                                     )}
                                 </div>

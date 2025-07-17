@@ -81,6 +81,14 @@ export function EnhancedMusicPlayer({
         setIsLoading(true);
 
         try {
+            // Set party metadata (title and description) on the local participant
+            if (room.localParticipant && (musicTitle || musicDescription)) {
+                const metadata = {
+                    musicTitle: musicTitle || '',
+                    musicDescription: musicDescription || ''
+                };
+                await room.localParticipant.setMetadata(JSON.stringify(metadata));
+            }
             // Create audio element for playback
             const audioElement = audioElementRef.current || new Audio();
             audioElementRef.current = audioElement;
@@ -216,6 +224,14 @@ export function EnhancedMusicPlayer({
         setIsLoading(true);
 
         try {
+            // Set party metadata (title and description) on the local participant
+            if (room.localParticipant && (musicTitle || musicDescription)) {
+                const metadata = {
+                    musicTitle: musicTitle || '',
+                    musicDescription: musicDescription || ''
+                };
+                await room.localParticipant.setMetadata(JSON.stringify(metadata));
+            }
             if (isMobile) {
                 alert('Tab audio capture is not supported on mobile devices. Please use file upload instead.');
                 return;
