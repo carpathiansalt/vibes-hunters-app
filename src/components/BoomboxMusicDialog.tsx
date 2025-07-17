@@ -59,23 +59,10 @@ export function BoomboxMusicDialog(props: BoomboxMusicDialogProps) {
         }
     };
 
-    // Extract partyTitle and partyDescription from user.metadata if available (for remote users)
-    let remotePartyTitle = '';
-    let remotePartyDescription = '';
-
-    if (user.metadata) {
-        try {
-            const meta: UserMetadata = typeof user.metadata === 'string' ? JSON.parse(user.metadata) : user.metadata;
-            remotePartyTitle = meta.partyTitle || '';
-            remotePartyDescription = meta.partyDescription || '';
-        } catch (error) {
-            console.warn('Failed to parse user metadata:', error);
-        }
-    }
-
-    // For self, use the props directly; for others, use parsed metadata
-    const displayPartyTitle = isSelf ? (partyTitle || '') : remotePartyTitle;
-    const displayPartyDescription = isSelf ? (partyDescription || '') : remotePartyDescription;
+    // ✅ SIMPLIFIED: Read party info directly from user object
+    // For self, use the props directly; for others, use user object properties
+    const displayPartyTitle = isSelf ? (partyTitle || '') : (user.partyTitle || '');
+    const displayPartyDescription = isSelf ? (partyDescription || '') : (user.partyDescription || '');
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -216,7 +203,7 @@ export function BoomboxMusicDialog(props: BoomboxMusicDialogProps) {
                                 onClick={handleJoin}
                                 disabled={isJoining || (!user.isPublishingMusic && !isListening)}
                                 className={`flex-1 ${isListening
-                                    ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800'
+                                    ? 'bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-800'
                                     : user.isPublishingMusic
                                         ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
                                         : 'bg-gray-400 cursor-not-allowed'

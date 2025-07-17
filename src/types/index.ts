@@ -14,12 +14,13 @@ export interface Vector3 {
 
 export interface UserPosition {
     userId: string;
-    position: Vector2;
-    avatar: string;
     username: string;
+    avatar: string;
+    position: Vector2;
     isPublishingMusic?: boolean;
     musicTitle?: string;
-    musicDescription?: string;
+    partyTitle?: string;        // ✅ Add this
+    partyDescription?: string;  // ✅ Add this
 }
 
 export interface TrackPosition {

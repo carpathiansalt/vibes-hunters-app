@@ -257,7 +257,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const updateParticipantFromMetadata = useCallback((participant: RemoteParticipant) => {
         if (!participant.metadata) {
             console.log('Participant has no metadata yet:', participant.identity, '- skipping add until metadata arrives.');
-            // Do not add to participants map until metadata is available
             return;
         }
 
@@ -274,6 +273,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 position: metadata.position,
                 isPublishingMusic: metadata.isPublishingMusic || false,
                 musicTitle: metadata.musicTitle,
+                partyTitle: metadata.partyTitle,
+                partyDescription: metadata.partyDescription,
             };
 
             // Update participants state
