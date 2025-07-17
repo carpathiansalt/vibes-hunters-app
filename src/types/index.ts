@@ -19,6 +19,7 @@ export interface UserPosition {
     username: string;
     isPublishingMusic?: boolean;
     musicTitle?: string;
+    musicDescription?: string;
 }
 
 export interface TrackPosition {
@@ -71,6 +72,7 @@ export interface ParticipantMetadata {
     position: Vector2;
     isPublishingMusic?: boolean;
     musicTitle?: string;
+    musicDescription?: string;
 }
 
 // Distance calculation constants

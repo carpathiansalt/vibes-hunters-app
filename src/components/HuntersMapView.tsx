@@ -26,6 +26,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [isPublishingMusic, setIsPublishingMusic] = useState(false);
     const [isMusicPaused, setIsMusicPaused] = useState(false);
     const [musicSource, setMusicSource] = useState<'file' | 'tab-capture' | null>(null); // Track the source of music
+    const [musicTitle, setMusicTitle] = useState<string>('');
+    const [musicDescription, setMusicDescription] = useState<string>('');
     const [listeningToMusic, setListeningToMusic] = useState<string | null>(null); // Track which participant's music we're listening to (only one at a time)
     const [isTrackingLocation, setIsTrackingLocation] = useState(false);
     const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
@@ -45,7 +47,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const watchIdRef = useRef<number | null>(null);
     const lastMetadataUpdateRef = useRef<number>(0);
     const metadataUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const currentMusicTrackRef = useRef<{ track: LocalAudioTrack; audioElement: HTMLAudioElement | null } | null>(null);
+    const currentMusicTrackRef = useRef<{ track: LocalAudioTrack; audioElement: HTMLAudioElement | null; musicTitle?: string; musicDescription?: string } | null>(null);
 
     // Initialize spatial audio
     const {
@@ -70,6 +72,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             avatar,
             position: myPosition,
             isPublishingMusic,
+            musicTitle,
+            musicDescription,
         };
 
         const doUpdate = async () => {
@@ -97,7 +101,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             const delay = minUpdateInterval - timeSinceLastUpdate;
             metadataUpdateTimeoutRef.current = setTimeout(doUpdate, delay);
         }
-    }, [username, avatar, myPosition, isPublishingMusic, livekitRoom]);
+    }, [username, avatar, myPosition, isPublishingMusic, musicTitle, musicDescription, livekitRoom]);
 
     // Update my position in room
     const updateMyPositionInRoom = useCallback(async (position: Vector2) => {
@@ -1124,101 +1128,115 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             </div>
 
             {selectedMusicUser && (
-                <BoomboxMusicDialog
-                    user={selectedMusicUser}
-                    onClose={() => setSelectedMusicUser(null)}
-                    onJoin={async () => {
-                        // Only relevant for remote users joining/leaving music parties
-                        if (selectedMusicUser.userId !== 'self') {
-                            console.log('Managing music party for:', selectedMusicUser.username, 'userId:', selectedMusicUser.userId);
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60" style={{ pointerEvents: 'auto' }}>
+                    <div className="relative w-full max-w-lg mx-auto my-8 max-h-[90vh] overflow-y-auto flex flex-col" style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.35)' }}>
+                        <BoomboxMusicDialog
+                            user={selectedMusicUser}
+                            onClose={() => setSelectedMusicUser(null)}
+                            onJoin={async () => {
+                                // Only relevant for remote users joining/leaving music parties
+                                if (selectedMusicUser.userId !== 'self') {
+                                    console.log('Managing music party for:', selectedMusicUser.username, 'userId:', selectedMusicUser.userId);
 
-                            const isCurrentlyListening = listeningToMusic === selectedMusicUser.userId;
+                                    const isCurrentlyListening = listeningToMusic === selectedMusicUser.userId;
 
-                            try {
-                                // Enable audio context first (important for mobile)
-                                await enableAudioContext();
+                                    try {
+                                        // Enable audio context first (important for mobile)
+                                        await enableAudioContext();
 
-                                if (isCurrentlyListening) {
-                                    // Leave the current music party
-                                    const success = await leaveMusicParty(selectedMusicUser.userId);
-                                    if (success) {
-                                        setListeningToMusic(null);
-                                        console.log('Successfully left music party:', selectedMusicUser.username);
-                                        alert(`Left ${selectedMusicUser.username}'s music party! 🎵`);
-                                    } else {
-                                        console.error('Failed to leave music party:', selectedMusicUser.username);
-                                        alert('Failed to leave music party. Please try again.');
+                                        if (isCurrentlyListening) {
+                                            // Leave the current music party
+                                            const success = await leaveMusicParty(selectedMusicUser.userId);
+                                            if (success) {
+                                                setListeningToMusic(null);
+                                                console.log('Successfully left music party:', selectedMusicUser.username);
+                                                alert(`Left ${selectedMusicUser.username}'s music party! 🎵`);
+                                            } else {
+                                                console.error('Failed to leave music party:', selectedMusicUser.username);
+                                                alert('Failed to leave music party. Please try again.');
+                                            }
+                                        } else {
+                                            // Before joining, check if the user is actually publishing music
+                                            if (!selectedMusicUser.isPublishingMusic) {
+                                                alert(`${selectedMusicUser.username} is not currently playing music. Wait for them to start a music party!`);
+                                                return;
+                                            }
+
+                                            // Check if user is already listening to a different music party
+                                            const currentMusicParty = getCurrentMusicParty();
+                                            if (currentMusicParty && currentMusicParty !== selectedMusicUser.userId) {
+                                                const currentPartyUser = participants.get(currentMusicParty);
+                                                const confirmSwitch = confirm(`You are currently listening to ${currentPartyUser?.username || 'another user'}'s music party. Switch to ${selectedMusicUser.username}'s party?`);
+                                                if (!confirmSwitch) {
+                                                    return;
+                                                }
+                                            }
+
+                                            // If already listening to another music party, leave it first
+                                            if (listeningToMusic && listeningToMusic !== selectedMusicUser.userId) {
+                                                console.log('Leaving current music party before joining new one');
+                                                await leaveMusicParty(listeningToMusic);
+                                                setListeningToMusic(null);
+                                            }
+
+                                            // Join the new music party
+                                            const success = await subscribeToParticipant(selectedMusicUser.userId);
+                                            if (success) {
+                                                setListeningToMusic(selectedMusicUser.userId);
+                                                console.log('Successfully joined music party:', selectedMusicUser.username);
+                                                alert(`Joined ${selectedMusicUser.username}'s music party! 🎵`);
+                                                // Close the dialog after successful join
+                                                setSelectedMusicUser(null);
+                                            } else {
+                                                console.error('Failed to join music party:', selectedMusicUser.username);
+                                                alert(`Failed to join ${selectedMusicUser.username}'s music party. They might not be actively streaming music right now. Try again when they start playing music!`);
+                                            }
+                                        }
+                                    } catch (error) {
+                                        console.error('Error managing music party:', error);
+                                        alert('Failed to manage music party. Please try again.');
                                     }
                                 } else {
-                                    // Before joining, check if the user is actually publishing music
-                                    if (!selectedMusicUser.isPublishingMusic) {
-                                        alert(`${selectedMusicUser.username} is not currently playing music. Wait for them to start a music party!`);
-                                        setSelectedMusicUser(null);
-                                        return;
-                                    }
-
-                                    // Check if user is already listening to a different music party
-                                    const currentMusicParty = getCurrentMusicParty();
-                                    if (currentMusicParty && currentMusicParty !== selectedMusicUser.userId) {
-                                        const currentPartyUser = participants.get(currentMusicParty);
-                                        const confirmSwitch = confirm(`You are currently listening to ${currentPartyUser?.username || 'another user'}'s music party. Switch to ${selectedMusicUser.username}'s party?`);
-                                        if (!confirmSwitch) {
-                                            setSelectedMusicUser(null);
-                                            return;
-                                        }
-                                    }
-
-                                    // If already listening to another music party, leave it first
-                                    if (listeningToMusic && listeningToMusic !== selectedMusicUser.userId) {
-                                        console.log('Leaving current music party before joining new one');
-                                        await leaveMusicParty(listeningToMusic);
-                                        setListeningToMusic(null);
-                                    }
-
-                                    // Join the new music party
-                                    const success = await subscribeToParticipant(selectedMusicUser.userId);
-                                    if (success) {
-                                        setListeningToMusic(selectedMusicUser.userId);
-                                        console.log('Successfully joined music party:', selectedMusicUser.username);
-                                        alert(`Joined ${selectedMusicUser.username}'s music party! 🎵`);
-                                    } else {
-                                        console.error('Failed to join music party:', selectedMusicUser.username);
-                                        alert(`Failed to join ${selectedMusicUser.username}'s music party. They might not be actively streaming music right now. Try again when they start playing music!`);
-                                    }
+                                    console.log('Self music dialog - no subscription needed');
                                 }
-                            } catch (error) {
-                                console.error('Error managing music party:', error);
-                                alert('Failed to manage music party. Please try again.');
-                            }
-                        } else {
-                            console.log('Self music dialog - no subscription needed');
-                        }
-                        setSelectedMusicUser(null);
-                    }}
-                    room={livekitRoom}
-                    onPublishStart={(filename, track, audioElement) => {
-                        if (track && audioElement) {
-                            currentMusicTrackRef.current = { track, audioElement };
-                            setMusicSource('file');
-                        } else if (track && !audioElement) {
-                            // Tab capture - no audio element to control
-                            currentMusicTrackRef.current = { track, audioElement: null };
-                            setMusicSource('tab-capture');
-                        }
-                        setIsPublishingMusic(true);
-                        setIsMusicPaused(false);
-                        console.log(`Started publishing: ${filename}, source: ${audioElement ? 'file' : 'tab-capture'}`);
-
-                        // Don't close the dialog automatically - let the user close it manually
-                        // The music will continue playing even after dialog closes
-                    }}
-                    onPublishStop={() => {
-                        // This will be called from the dialog, but we also have our own stop function
-                        stopMusicPublishing();
-                    }}
-                    isListening={listeningToMusic === selectedMusicUser.userId}
-                    isSelf={selectedMusicUser.userId === 'self'}
-                />
+                            }}
+                            room={livekitRoom}
+                            musicTitle={musicTitle}
+                            setMusicTitle={setMusicTitle}
+                            musicDescription={musicDescription}
+                            setMusicDescription={setMusicDescription}
+                            onPublishStart={(filename, track, audioElement) => {
+                                if (track && audioElement) {
+                                    currentMusicTrackRef.current = { track, audioElement, musicTitle, musicDescription };
+                                    setMusicSource('file');
+                                } else if (track && !audioElement) {
+                                    // Tab capture - no audio element to control
+                                    currentMusicTrackRef.current = { track, audioElement: null, musicTitle, musicDescription };
+                                    setMusicSource('tab-capture');
+                                }
+                                setIsPublishingMusic(true);
+                                setIsMusicPaused(false);
+                                console.log(`Started publishing: ${filename}, source: ${audioElement ? 'file' : 'tab-capture'}, title: ${musicTitle}, description: ${musicDescription}`);
+                                // Don't close the dialog automatically - let the user close it manually
+                                // The music will continue playing even after dialog closes
+                            }}
+                            onPublishStop={() => {
+                                // This will be called from the dialog, but we also have our own stop function
+                                stopMusicPublishing();
+                            }}
+                            isListening={listeningToMusic === selectedMusicUser.userId}
+                            isSelf={selectedMusicUser.userId === 'self'}
+                        />
+                        {/* Close button for desktop accessibility */}
+                        <button
+                            onClick={() => setSelectedMusicUser(null)}
+                            className="absolute top-2 right-2 bg-gray-800 bg-opacity-80 hover:bg-opacity-100 text-white rounded-full w-8 h-8 flex items-center justify-center z-10"
+                            title="Close dialog"
+                        >
+                            ×
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     );

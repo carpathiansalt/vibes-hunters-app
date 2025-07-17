@@ -13,6 +13,10 @@ interface EnhancedMusicPlayerProps {
     onClose?: () => void; // Add onClose callback to close the dialog
     volume?: number;
     onVolumeChange?: (volume: number) => void;
+    musicTitle?: string;
+    setMusicTitle?: (title: string) => void;
+    musicDescription?: string;
+    setMusicDescription?: (desc: string) => void;
 }
 
 export function EnhancedMusicPlayer({
@@ -21,7 +25,11 @@ export function EnhancedMusicPlayer({
     onPublishStop,
     onClose,
     volume = 1.0,
-    onVolumeChange
+    onVolumeChange,
+    musicTitle = '',
+    setMusicTitle,
+    musicDescription = '',
+    setMusicDescription
 }: EnhancedMusicPlayerProps) {
     const [activeSource, setActiveSource] = useState<MusicSource>('file');
     const [isLoading, setIsLoading] = useState(false);
@@ -168,6 +176,40 @@ export function EnhancedMusicPlayer({
         }
     };
 
+    const handleStop = async () => {
+        if (!room || !currentTrackRef.current) return;
+
+        setIsLoading(true);
+
+        try {
+            // Don't touch the audio element here - let the parent handle it
+            // Just stop and unpublish the track
+            currentTrackRef.current.stop();
+            await room.localParticipant.unpublishTrack(currentTrackRef.current);
+
+            // Clean up references
+            currentTrackRef.current = null;
+
+            onPublishStop();
+
+        } catch (error) {
+            console.error('Error stopping music:', error);
+            // Still call onPublishStop even if there's an error to update UI state
+            onPublishStop();
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleVolumeChange = (newVolume: number) => {
+        setAudioGain(newVolume);
+        if (audioElementRef.current) {
+            audioElementRef.current.volume = newVolume;
+        }
+    };
+
+    // This component is now only for music selection, not controls
+    // Tab audio capture handler
     const handleTabCapture = async () => {
         if (!room) return;
 
@@ -250,44 +292,34 @@ export function EnhancedMusicPlayer({
         }
     };
 
-    const handleStop = async () => {
-        if (!room || !currentTrackRef.current) return;
-
-        setIsLoading(true);
-
-        try {
-            // Don't touch the audio element here - let the parent handle it
-            // Just stop and unpublish the track
-            currentTrackRef.current.stop();
-            await room.localParticipant.unpublishTrack(currentTrackRef.current);
-
-            // Clean up references
-            currentTrackRef.current = null;
-
-            onPublishStop();
-
-        } catch (error) {
-            console.error('Error stopping music:', error);
-            // Still call onPublishStop even if there's an error to update UI state
-            onPublishStop();
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleVolumeChange = (newVolume: number) => {
-        setAudioGain(newVolume);
-        if (audioElementRef.current) {
-            audioElementRef.current.volume = newVolume;
-        }
-    };
-
-    // This component is now only for music selection, not controls
     return (
-        <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
-            <div className="mb-4">
-                <h3 className="text-lg font-semibold mb-2 text-gray-800">🎵 Select Music Source</h3>
-                <p className="text-sm text-gray-600 mb-4">Choose how you want to share music with others</p>
+        <div className="relative p-4 bg-gray-50 rounded-xl border border-gray-200">
+            {/* The close button is now only rendered by the parent dialog. */}
+            <div className="mb-4 mt-4">
+                <h3 className="text-lg font-semibold mb-2 text-gray-800">🎉 Event / Venue Info</h3>
+                <p className="text-sm text-gray-600 mb-4">Describe your party, club, pub, or event. This info will be shown to others when they join your broadcast.</p>
+
+                {/* Event Title and Description Fields */}
+                <div className="mb-4">
+                    <label className="block text-sm font-medium mb-1">Event or Venue Name <span className="text-xs text-gray-400">(max 50 chars)</span></label>
+                    <input
+                        type="text"
+                        maxLength={50}
+                        value={musicTitle}
+                        onChange={e => setMusicTitle && setMusicTitle(e.target.value)}
+                        className="w-full p-2 border rounded mb-2 text-gray-900 placeholder-gray-500 bg-white focus:border-purple-600 focus:outline-none border-gray-400"
+                        placeholder="e.g. Friday Night at Club XYZ, Rooftop Party, etc."
+                    />
+                    <label className="block text-sm font-medium mb-1">Event Description <span className="text-xs text-gray-400">(max 200 chars)</span></label>
+                    <textarea
+                        maxLength={200}
+                        value={musicDescription}
+                        onChange={e => setMusicDescription && setMusicDescription(e.target.value)}
+                        className="w-full p-2 border rounded text-gray-900 placeholder-gray-500 bg-white focus:border-purple-600 focus:outline-none border-gray-400 mb-2"
+                        placeholder="Describe your event, venue, or vibe..."
+                        rows={2}
+                    />
+                </div>
 
                 <div className="flex flex-col sm:flex-row gap-2 mb-4">
                     <button

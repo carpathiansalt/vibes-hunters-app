@@ -15,6 +15,10 @@ interface BoomboxMusicDialogProps {
     onPublishStop?: () => void;
     isSelf?: boolean; // New prop to distinguish self vs others
     isListening?: boolean; // Whether the user is currently listening to this participant's music
+    musicTitle?: string;
+    setMusicTitle?: (title: string) => void;
+    musicDescription?: string;
+    setMusicDescription?: (desc: string) => void;
 }
 
 export function BoomboxMusicDialog({
@@ -25,7 +29,11 @@ export function BoomboxMusicDialog({
     onPublishStart,
     onPublishStop,
     isSelf = false,
-    isListening = false
+    isListening = false,
+    musicTitle,
+    setMusicTitle,
+    musicDescription,
+    setMusicDescription
 }: BoomboxMusicDialogProps) {
     const [isJoining, setIsJoining] = useState(false);
 
@@ -43,9 +51,19 @@ export function BoomboxMusicDialog({
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 flex flex-col max-h-[90vh] relative">
+                {/* Close Button (always top-right, accessible) */}
+                <button
+                    onClick={onClose}
+                    aria-label="Close dialog"
+                    className="absolute top-3 right-3 z-20 w-9 h-9 rounded-full bg-gray-800 bg-opacity-80 hover:bg-opacity-100 text-white flex items-center justify-center text-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+                    tabIndex={0}
+                >
+                    ×
+                </button>
+
                 {/* Header */}
-                <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 text-white text-center">
+                <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 pt-10 text-white text-center rounded-t-2xl">
                     <div className="text-4xl mb-2">{isSelf ? '🎵' : '🎧'}</div>
                     <h2 className="text-2xl font-bold">
                         {isSelf ? 'Start Music Party!' : isListening ? 'Leave Music Party?' : 'Join Music Party!'}
@@ -58,11 +76,11 @@ export function BoomboxMusicDialog({
                 </div>
 
                 {/* Content */}
-                <div className="p-6">
+                <div className="p-6 flex-1 overflow-y-auto">
                     {isSelf ? (
                         /* Self - Show Music Upload */
                         <div>
-                            <div className="text-center mb-6">
+                            <div className="text-center mb-6 mt-2">
                                 <div className="text-6xl mb-4">🎵</div>
                                 <h3 className="font-bold text-gray-800 text-lg mb-2">Share Your Music</h3>
                                 <p className="text-gray-600 text-sm">
@@ -77,9 +95,15 @@ export function BoomboxMusicDialog({
                                         room={room}
                                         onPublishStart={(filename, track, audioElement) => {
                                             onPublishStart?.(filename, track, audioElement);
+                                            // Always close dialog after starting a party
+                                            onClose?.();
                                         }}
                                         onPublishStop={onPublishStop || (() => { })}
                                         onClose={onClose}
+                                        musicTitle={musicTitle}
+                                        setMusicTitle={setMusicTitle}
+                                        musicDescription={musicDescription}
+                                        setMusicDescription={setMusicDescription}
                                     />
                                 </div>
                             )}
@@ -105,8 +129,13 @@ export function BoomboxMusicDialog({
                                     <h3 className="font-bold text-gray-800 text-lg">{user.username}</h3>
                                     <p className="text-gray-600 text-sm">is sharing music nearby</p>
                                     {user.musicTitle && (
-                                        <p className="text-purple-600 text-sm font-medium mt-1">
-                                            Playing: {user.musicTitle}
+                                        <p className="text-purple-700 text-base font-bold mt-1">
+                                            <span className="font-bold">Event/Venue:</span> {user.musicTitle}
+                                        </p>
+                                    )}
+                                    {user.musicDescription && (
+                                        <p className="text-gray-700 text-xs mt-1">
+                                            <span className="font-bold">Event Description:</span> {user.musicDescription}
                                         </p>
                                     )}
                                 </div>
@@ -153,63 +182,48 @@ export function BoomboxMusicDialog({
                         </div>
                     )}
 
-                    {/* Action Buttons */}
-                    <div className="flex space-x-3">
-                        {isSelf ? (
-                            /* Self - Show Close Button */
+                    {/* Action Buttons: Only render for remote user dialogs */}
+                    {!isSelf && (
+                        <div className="flex space-x-3 pt-4 pb-2 bg-white sticky bottom-0 z-10 border-t border-gray-200">
+                            {/* Others - Show Join/Cancel Buttons */}
                             <button
-                                onClick={onClose}
-                                className="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-xl transition-colors"
+                                onClick={handleJoin}
+                                disabled={isJoining || (!user.isPublishingMusic && !isListening)}
+                                className={`flex-1 ${isListening
+                                    ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800'
+                                    : user.isPublishingMusic
+                                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
+                                        : 'bg-gray-400 cursor-not-allowed'
+                                    } text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
                             >
-                                Close
+                                {isJoining ? (
+                                    <span className="flex items-center justify-center">
+                                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        {isListening ? 'Leaving...' : 'Joining...'}
+                                    </span>
+                                ) : isListening ? (
+                                    '🚪 Leave Party'
+                                ) : user.isPublishingMusic ? (
+                                    '🎧 Join Party'
+                                ) : (
+                                    '⏳ No Music Playing'
+                                )}
                             </button>
-                        ) : (
-                            /* Others - Show Join/Cancel Buttons */
-                            <>
-                                <button
-                                    onClick={handleJoin}
-                                    disabled={isJoining || (!user.isPublishingMusic && !isListening)}
-                                    className={`flex-1 ${isListening
-                                        ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800'
-                                        : user.isPublishingMusic
-                                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
-                                            : 'bg-gray-400 cursor-not-allowed'
-                                        } text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
-                                >
-                                    {isJoining ? (
-                                        <span className="flex items-center justify-center">
-                                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                            {isListening ? 'Leaving...' : 'Joining...'}
-                                        </span>
-                                    ) : isListening ? (
-                                        '🚪 Leave Party'
-                                    ) : user.isPublishingMusic ? (
-                                        '🎧 Join Party'
-                                    ) : (
-                                        '⏳ No Music Playing'
-                                    )}
-                                </button>
-                                <button
-                                    onClick={onClose}
-                                    disabled={isJoining}
-                                    className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-xl transition-colors disabled:opacity-50"
-                                >
-                                    Cancel
-                                </button>
-                            </>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
 
-                {/* Footer */}
-                <div className="bg-gray-50 px-6 py-4 text-center">
-                    <p className="text-xs text-gray-500">
-                        Move closer to hear the music louder • Move away to make it quieter
-                    </p>
-                </div>
+                {/* Footer: Only show for remote user dialogs */}
+                {!isSelf && (
+                    <div className="bg-gray-50 px-6 py-4 text-center">
+                        <p className="text-xs text-gray-500">
+                            Move closer to hear your tribe louder • Move away to make it quieter
+                        </p>
+                    </div>
+                )}
             </div>
         </div>
     );
