@@ -79,7 +79,7 @@ export function BoomboxMusicDialog(props: BoomboxMusicDialogProps) {
                 <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 pt-10 text-white text-center rounded-t-2xl">
                     <div className="text-4xl mb-2">{isSelf ? '🎵' : '🎧'}</div>
                     <h2 className="text-2xl font-bold truncate max-w-full">
-                        {displayPartyTitle.trim() !== '' ? displayPartyTitle : 'No Event/Venue Name'}
+                        {displayPartyTitle.trim() !== '' ? displayPartyTitle : 'Private Party'}
                     </h2>
                     {displayPartyDescription.trim() !== '' && (
                         <p className="text-purple-100 text-xs mt-1 max-w-full whitespace-pre-line">
