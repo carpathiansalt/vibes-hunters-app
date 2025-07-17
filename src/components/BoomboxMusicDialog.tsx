@@ -138,18 +138,6 @@ export function BoomboxMusicDialog(props: BoomboxMusicDialogProps) {
                                 <div>
                                     <h3 className="font-bold text-gray-800 text-lg">{user.username}</h3>
                                     <p className="text-gray-600 text-sm">is sharing music nearby</p>
-
-                                    {displayPartyTitle.trim() !== '' && (
-                                        <p className="text-purple-700 text-base font-bold mt-1">
-                                            <span className="font-bold">Event/Venue:</span> {displayPartyTitle}
-                                        </p>
-                                    )}
-
-                                    {displayPartyDescription.trim() !== '' && (
-                                        <p className="text-gray-800 text-sm mt-1">
-                                            <span className="font-bold">Description:</span> {displayPartyDescription}
-                                        </p>
-                                    )}
                                 </div>
                             </div>
 
