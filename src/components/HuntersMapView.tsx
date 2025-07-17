@@ -78,6 +78,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             isPublishingMusic,
             musicTitle,
             musicDescription,
+            partyTitle,
+            partyDescription,
         };
 
         const doUpdate = async () => {
@@ -105,7 +107,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             const delay = minUpdateInterval - timeSinceLastUpdate;
             metadataUpdateTimeoutRef.current = setTimeout(doUpdate, delay);
         }
-    }, [username, avatar, myPosition, isPublishingMusic, musicTitle, musicDescription, livekitRoom]);
+    }, [username, avatar, myPosition, isPublishingMusic, musicTitle, musicDescription, partyTitle, partyDescription, livekitRoom]);
 
     // Update my position in room
     const updateMyPositionInRoom = useCallback(async (position: Vector2) => {

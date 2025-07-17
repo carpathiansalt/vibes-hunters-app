@@ -62,7 +62,7 @@ export function BoomboxMusicDialog(props: BoomboxMusicDialogProps) {
     // Extract partyTitle and partyDescription from user.metadata if available (for remote users)
     let remotePartyTitle = '';
     let remotePartyDescription = '';
-    
+
     if (user.metadata) {
         try {
             const meta: UserMetadata = typeof user.metadata === 'string' ? JSON.parse(user.metadata) : user.metadata;

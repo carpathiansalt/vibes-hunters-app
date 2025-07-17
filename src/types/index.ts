@@ -67,12 +67,14 @@ export interface BoomboxDialogData {
 
 // LiveKit related types
 export interface ParticipantMetadata {
-    avatar: string;
     username: string;
+    avatar: string;
     position: Vector2;
     isPublishingMusic?: boolean;
     musicTitle?: string;
     musicDescription?: string;
+    partyTitle?: string;        // ✅ Add this
+    partyDescription?: string;  // ✅ Add this
 }
 
 // Distance calculation constants
