@@ -81,8 +81,8 @@ export function EnhancedMusicPlayer({
         setIsLoading(true);
 
         try {
-            // Set party metadata (title and description) on the local participant
-            if (room.localParticipant && (musicTitle || musicDescription)) {
+            // Always set party metadata (title and description) on the local participant
+            if (room.localParticipant) {
                 const metadata = {
                     musicTitle: musicTitle || '',
                     musicDescription: musicDescription || ''
@@ -224,8 +224,8 @@ export function EnhancedMusicPlayer({
         setIsLoading(true);
 
         try {
-            // Set party metadata (title and description) on the local participant
-            if (room.localParticipant && (musicTitle || musicDescription)) {
+            // Always set party metadata (title and description) on the local participant
+            if (room.localParticipant) {
                 const metadata = {
                     musicTitle: musicTitle || '',
                     musicDescription: musicDescription || ''
