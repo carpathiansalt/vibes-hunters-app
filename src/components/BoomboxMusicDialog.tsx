@@ -60,7 +60,6 @@ export function BoomboxMusicDialog(props: BoomboxMusicDialogProps) {
     };
 
     // ✅ SIMPLIFIED: Read party info directly from user object
-    // For self, use the props directly; for others, use user object properties
     const displayPartyTitle = isSelf ? (partyTitle || '') : (user.partyTitle || '');
     const displayPartyDescription = isSelf ? (partyDescription || '') : (user.partyDescription || '');
 
