@@ -125,9 +125,9 @@ export function BoomboxMusicDialog({
                                             <span className="font-bold">Event/Venue:</span> {user.musicTitle}
                                         </p>
                                     )}
-                                    {user.musicDescription && (
-                                        <p className="text-gray-700 text-xs mt-1">
-                                            <span className="font-bold">Event Description:</span> {user.musicDescription}
+                                    {user.musicDescription && user.musicDescription.trim() !== '' && (
+                                        <p className="text-gray-800 text-sm mt-1">
+                                            <span className="font-bold">Description:</span> {user.musicDescription}
                                         </p>
                                     )}
                                 </div>
