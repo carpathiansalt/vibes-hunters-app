@@ -86,9 +86,14 @@ export function BoomboxMusicDialog(props: BoomboxMusicDialogProps) {
                 {/* Extract partyTitle and partyDescription from user.metadata if available (for remote users) */}
                 <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 pt-10 text-white text-center rounded-t-2xl">
                     <div className="text-4xl mb-2">{isSelf ? '🎵' : '🎧'}</div>
-                    <h2 className="text-2xl font-bold">
-                        {/* You can display partyTitle here if needed */}
+                    <h2 className="text-2xl font-bold truncate max-w-full">
+                        {isSelf ? (partyTitle && partyTitle.trim() !== '' ? partyTitle : 'No Event/Venue Name') : (remotePartyTitle && remotePartyTitle.trim() !== '' ? remotePartyTitle : 'No Event/Venue Name')}
                     </h2>
+                    {(isSelf ? partyDescription : remotePartyDescription) && ((isSelf ? partyDescription : remotePartyDescription) ?? "").trim() !== '' && (
+                        <p className="text-purple-100 text-xs mt-1 truncate max-w-full">
+                            {(isSelf ? partyDescription : remotePartyDescription)}
+                        </p>
+                    )}
                     <p className="text-purple-100 text-sm mt-1">
                         {isSelf ? 'Share your music with nearby hunters' :
                             isListening ? 'You are currently listening to this party' :
