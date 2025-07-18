@@ -1,14 +1,13 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import axios from 'axios';
 
-// Helper to get LiveKit JWT (for production, use a proper JWT generator)
-function getLiveKitAuthHeader() {
-    // For demo, use basic auth. For production, use JWT as per LiveKit docs.
+// Helper to get LiveKit REST API Basic Auth headers
+function getLiveKitAuthHeaders() {
     const apiKey = process.env.LIVEKIT_API_KEY;
     const apiSecret = process.env.LIVEKIT_API_SECRET;
     if (!apiKey || !apiSecret) throw new Error('LiveKit API credentials missing');
-    // Replace with JWT if needed
-    return `Bearer ${apiKey}:${apiSecret}`;
+    const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
+    return { Authorization: `Basic ${auth}` };
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -23,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
         // Get all rooms
         const roomsRes = await axios.get(`${livekitUrl}/rooms`, {
-            headers: { Authorization: getLiveKitAuthHeader() }
+            headers: getLiveKitAuthHeaders()
         });
         const rooms = Array.isArray(roomsRes.data) ? roomsRes.data : [];
 
@@ -31,7 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const roomDetails = await Promise.all(
             rooms.map(async (room: { name: string }) => {
                 const detailsRes = await axios.get(`${livekitUrl}/rooms/${room.name}`, {
-                    headers: { Authorization: getLiveKitAuthHeader() }
+                    headers: getLiveKitAuthHeaders()
                 });
                 return detailsRes.data;
             })
