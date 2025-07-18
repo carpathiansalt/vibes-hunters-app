@@ -9,9 +9,9 @@ export default function MapPageContent() {
     const router = useRouter();
 
     // URL parameters
-    const room = searchParams.get('room') || 'default';
-    const avatar = searchParams.get('avatar') || 'char_001';
-    const username = searchParams.get('username');
+    const room = searchParams?.get('room') || 'default';
+    const avatar = searchParams?.get('avatar') || 'char_001';
+    const username = searchParams?.get('username');
 
     // Validate required parameters
     if (!username) {
