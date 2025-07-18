@@ -28,14 +28,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         console.log('LiveKit /rooms response:', roomsRes.data);
         const rooms = Array.isArray(roomsRes.data) ? roomsRes.data : [];
 
-        // Get details for each room
+        // Define a type for LiveKit participant
+        type LiveKitParticipant = {
+            identity: string;
+            state: string;
+            metadata?: string;
+            [key: string]: unknown;
+        };
+
+        // For each room, get participants
         const roomDetails = await Promise.all(
             rooms.map(async (room: { name: string }) => {
-                const detailsRes = await axios.get(`${livekitUrl}/rooms/${room.name}`, {
+                const participantsRes = await axios.get(`${livekitUrl}/rooms/${room.name}/participants`, {
                     headers: getLiveKitAuthHeaders()
                 });
-                console.log(`LiveKit /rooms/${room.name} response:`, detailsRes.data);
-                return detailsRes.data;
+                console.log(`LiveKit /rooms/${room.name}/participants response:`, participantsRes.data);
+                // Parse participant metadata and position
+                const participants = Array.isArray(participantsRes.data) ? participantsRes.data.map((p: LiveKitParticipant) => {
+                    let position = null;
+                    if (p.metadata) {
+                        try {
+                            const meta = JSON.parse(p.metadata);
+                            if (meta.position && typeof meta.position.x === 'number' && typeof meta.position.y === 'number') {
+                                position = meta.position;
+                            }
+                        } catch (err) {
+                            console.warn('Failed to parse participant metadata:', p.metadata, err);
+                        }
+                    }
+                    return {
+                        ...p,
+                        position
+                    };
+                }) : [];
+                return {
+                    name: room.name,
+                    participants
+                };
             })
         );
 
