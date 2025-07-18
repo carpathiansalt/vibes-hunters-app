@@ -38,7 +38,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         );
 
         res.json({ rooms: roomDetails });
-    } catch {
-        res.status(500).json({ error: 'Failed to fetch LiveKit data' });
+    } catch (error: unknown) {
+        // Log error for debugging
+        if (typeof error === 'object' && error !== null && 'response' in error) {
+            const errObj = error as { response?: { data?: Record<string, unknown>; status?: number }; message?: string };
+            console.error('LiveKit API error:', errObj.response?.data || errObj.message || error);
+            if (errObj.response?.data) {
+                res.status(errObj.response.status || 500).json({ error: errObj.response.data });
+            } else {
+                res.status(500).json({ error: errObj.message || 'Failed to fetch LiveKit data' });
+            }
+        } else {
+            console.error('LiveKit API error:', error);
+            res.status(500).json({ error: 'Failed to fetch LiveKit data' });
+        }
     }
 }
