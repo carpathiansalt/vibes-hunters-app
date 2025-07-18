@@ -36,7 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             [key: string]: unknown;
         };
 
-        // For each room, get participants and filter only those with valid position metadata
+        // For each room, get all participants (include those without position metadata)
         const roomDetails = await Promise.all(
             rooms.map(async (room: { name: string }) => {
                 const participantsRes = await axios.get(`${livekitUrl}/rooms/${room.name}/participants`, {
@@ -45,34 +45,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 console.log(`LiveKit /rooms/${room.name}/participants response:`, participantsRes.data);
                 // Parse participant metadata and position
                 const participants = Array.isArray(participantsRes.data)
-                    ? participantsRes.data
-                        .map((p: LiveKitParticipant) => {
-                            let position = null;
-                            if (p.metadata) {
-                                try {
-                                    const meta = JSON.parse(p.metadata);
-                                    if (meta.position && typeof meta.position.x === 'number' && typeof meta.position.y === 'number') {
-                                        position = meta.position;
-                                    }
-                                } catch (err) {
-                                    console.warn('Failed to parse participant metadata:', p.metadata, err);
+                    ? participantsRes.data.map((p: LiveKitParticipant) => {
+                        let position = null;
+                        if (p.metadata) {
+                            try {
+                                const meta = JSON.parse(p.metadata);
+                                if (meta.position && typeof meta.position.x === 'number' && typeof meta.position.y === 'number') {
+                                    position = meta.position;
                                 }
+                            } catch (err) {
+                                console.warn('Failed to parse participant metadata:', p.metadata, err);
                             }
-                            return position ? { ...p, position } : null;
-                        })
-                        .filter(Boolean)
+                        }
+                        return { ...p, position };
+                    })
                     : [];
-                return participants.length > 0
-                    ? { name: room.name, participants }
-                    : null;
+                return { name: room.name, participants };
             })
         );
 
-        // Only include rooms with at least one valid participant
-        const filteredRooms = roomDetails.filter(Boolean);
-
-        // If no rooms or participants, return a sample for UI testing
-        if (filteredRooms.length === 0) {
+        // If no rooms, return a sample for UI testing
+        if (roomDetails.length === 0) {
             res.json({
                 rooms: [
                     {
@@ -95,7 +88,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             return;
         }
 
-        res.json({ rooms: filteredRooms });
+        res.json({ rooms: roomDetails });
     } catch (error: unknown) {
         // Log error for debugging
         if (typeof error === 'object' && error !== null && 'response' in error) {
