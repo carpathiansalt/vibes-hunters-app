@@ -1,13 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import axios from 'axios';
+import jwt from 'jsonwebtoken';
 
-// Helper to get LiveKit REST API Basic Auth headers
+// Helper to get LiveKit REST API Bearer JWT headers
 function getLiveKitAuthHeaders() {
     const apiKey = process.env.LIVEKIT_API_KEY;
     const apiSecret = process.env.LIVEKIT_API_SECRET;
     if (!apiKey || !apiSecret) throw new Error('LiveKit API credentials missing');
-    const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
-    return { Authorization: `Basic ${auth}` };
+    const token = jwt.sign({ iss: apiKey }, apiSecret, { expiresIn: '5m' });
+    return { Authorization: `Bearer ${token}` };
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
