@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^1.16.10",
+    "@types/axios": "^0.9.36",
+    "axios": "^1.10.0",
     "livekit-client": "^2.15.2",
     "livekit-server-sdk": "^2.13.1",
     "next": "15.3.5",
