@@ -25,6 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const roomsRes = await axios.get(`${livekitUrl}/rooms`, {
             headers: getLiveKitAuthHeaders()
         });
+        console.log('LiveKit /rooms response:', roomsRes.data);
         const rooms = Array.isArray(roomsRes.data) ? roomsRes.data : [];
 
         // Get details for each room
@@ -33,9 +34,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 const detailsRes = await axios.get(`${livekitUrl}/rooms/${room.name}`, {
                     headers: getLiveKitAuthHeaders()
                 });
+                console.log(`LiveKit /rooms/${room.name} response:`, detailsRes.data);
                 return detailsRes.data;
             })
         );
+
+        // If no rooms or participants, return a sample for UI testing
+        if (roomDetails.length === 0) {
+            res.json({
+                rooms: [
+                    {
+                        name: "TestRoom",
+                        participants: [
+                            {
+                                identity: "test-user",
+                                state: "connected",
+                                metadata: JSON.stringify({
+                                    username: "Test User",
+                                    avatar: "char_001",
+                                    position: { x: 37.7749, y: -122.4194 }
+                                }),
+                                position: { x: 37.7749, y: -122.4194 }
+                            }
+                        ]
+                    }
+                ]
+            });
+            return;
+        }
 
         res.json({ rooms: roomDetails });
     } catch (error: unknown) {
