@@ -26,21 +26,35 @@ export default function AdminDashboard() {
             });
     }, [password]);
 
-    // Extract all participants with position metadata
-    const participants = rooms.flatMap(room =>
+    // Extract all participants and those with position metadata
+    const allParticipants = rooms.flatMap(room => room.participants);
+    const participantsWithPosition = rooms.flatMap(room =>
         room.participants
-            .map((p) => ({
-                ...p,
-                position: p.metadata ? (() => { try { return JSON.parse(p.metadata).position; } catch { return null; } })() : null
-            }))
-            .filter((p) => p.position)
+            .map((p) => {
+                let position = null;
+                let parsedMetadata = null;
+                if (p.metadata) {
+                    try {
+                        parsedMetadata = JSON.parse(p.metadata);
+                        position = parsedMetadata?.position;
+                    } catch {
+                        console.warn(`Failed to parse metadata for ${p.identity}:`, p.metadata);
+                    }
+                }
+                return {
+                    ...p,
+                    parsedMetadata,
+                    position
+                };
+            })
+            .filter(p => p.position && typeof p.position.x === 'number' && typeof p.position.y === 'number')
     );
 
     // Use Google Maps JS API Loader for robust loading
 
-    // Initialize map only once
+    // Initialize map only once (even if no participants)
     useEffect(() => {
-        if (mapRef.current || participants.length === 0 || typeof window === 'undefined') return;
+        if (mapRef.current || typeof window === 'undefined') return;
         const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
         if (!GOOGLE_MAPS_API_KEY) return;
         const loader = new Loader({ apiKey: GOOGLE_MAPS_API_KEY, version: 'weekly', libraries: ['places'] });
@@ -54,9 +68,9 @@ export default function AdminDashboard() {
                 zoom: 3
             });
         });
-    }, [participants.length]);
+    }, []);
 
-    // Update markers when participants change
+    // Update markers when participants with position change
     useEffect(() => {
         const gmaps = (window as { google?: { maps?: unknown } }).google?.maps;
         if (!mapRef.current || typeof gmaps !== 'object' || gmaps === null || !('Marker' in gmaps)) return;
@@ -65,7 +79,7 @@ export default function AdminDashboard() {
         markersRef.current = [];
         // Add new markers
         const MarkerConstructor = (gmaps as { Marker: new (opts: object) => unknown }).Marker;
-        participants.forEach((p) => {
+        participantsWithPosition.forEach((p) => {
             const marker = new MarkerConstructor({
                 position: { lat: p.position.x, lng: p.position.y },
                 map: mapRef.current,
@@ -73,7 +87,7 @@ export default function AdminDashboard() {
             });
             markersRef.current.push(marker);
         });
-    }, [participants]);
+    }, [participantsWithPosition]);
 
     return (
         <div className="p-8">
@@ -96,18 +110,41 @@ export default function AdminDashboard() {
                 <>
                     <div className="mb-6">
                         <h2 className="text-xl font-semibold">Rooms & Participants</h2>
-                        {rooms.map(room => (
-                            <div key={room.name} className="mb-4">
-                                <h3 className="font-bold">{room.name}</h3>
-                                <ul>
-                                    {room.participants.map((p) => (
-                                        <li key={p.identity}>
-                                            {p.identity} ({p.state}) {p.position ? `@ (${p.position.x}, ${p.position.y})` : ''}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        ))}
+                        {rooms.length === 0 ? (
+                            <p className="text-amber-600">No active rooms found</p>
+                        ) : (
+                            rooms.map(room => (
+                                <div key={room.name} className="mb-4 p-3 border rounded-lg">
+                                    <h3 className="font-bold">{room.name}</h3>
+                                    {room.participants.length === 0 ? (
+                                        <p className="text-gray-500 italic">No participants in this room</p>
+                                    ) : (
+                                        <>
+                                            <p className="text-sm text-gray-600 mb-2">Total participants: {room.participants.length}</p>
+                                            <ul className="space-y-1">
+                                                {room.participants.map((p) => (
+                                                    <li key={p.identity} className="border-b pb-1">
+                                                        <strong>{p.identity}</strong> ({p.state})<br />
+                                                        <span className="text-xs">
+                                                            {p.position
+                                                                ? <span className="text-green-600">Has position: ({p.position.x}, {p.position.y})</span>
+                                                                : <span className="text-red-600">No position data</span>
+                                                            }
+                                                        </span><br />
+                                                        <span className="text-xs text-gray-500">
+                                                            {p.metadata
+                                                                ? <span>Has metadata: {p.metadata.substring(0, 50)}{p.metadata.length > 50 ? '...' : ''}</span>
+                                                                : <span>No metadata</span>
+                                                            }
+                                                        </span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </>
+                                    )}
+                                </div>
+                            ))
+                        )}
                     </div>
                     <div className="mb-6">
                         <h2 className="text-xl font-semibold">Live Map</h2>
@@ -116,7 +153,14 @@ export default function AdminDashboard() {
                     <div>
                         <h2 className="text-xl font-semibold">Analytics</h2>
                         <p>Active rooms: {rooms.length}</p>
-                        <p>Active participants: {participants.length}</p>
+                        <p>Total participants: {allParticipants.length}</p>
+                        <p>Participants with position data: {participantsWithPosition.length}</p>
+                        {allParticipants.length > 0 && participantsWithPosition.length === 0 && (
+                            <p className="text-amber-600 mt-2">
+                                ⚠️ There are participants, but none have valid position data.<br />
+                                Check that your client app is setting metadata with position correctly.
+                            </p>
+                        )}
                     </div>
                 </>
             )}
