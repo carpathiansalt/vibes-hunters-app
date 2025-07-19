@@ -358,7 +358,7 @@ export default function AdminDashboard() {
             <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900 flex items-center justify-center p-4">
                 <div className="w-full max-w-md mx-auto bg-white/10 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 p-8 flex flex-col items-center">
                     <div className="flex items-center mb-4">
-                        <span className="text-3xl mr-2">🎵</span>
+                        <img src="/logo.png" alt="Vibes Hunters Logo" className="w-10 h-10 mr-2 rounded-full border-2 border-white/40" />
                         <h1 className="text-3xl font-extrabold text-white tracking-tight">Vibes Hunters Admin</h1>
                     </div>
                     <p className="text-white/80 mb-2 text-center">LiveKit Room & Participant Management</p>
@@ -401,13 +401,25 @@ export default function AdminDashboard() {
             {/* Admin Info Panel (glassmorphism overlay) */}
             <div className="absolute top-4 left-4 z-20 bg-black/80 text-white rounded-3xl backdrop-blur-lg shadow-2xl border border-white/20 p-8 min-w-[320px] max-w-[400px]">
                 <div className="flex items-center mb-4">
-                    <span className="text-2xl mr-2">�</span>
+                    <img src="/logo.png" alt="Logo" className="w-8 h-8 mr-2 rounded-full border-2 border-white/30" />
                     <span className="font-bold text-2xl">Admin Dashboard</span>
                 </div>
-                <div className="mb-4">
-                    <span className="font-semibold">Rooms:</span> {adminData?.summary?.totalRooms ?? 0}<br />
-                    <span className="font-semibold">Users:</span> {adminData?.summary?.totalParticipants ?? 0}<br />
-                    <span className="font-semibold">Music:</span> {adminData?.summary?.totalMusicPublishers ?? 0}
+                <div className="mb-4 grid grid-cols-3 gap-2 text-center">
+                    <div className="bg-purple-700/30 rounded-xl p-2">
+                        <span className="block text-lg">🏠</span>
+                        <span className="font-semibold">Rooms</span><br />
+                        <span className="text-xl font-bold">{adminData?.summary?.totalRooms ?? 0}</span>
+                    </div>
+                    <div className="bg-blue-700/30 rounded-xl p-2">
+                        <span className="block text-lg">🧑‍🤝‍🧑</span>
+                        <span className="font-semibold">Users</span><br />
+                        <span className="text-xl font-bold">{adminData?.summary?.totalParticipants ?? 0}</span>
+                    </div>
+                    <div className="bg-pink-700/30 rounded-xl p-2">
+                        <span className="block text-lg">🎶</span>
+                        <span className="font-semibold">Music</span><br />
+                        <span className="text-xl font-bold">{adminData?.summary?.totalMusicPublishers ?? 0}</span>
+                    </div>
                 </div>
                 <div className="mb-4">
                     <span className="font-semibold">Active Rooms</span>
@@ -418,7 +430,11 @@ export default function AdminDashboard() {
                                 <ul className="ml-4">
                                     {room.participants.map(p => (
                                         <li key={p.identity} className="flex items-center gap-2 text-sm mt-1">
-                                            <span className="text-lg">{p.avatar ? <img src={p.avatar} alt="avatar" className="w-6 h-6 rounded-full inline-block" /> : '🧑'}</span>
+                                            {p.avatar ? (
+                                                <img src={p.avatar} alt="avatar" className="w-6 h-6 rounded-full border-2 border-white/30 inline-block" />
+                                            ) : (
+                                                <span className="text-lg">🧑</span>
+                                            )}
                                             <span className="font-semibold">{p.username ?? p.identity}</span>
                                             {p.isPublishingMusic && <span className="ml-1 text-pink-400">🎶</span>}
                                         </li>
