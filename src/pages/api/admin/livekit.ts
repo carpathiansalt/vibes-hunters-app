@@ -32,18 +32,12 @@ interface RoomInfo {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     // Authentication check
     if (req.headers['x-admin-password'] !== process.env.ADMIN_PASSWORD) {
-        return res.status(401).json({
-            error: 'Unauthorized',
-            message: 'Admin password is incorrect or missing.'
-        });
+        return res.status(401).json({ error: 'Unauthorized' });
     }
 
     // Only allow GET requests
     if (req.method !== 'GET') {
-        return res.status(405).json({
-            error: 'Method Not Allowed',
-            message: 'Only GET requests are supported.'
-        });
+        return res.status(405).json({ error: 'Method not allowed' });
     }
 
     // Check required environment variables
@@ -52,7 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const livekitUrl = process.env.LIVEKIT_URL;
 
     if (!apiKey || !apiSecret || !livekitUrl) {
-        return res.status(500).json({
+        return res.status(500).json({ 
             error: 'LiveKit configuration incomplete',
             details: 'Missing LIVEKIT_API_KEY, LIVEKIT_API_SECRET, or LIVEKIT_URL environment variables'
         });
@@ -84,14 +78,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                         if (participant.metadata) {
                             try {
                                 parsedMetadata = JSON.parse(participant.metadata);
-
+                                
                                 // Extract position data
-                                if (parsedMetadata.position &&
+                                if (parsedMetadata.position && 
                                     typeof parsedMetadata.position === 'object' &&
                                     parsedMetadata.position !== null &&
                                     'x' in parsedMetadata.position &&
                                     'y' in parsedMetadata.position &&
-                                    typeof parsedMetadata.position.x === 'number' &&
+                                    typeof parsedMetadata.position.x === 'number' && 
                                     typeof parsedMetadata.position.y === 'number') {
                                     position = { x: parsedMetadata.position.x, y: parsedMetadata.position.y };
                                 }
@@ -133,7 +127,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                     };
                 } catch (participantError) {
                     console.error(`Error fetching participants for room ${room.name}:`, participantError);
-
+                    
                     // Return room info with empty participants list if participant fetch fails
                     return {
                         name: room.name,
@@ -149,14 +143,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         // Calculate summary statistics
         const totalParticipants = roomDetails.reduce((total, room) => total + room.participants.length, 0);
-        const totalMusicPublishers = roomDetails.reduce((total, room) =>
+        const totalMusicPublishers = roomDetails.reduce((total, room) => 
             total + room.participants.filter(p => p.isPublishingMusic).length, 0);
 
         console.log(`📊 Admin Summary: ${roomDetails.length} rooms, ${totalParticipants} participants, ${totalMusicPublishers} music publishers`);
 
         // Return structured response
-        res.status(200).json({
-            status: 'success',
+        const response = {
             rooms: roomDetails,
             summary: {
                 totalRooms: roomDetails.length,
@@ -164,12 +157,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 totalMusicPublishers,
                 timestamp: new Date().toISOString()
             }
-        });
+        };
+
+        res.status(200).json(response);
 
     } catch (error: unknown) {
         console.error('❌ LiveKit Admin API Error:', error);
         console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace available');
-
+        
         // Handle different types of errors
         if (error instanceof Error) {
             if (error.message.includes('ECONNREFUSED') || error.message.includes('ENOTFOUND')) {
@@ -180,7 +175,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                     livekitUrl: livekitUrl
                 });
             }
-
+            
             if (error.message.includes('Unauthorized') || error.message.includes('401')) {
                 console.error('LiveKit authentication failed with API key:', apiKey?.substring(0, 8) + '...');
                 return res.status(500).json({
