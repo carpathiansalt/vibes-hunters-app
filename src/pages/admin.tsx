@@ -26,9 +26,11 @@ export default function AdminDashboard() {
             });
     }, [password]);
 
-    // Extract all participants and those with position metadata
-    const allParticipants = rooms.flatMap(room => room.participants);
-    const participantsWithPosition = rooms.flatMap(room =>
+    // Filter out the default test room if real rooms exist
+    const realRooms = rooms.filter(room => room.name !== "TestRoom");
+    const displayRooms = realRooms.length > 0 ? realRooms : rooms;
+    const allParticipants = displayRooms.flatMap(room => room.participants);
+    const participantsWithPosition = displayRooms.flatMap(room =>
         room.participants
             .map((p) => {
                 let position = null;
@@ -108,12 +110,34 @@ export default function AdminDashboard() {
                 <p className="text-red-600">{error}</p>
             ) : (
                 <>
+                    {/* Info box above the map */}
+                    <div className="mb-4 p-4 bg-gray-100 rounded-lg border flex flex-col md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <span className="font-semibold">Active rooms:</span> {displayRooms.length}
+                            <span className="ml-6 font-semibold">Total participants:</span> {allParticipants.length}
+                            <span className="ml-6 font-semibold">Participants with position:</span> {participantsWithPosition.length}
+                        </div>
+                        {allParticipants.length === 0 && (
+                            <span className="text-amber-600 font-medium">No users are currently online.</span>
+                        )}
+                        {allParticipants.length > 0 && participantsWithPosition.length === 0 && (
+                            <span className="text-amber-600 font-medium">⚠️ No participants have valid position data.</span>
+                        )}
+                    </div>
+
+                    {/* Map always visible */}
+                    <div className="mb-6">
+                        <h2 className="text-xl font-semibold">Live Map</h2>
+                        <div id="admin-map" style={{ width: '100%', height: 400, borderRadius: 12, border: '1px solid #eee' }}></div>
+                    </div>
+
+                    {/* Room and participant details below map */}
                     <div className="mb-6">
                         <h2 className="text-xl font-semibold">Rooms & Participants</h2>
-                        {rooms.length === 0 ? (
+                        {displayRooms.length === 0 ? (
                             <p className="text-amber-600">No active rooms found</p>
                         ) : (
-                            rooms.map(room => (
+                            displayRooms.map(room => (
                                 <div key={room.name} className="mb-4 p-3 border rounded-lg">
                                     <h3 className="font-bold">{room.name}</h3>
                                     {room.participants.length === 0 ? (
@@ -144,22 +168,6 @@ export default function AdminDashboard() {
                                     )}
                                 </div>
                             ))
-                        )}
-                    </div>
-                    <div className="mb-6">
-                        <h2 className="text-xl font-semibold">Live Map</h2>
-                        <div id="admin-map" style={{ width: '100%', height: 400, borderRadius: 12, border: '1px solid #eee' }}></div>
-                    </div>
-                    <div>
-                        <h2 className="text-xl font-semibold">Analytics</h2>
-                        <p>Active rooms: {rooms.length}</p>
-                        <p>Total participants: {allParticipants.length}</p>
-                        <p>Participants with position data: {participantsWithPosition.length}</p>
-                        {allParticipants.length > 0 && participantsWithPosition.length === 0 && (
-                            <p className="text-amber-600 mt-2">
-                                ⚠️ There are participants, but none have valid position data.<br />
-                                Check that your client app is setting metadata with position correctly.
-                            </p>
                         )}
                     </div>
                 </>
