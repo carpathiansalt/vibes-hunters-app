@@ -357,12 +357,10 @@ export default function AdminDashboard() {
         return (
             <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900 flex items-center justify-center p-4">
                 <div className="w-full max-w-md mx-auto bg-white/10 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 p-8 flex flex-col items-center">
-                    <div className="flex items-center mb-4">
-                        <img src="/logo.png" alt="Vibes Hunters Logo" className="w-10 h-10 mr-2 rounded-full border-2 border-white/40" />
-                        <h1 className="text-3xl font-extrabold text-white tracking-tight">Vibes Hunters Admin</h1>
+                    <div className="flex items-center mb-6">
+                        <img src="/logo.png" alt="Vibes Hunters Logo" className="w-12 h-12 mr-3 rounded-full border-2 border-white/40 shadow-lg" />
+                        <h1 className="text-4xl font-extrabold text-white tracking-tight drop-shadow">Admin Login</h1>
                     </div>
-                    <p className="text-white/80 mb-2 text-center">LiveKit Room & Participant Management</p>
-                    <p className="text-white/60 mb-6 text-center">Vibes Hunters Control Panel</p>
                     <form className="w-full flex flex-col gap-4" onSubmit={handleLogin}>
                         <label className="flex items-center gap-2 text-white/90 font-medium">
                             <span className="text-xl">🔑</span> Admin Password
@@ -387,9 +385,10 @@ export default function AdminDashboard() {
                             <span className="text-lg">🚀</span> Access Admin Dashboard
                         </button>
                     </form>
-                    <div className="mt-6 text-white/70 text-center text-sm">
-                        <span className="font-semibold">Real-time Monitoring</span> <span className="font-mono">LiveKit Integration</span>
-                        <br />Monitor active rooms, participants, and music parties
+                    <div className="mt-8 text-white/80 text-center text-base">
+                        <span className="font-semibold">Vibes Hunters</span> <span className="font-mono">Admin Panel</span>
+                        <br />
+                        <span className="text-white/60">Monitor rooms, participants, and music parties in real time.</span>
                     </div>
                 </div>
             </div>
@@ -399,56 +398,63 @@ export default function AdminDashboard() {
     return (
         <div className="relative w-full h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900 overflow-hidden">
             {/* Admin Info Panel (glassmorphism overlay) */}
-            <div className="absolute top-4 left-4 z-20 bg-black/80 text-white rounded-3xl backdrop-blur-lg shadow-2xl border border-white/20 p-8 min-w-[320px] max-w-[400px]">
-                <div className="flex items-center mb-4">
-                    <img src="/logo.png" alt="Logo" className="w-8 h-8 mr-2 rounded-full border-2 border-white/30" />
-                    <span className="font-bold text-2xl">Admin Dashboard</span>
+            <div className="absolute top-4 left-4 z-20 bg-white/10 text-white rounded-3xl backdrop-blur-lg shadow-2xl border border-white/20 p-8 min-w-[320px] max-w-[420px] flex flex-col gap-4">
+                <div className="flex items-center mb-2">
+                    <img src="/logo.png" alt="Logo" className="w-10 h-10 mr-3 rounded-full border-2 border-white/30 shadow" />
+                    <span className="font-bold text-3xl tracking-tight drop-shadow">Admin Dashboard</span>
                 </div>
-                <div className="mb-4 grid grid-cols-3 gap-2 text-center">
-                    <div className="bg-purple-700/30 rounded-xl p-2">
-                        <span className="block text-lg">🏠</span>
-                        <span className="font-semibold">Rooms</span><br />
+                <div className="grid grid-cols-3 gap-3 text-center mb-2">
+                    <div className="bg-purple-700/40 rounded-xl p-2 flex flex-col items-center">
+                        <span className="text-2xl">🏠</span>
+                        <span className="font-semibold">Rooms</span>
                         <span className="text-xl font-bold">{adminData?.summary?.totalRooms ?? 0}</span>
                     </div>
-                    <div className="bg-blue-700/30 rounded-xl p-2">
-                        <span className="block text-lg">🧑‍🤝‍🧑</span>
-                        <span className="font-semibold">Users</span><br />
+                    <div className="bg-blue-700/40 rounded-xl p-2 flex flex-col items-center">
+                        <span className="text-2xl">🧑‍🤝‍🧑</span>
+                        <span className="font-semibold">Users</span>
                         <span className="text-xl font-bold">{adminData?.summary?.totalParticipants ?? 0}</span>
                     </div>
-                    <div className="bg-pink-700/30 rounded-xl p-2">
-                        <span className="block text-lg">🎶</span>
-                        <span className="font-semibold">Music</span><br />
+                    <div className="bg-pink-700/40 rounded-xl p-2 flex flex-col items-center">
+                        <span className="text-2xl">🎶</span>
+                        <span className="font-semibold">Music</span>
                         <span className="text-xl font-bold">{adminData?.summary?.totalMusicPublishers ?? 0}</span>
                     </div>
                 </div>
-                <div className="mb-4">
-                    <span className="font-semibold">Active Rooms</span>
-                    <ul className="ml-2 mt-2">
+                <div className="mb-2">
+                    <span className="font-semibold text-lg">Active Rooms</span>
+                    <div className="mt-2 flex flex-col gap-3">
+                        {adminData?.rooms?.length === 0 && (
+                            <div className="text-white/60 text-sm">No active rooms</div>
+                        )}
                         {adminData?.rooms?.map(room => (
-                            <li key={room.name} className="mb-2">
-                                <span className="mr-1">🏠</span> <span className="font-bold">{room.name}</span> <span className="text-xs text-white/60">({room.numParticipants} participant{room.numParticipants !== 1 ? 's' : ''})</span>
-                                <ul className="ml-4">
+                            <div key={room.name} className="bg-white/10 rounded-xl p-3 shadow border border-white/10">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-lg">🏠</span>
+                                    <span className="font-bold text-base">{room.name}</span>
+                                    <span className="text-xs text-white/60">({room.numParticipants} participant{room.numParticipants !== 1 ? 's' : ''})</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2 mt-2">
                                     {room.participants.map(p => (
-                                        <li key={p.identity} className="flex items-center gap-2 text-sm mt-1">
+                                        <div key={p.identity} className="flex items-center gap-2 px-2 py-1 rounded-lg bg-gradient-to-r from-purple-500/30 via-blue-500/20 to-pink-500/30 shadow border border-white/10">
                                             {p.avatar ? (
-                                                <img src={p.avatar} alt="avatar" className="w-6 h-6 rounded-full border-2 border-white/30 inline-block" />
+                                                <img src={p.avatar} alt="avatar" className="w-7 h-7 rounded-full border-2 border-white/30 shadow" />
                                             ) : (
                                                 <span className="text-lg">🧑</span>
                                             )}
-                                            <span className="font-semibold">{p.username ?? p.identity}</span>
+                                            <span className="font-semibold text-sm">{p.username ?? p.identity}</span>
                                             {p.isPublishingMusic && <span className="ml-1 text-pink-400">🎶</span>}
-                                        </li>
+                                        </div>
                                     ))}
-                                </ul>
-                            </li>
+                                </div>
+                            </div>
                         ))}
-                    </ul>
+                    </div>
                 </div>
                 <div className="flex gap-2 mt-2">
-                    <button onClick={handleRefresh} className="px-3 py-1 rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 flex items-center gap-1">
+                    <button onClick={handleRefresh} className="px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 flex items-center gap-1">
                         <span>🔄</span> Refresh
                     </button>
-                    <button onClick={handleLogout} className="px-3 py-1 rounded-lg bg-red-600 text-white font-semibold shadow hover:bg-red-700 flex items-center gap-1">
+                    <button onClick={handleLogout} className="px-4 py-2 rounded-xl bg-red-600 text-white font-semibold shadow hover:bg-red-700 flex items-center gap-1">
                         <span>🚪</span> Logout
                     </button>
                 </div>
