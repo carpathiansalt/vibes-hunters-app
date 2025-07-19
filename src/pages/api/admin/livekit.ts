@@ -24,7 +24,7 @@ interface RoomInfo {
     name: string;
     participants: ParticipantInfo[];
     numParticipants: number;
-    creationTime?: number;
+    creationTime?: string;
     emptyTimeout?: number;
     maxParticipants?: number;
 }
@@ -55,6 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
         // Initialize RoomServiceClient using LiveKit Server SDK
         const roomService = new RoomServiceClient(livekitUrl, apiKey, apiSecret);
+        console.log('🔗 Connecting to LiveKit server:', livekitUrl);
 
         // List all rooms using the official SDK
         const rooms = await roomService.listRooms();
@@ -70,7 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
                     // Parse participant metadata and format data
                     const participants: ParticipantInfo[] = participantsList.map((participant) => {
-                        let parsedMetadata: any = {};
+                        let parsedMetadata: Record<string, unknown> = {};
                         let position: { x: number; y: number } | undefined;
 
                         // Parse participant metadata
@@ -80,9 +81,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                                 
                                 // Extract position data
                                 if (parsedMetadata.position && 
+                                    typeof parsedMetadata.position === 'object' &&
+                                    parsedMetadata.position !== null &&
+                                    'x' in parsedMetadata.position &&
+                                    'y' in parsedMetadata.position &&
                                     typeof parsedMetadata.position.x === 'number' && 
                                     typeof parsedMetadata.position.y === 'number') {
-                                    position = parsedMetadata.position;
+                                    position = { x: parsedMetadata.position.x, y: parsedMetadata.position.y };
                                 }
                             } catch (err) {
                                 console.warn(`Failed to parse metadata for participant ${participant.identity}:`, err);
@@ -93,21 +98,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                         const tracks = participant.tracks?.map(track => ({
                             sid: track.sid,
                             name: track.name || 'unnamed',
-                            type: track.type,
+                            type: track.type.toString(),
                             muted: track.muted
                         })) || [];
 
                         return {
                             identity: participant.identity,
                             state: participant.state.toString(),
-                            username: parsedMetadata.username,
-                            avatar: parsedMetadata.avatar,
+                            username: typeof parsedMetadata.username === 'string' ? parsedMetadata.username : undefined,
+                            avatar: typeof parsedMetadata.avatar === 'string' ? parsedMetadata.avatar : undefined,
                             position,
-                            isPublishingMusic: parsedMetadata.isPublishingMusic || false,
-                            musicTitle: parsedMetadata.musicTitle,
-                            partyTitle: parsedMetadata.partyTitle,
-                            partyDescription: parsedMetadata.partyDescription,
-                            joinedAt: participant.joinedAt ? new Date(participant.joinedAt * 1000).toISOString() : undefined,
+                            isPublishingMusic: Boolean(parsedMetadata.isPublishingMusic),
+                            musicTitle: typeof parsedMetadata.musicTitle === 'string' ? parsedMetadata.musicTitle : undefined,
+                            partyTitle: typeof parsedMetadata.partyTitle === 'string' ? parsedMetadata.partyTitle : undefined,
+                            partyDescription: typeof parsedMetadata.partyDescription === 'string' ? parsedMetadata.partyDescription : undefined,
+                            joinedAt: participant.joinedAt ? new Date(Number(participant.joinedAt) * 1000).toISOString() : undefined,
                             tracks: tracks.length > 0 ? tracks : undefined
                         };
                     });
@@ -116,7 +121,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                         name: room.name,
                         participants,
                         numParticipants: room.numParticipants,
-                        creationTime: room.creationTime,
+                        creationTime: room.creationTime ? new Date(Number(room.creationTime) * 1000).toISOString() : undefined,
                         emptyTimeout: room.emptyTimeout,
                         maxParticipants: room.maxParticipants
                     };
@@ -128,7 +133,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                         name: room.name,
                         participants: [],
                         numParticipants: room.numParticipants,
-                        creationTime: room.creationTime,
+                        creationTime: room.creationTime ? new Date(Number(room.creationTime) * 1000).toISOString() : undefined,
                         emptyTimeout: room.emptyTimeout,
                         maxParticipants: room.maxParticipants
                     };
@@ -144,7 +149,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         console.log(`📊 Admin Summary: ${roomDetails.length} rooms, ${totalParticipants} participants, ${totalMusicPublishers} music publishers`);
 
         // Return structured response
-        res.json({
+        const response = {
             rooms: roomDetails,
             summary: {
                 totalRooms: roomDetails.length,
@@ -152,21 +157,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 totalMusicPublishers,
                 timestamp: new Date().toISOString()
             }
-        });
+        };
+
+        res.status(200).json(response);
 
     } catch (error: unknown) {
         console.error('❌ LiveKit Admin API Error:', error);
+        console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace available');
         
         // Handle different types of errors
         if (error instanceof Error) {
             if (error.message.includes('ECONNREFUSED') || error.message.includes('ENOTFOUND')) {
+                console.error('Connection refused to LiveKit server:', livekitUrl);
                 return res.status(503).json({
                     error: 'Unable to connect to LiveKit server',
-                    details: 'Please check your LIVEKIT_URL configuration and ensure the LiveKit server is running.'
+                    details: 'Please check your LIVEKIT_URL configuration and ensure the LiveKit server is running.',
+                    livekitUrl: livekitUrl
                 });
             }
             
             if (error.message.includes('Unauthorized') || error.message.includes('401')) {
+                console.error('LiveKit authentication failed with API key:', apiKey?.substring(0, 8) + '...');
                 return res.status(500).json({
                     error: 'LiveKit authentication failed',
                     details: 'Please check your LIVEKIT_API_KEY and LIVEKIT_API_SECRET configuration.'
