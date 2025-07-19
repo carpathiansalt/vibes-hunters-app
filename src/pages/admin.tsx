@@ -169,16 +169,19 @@ export default function AdminDashboard() {
 
     // Initialize Google Maps
     const initializeMap = useCallback(async () => {
-        if (!mapContainerRef.current) return;
+        if (!mapContainerRef.current) {
+            console.log('❌ Map container not available');
+            return;
+        }
 
         try {
             const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
             if (!GOOGLE_MAPS_API_KEY) {
-                console.log('Google Maps API key not configured. Map will be disabled.');
+                console.log('❌ Google Maps API key not configured. Map will be disabled.');
                 return;
             }
 
-            console.log('Loading Google Maps for admin dashboard...');
+            console.log('🗺️ Loading Google Maps for admin dashboard...');
             const loader = new Loader({
                 apiKey: GOOGLE_MAPS_API_KEY,
                 version: 'weekly',
@@ -186,12 +189,13 @@ export default function AdminDashboard() {
             });
 
             await loader.load();
-            console.log('Google Maps loaded successfully');
+            console.log('✅ Google Maps loaded successfully');
 
             if (!window.google?.maps) {
                 throw new Error('Google Maps failed to load properly');
             }
 
+            // Create map with admin-friendly settings
             const map = new google.maps.Map(mapContainerRef.current, {
                 center: { lat: 37.7749, lng: -122.4194 }, // Default to San Francisco
                 zoom: 2, // World view for admin
@@ -207,78 +211,119 @@ export default function AdminDashboard() {
             });
 
             mapRef.current = map;
-            console.log('Admin Google Maps initialized successfully');
+            console.log('✅ Admin Google Maps initialized successfully');
 
         } catch (err) {
-            console.error('Error loading Google Maps for admin:', err);
+            console.error('❌ Error loading Google Maps for admin:', err);
         }
     }, []);
 
     // Update map markers for participants
     const updateMapMarkers = useCallback(() => {
-        if (!mapRef.current || !window.google?.maps || !adminData?.rooms) return;
+        console.log('🗺️ updateMapMarkers called');
+        
+        if (!mapRef.current) {
+            console.log('❌ Map not ready, skipping marker update');
+            return;
+        }
+        
+        if (!window.google?.maps) {
+            console.log('❌ Google Maps not loaded, skipping marker update');
+            return;
+        }
+        
+        if (!adminData?.rooms) {
+            console.log('❌ No admin data available, skipping marker update');
+            return;
+        }
 
+        console.log('🗺️ Clearing existing markers...');
         // Clear existing markers
         markersRef.current.forEach(marker => {
             marker.setMap(null);
         });
         markersRef.current.clear();
 
+        let totalParticipantsWithPosition = 0;
+
         // Add markers for all participants with positions
         adminData.rooms.forEach(room => {
+            console.log(`🏠 Processing room: ${room.name} with ${room.participants.length} participants`);
+            
             room.participants.forEach(participant => {
-                if (participant.position && 
-                    typeof participant.position.x === 'number' && 
-                    typeof participant.position.y === 'number') {
-                    
-                    // Ensure avatar icon URL always ends with .png
-                    let avatarFile = participant.avatar;
-                    if (avatarFile && !avatarFile.endsWith('.png')) {
-                        avatarFile = avatarFile + '.png';
-                    }
-                    const iconUrl = participant.isPublishingMusic ? '/boombox.png' : `/characters_001/${avatarFile}`;
-                    const markerSize = participant.isPublishingMusic ? 40 : 32;
+                console.log(`👤 Processing participant: ${participant.identity}`, {
+                    username: participant.username,
+                    position: participant.position,
+                    isPublishingMusic: participant.isPublishingMusic,
+                    avatar: participant.avatar
+                });
 
-                    const marker = new google.maps.Marker({
-                        position: { lat: participant.position.x, lng: participant.position.y },
-                        map: mapRef.current,
-                        icon: {
-                            url: iconUrl,
-                            scaledSize: new google.maps.Size(markerSize, markerSize),
-                        },
-                        title: `${participant.username || participant.identity} (${room.name})${participant.isPublishingMusic ? ' 🎵' : ''}`,
-                        zIndex: participant.isPublishingMusic ? 999 : 500,
-                    });
-
-                    // Add info window on click
-                    const infoWindow = new google.maps.InfoWindow({
-                        content: `
-                            <div class="p-2">
-                                <div class="font-semibold text-gray-800">${participant.username || participant.identity}</div>
-                                <div class="text-sm text-gray-600">Room: ${room.name}</div>
-                                <div class="text-sm text-gray-600">State: ${participant.state}</div>
-                                ${participant.isPublishingMusic ? `
-                                    <div class="text-sm text-purple-600 font-medium">🎵 Publishing Music</div>
-                                    ${participant.partyTitle ? `<div class="text-xs text-purple-600">${participant.partyTitle}</div>` : ''}
-                                ` : ''}
-                                <div class="text-xs text-gray-500 mt-1">
-                                    Position: (${participant.position.x.toFixed(4)}, ${participant.position.y.toFixed(4)})
-                                </div>
-                            </div>
-                        `
-                    });
-
-                    marker.addListener('click', () => {
-                        infoWindow.open(mapRef.current, marker);
-                    });
-
-                    markersRef.current.set(participant.identity, marker);
+                // Validate position data (same as HuntersMapView)
+                if (!participant.position || 
+                    typeof participant.position.x !== 'number' || 
+                    typeof participant.position.y !== 'number' ||
+                    isNaN(participant.position.x) ||
+                    isNaN(participant.position.y)) {
+                    console.warn(`❌ Invalid position for participant ${participant.identity}:`, participant.position);
+                    return;
                 }
+                    
+                totalParticipantsWithPosition++;
+
+                // Ensure avatar icon URL always ends with .png (same logic as HuntersMapView)
+                let avatarFile = participant.avatar;
+                if (avatarFile && !avatarFile.endsWith('.png')) {
+                    avatarFile = avatarFile + '.png';
+                }
+                
+                const iconUrl = participant.isPublishingMusic ? '/boombox.png' : `/characters_001/${avatarFile}`;
+                const markerSize = participant.isPublishingMusic ? 60 : 50; // Same sizes as HuntersMapView
+
+                console.log(`📍 Creating marker for ${participant.identity} at (${participant.position.x}, ${participant.position.y})`);
+
+                const marker = new google.maps.Marker({
+                    position: { lat: participant.position.x, lng: participant.position.y },
+                    map: mapRef.current,
+                    icon: {
+                        url: iconUrl,
+                        scaledSize: new google.maps.Size(markerSize, markerSize),
+                    },
+                    title: `${participant.username || participant.identity} (${room.name})${participant.isPublishingMusic ? ' 🎵' : ''}`,
+                    zIndex: participant.isPublishingMusic ? 999 : 500,
+                });
+
+                // Add info window on click
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `
+                        <div class="p-2">
+                            <div class="font-semibold text-gray-800">${participant.username || participant.identity}</div>
+                            <div class="text-sm text-gray-600">Room: ${room.name}</div>
+                            <div class="text-sm text-gray-600">State: ${participant.state}</div>
+                            ${participant.isPublishingMusic ? `
+                                <div class="text-sm text-purple-600 font-medium">🎵 Publishing Music</div>
+                                ${participant.partyTitle ? `<div class="text-xs text-purple-600">${participant.partyTitle}</div>` : ''}
+                            ` : ''}
+                            <div class="text-xs text-gray-500 mt-1">
+                                Position: (${participant.position.x.toFixed(4)}, ${participant.position.y.toFixed(4)})
+                            </div>
+                        </div>
+                    `
+                });
+
+                marker.addListener('click', () => {
+                    infoWindow.open(mapRef.current, marker);
+                });
+
+                markersRef.current.set(participant.identity, marker);
+                console.log(`✅ Created marker for ${participant.identity}`);
             });
         });
 
+        console.log(`🗺️ Created ${markersRef.current.size} markers for ${totalParticipantsWithPosition} participants with valid positions`);
+
         // Adjust map bounds to show all markers if any exist
         if (markersRef.current.size > 0 && window.google?.maps) {
+            console.log('🗺️ Adjusting map bounds to show all markers');
             const bounds = new google.maps.LatLngBounds();
             markersRef.current.forEach(marker => {
                 const position = marker.getPosition();
@@ -287,6 +332,8 @@ export default function AdminDashboard() {
                 }
             });
             mapRef.current?.fitBounds(bounds);
+        } else {
+            console.log('🗺️ No markers to show, keeping default view');
         }
 
     }, [adminData]);
@@ -294,13 +341,17 @@ export default function AdminDashboard() {
     // Initialize map when authenticated
     useEffect(() => {
         if (isAuthenticated) {
+            console.log('🔐 User authenticated, initializing map...');
             initializeMap();
         }
     }, [isAuthenticated, initializeMap]);
 
     // Update markers when data changes
     useEffect(() => {
-        updateMapMarkers();
+        if (adminData && mapRef.current) {
+            console.log('📊 Admin data updated, refreshing markers...');
+            updateMapMarkers();
+        }
     }, [adminData, updateMapMarkers]);
 
     if (!isAuthenticated) {
