@@ -1,4 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Loader } from '@googlemaps/js-api-loader';
+
+// Google Maps API type declaration
+declare global {
+    interface Window {
+        google?: {
+            maps: {
+                Map: new (element: HTMLElement, options: any) => any;
+                Marker: new (options: any) => any;
+                InfoWindow: new (options: any) => any;
+                LatLngBounds: new () => any;
+                Size: new (width: number, height: number) => any;
+            };
+        };
+    }
+}
 
 interface ParticipantInfo {
     identity: string;
@@ -30,6 +46,12 @@ interface RoomInfo {
 
 interface AdminData {
     rooms: RoomInfo[];
+    summary?: {
+        totalRooms: number;
+        totalParticipants: number;
+        totalMusicPublishers: number;
+        timestamp: string;
+    };
 }
 
 export default function AdminDashboard() {
@@ -39,8 +61,14 @@ export default function AdminDashboard() {
     const [error, setError] = useState('');
     const [adminData, setAdminData] = useState<AdminData | null>(null);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+    const [adminInfoExpanded, setAdminInfoExpanded] = useState(true);
 
-    const fetchAdminData = React.useCallback(async () => {
+    // Map refs
+    const mapContainerRef = useRef<HTMLDivElement>(null);
+    const mapRef = useRef<any>(null);
+    const markersRef = useRef<Map<string, any>>(new Map());
+
+    const fetchAdminData = useCallback(async () => {
         if (!isAuthenticated) return;
 
         try {
@@ -152,27 +180,163 @@ export default function AdminDashboard() {
         fetchAdminData();
     };
 
+    // Initialize Google Maps
+    const initializeMap = useCallback(async () => {
+        if (!mapContainerRef.current) return;
+
+        try {
+            const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+            if (!GOOGLE_MAPS_API_KEY) {
+                console.log('Google Maps API key not configured. Map will be disabled.');
+                return;
+            }
+
+            console.log('Loading Google Maps for admin dashboard...');
+            const loader = new Loader({
+                apiKey: GOOGLE_MAPS_API_KEY,
+                version: 'weekly',
+                libraries: ['places'],
+            });
+
+            await loader.load();
+            console.log('Google Maps loaded successfully');
+
+            if (!window.google?.maps) {
+                throw new Error('Google Maps failed to load properly');
+            }
+
+            const map = new window.google.maps.Map(mapContainerRef.current, {
+                center: { lat: 37.7749, lng: -122.4194 }, // Default to San Francisco
+                zoom: 2, // World view for admin
+                mapTypeControl: true,
+                streetViewControl: false,
+                fullscreenControl: true,
+                styles: [
+                    {
+                        featureType: 'poi',
+                        stylers: [{ visibility: 'off' }]
+                    }
+                ]
+            });
+
+            mapRef.current = map;
+            console.log('Admin Google Maps initialized successfully');
+
+        } catch (err) {
+            console.error('Error loading Google Maps for admin:', err);
+        }
+    }, []);
+
+    // Update map markers for participants
+    const updateMapMarkers = useCallback(() => {
+        if (!mapRef.current || !window.google?.maps || !adminData?.rooms) return;
+
+        // Clear existing markers
+        markersRef.current.forEach(marker => {
+            if (marker && marker.setMap) marker.setMap(null);
+        });
+        markersRef.current.clear();
+
+        // Add markers for all participants with positions
+        adminData.rooms.forEach(room => {
+            room.participants.forEach(participant => {
+                if (participant.position && 
+                    typeof participant.position.x === 'number' && 
+                    typeof participant.position.y === 'number') {
+                    
+                    // Ensure avatar icon URL always ends with .png
+                    let avatarFile = participant.avatar;
+                    if (avatarFile && !avatarFile.endsWith('.png')) {
+                        avatarFile = avatarFile + '.png';
+                    }
+                    const iconUrl = participant.isPublishingMusic ? '/boombox.png' : `/characters_001/${avatarFile}`;
+                    const markerSize = participant.isPublishingMusic ? 40 : 32;
+
+                    const marker = new window.google.maps.Marker({
+                        position: { lat: participant.position.x, lng: participant.position.y },
+                        map: mapRef.current,
+                        icon: {
+                            url: iconUrl,
+                            scaledSize: new window.google.maps.Size(markerSize, markerSize),
+                        },
+                        title: `${participant.username || participant.identity} (${room.name})${participant.isPublishingMusic ? ' 🎵' : ''}`,
+                        zIndex: participant.isPublishingMusic ? 999 : 500,
+                    });
+
+                    // Add info window on click
+                    const infoWindow = new window.google.maps.InfoWindow({
+                        content: `
+                            <div class="p-2">
+                                <div class="font-semibold text-gray-800">${participant.username || participant.identity}</div>
+                                <div class="text-sm text-gray-600">Room: ${room.name}</div>
+                                <div class="text-sm text-gray-600">State: ${participant.state}</div>
+                                ${participant.isPublishingMusic ? `
+                                    <div class="text-sm text-purple-600 font-medium">🎵 Publishing Music</div>
+                                    ${participant.partyTitle ? `<div class="text-xs text-purple-600">${participant.partyTitle}</div>` : ''}
+                                ` : ''}
+                                <div class="text-xs text-gray-500 mt-1">
+                                    Position: (${participant.position.x.toFixed(4)}, ${participant.position.y.toFixed(4)})
+                                </div>
+                            </div>
+                        `
+                    });
+
+                    marker.addListener('click', () => {
+                        infoWindow.open(mapRef.current, marker);
+                    });
+
+                    markersRef.current.set(participant.identity, marker);
+                }
+            });
+        });
+
+        // Adjust map bounds to show all markers if any exist
+        if (markersRef.current.size > 0 && window.google?.maps) {
+            const bounds = new window.google.maps.LatLngBounds();
+            markersRef.current.forEach(marker => {
+                bounds.extend(marker.getPosition());
+            });
+            mapRef.current.fitBounds(bounds);
+        }
+
+    }, [adminData]);
+
+    // Initialize map when authenticated
+    useEffect(() => {
+        if (isAuthenticated) {
+            initializeMap();
+        }
+    }, [isAuthenticated, initializeMap]);
+
+    // Update markers when data changes
+    useEffect(() => {
+        updateMapMarkers();
+    }, [adminData, updateMapMarkers]);
+
     if (!isAuthenticated) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900 flex items-center justify-center p-4">
-                <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+                <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 w-full max-w-md border border-white/20">
                     <div className="text-center mb-8">
-                        <h1 className="text-3xl font-bold text-gray-800 mb-2">🔐 Admin Dashboard</h1>
-                        <p className="text-gray-600">Enter admin password to access LiveKit room management</p>
-                        <p className="text-xs text-gray-400 mt-2">Updated: 2025-07-19</p>
+                        <div className="text-6xl mb-4">🔐</div>
+                        <h1 className="text-3xl font-bold text-gray-800 mb-2">Admin Dashboard</h1>
+                        <p className="text-gray-600">LiveKit Room & Participant Management</p>
+                        <div className="mt-4 px-4 py-2 bg-gradient-to-r from-purple-100 to-blue-100 rounded-lg border border-purple-200">
+                            <p className="text-sm text-gray-700 font-medium">🎵 Vibes Hunters Control Panel</p>
+                        </div>
                     </div>
 
                     <form onSubmit={handleLogin} className="space-y-6">
                         <div>
                             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                                Admin Password
+                                🔑 Admin Password
                             </label>
                             <input
                                 type="password"
                                 id="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors bg-white/90"
                                 placeholder="Enter admin password"
                                 disabled={loading}
                             />
@@ -180,22 +344,44 @@ export default function AdminDashboard() {
 
                         {error && (
                             <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                                <p className="text-sm text-red-600">{error}</p>
+                                <div className="flex items-center">
+                                    <span className="text-red-500 text-lg mr-2">⚠️</span>
+                                    <p className="text-sm text-red-600">{error}</p>
+                                </div>
                             </div>
                         )}
 
                         <button
                             type="submit"
                             disabled={loading || !password.trim()}
-                            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-medium py-3 px-4 rounded-lg hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-medium py-3 px-4 rounded-lg hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
                         >
-                            {loading ? 'Authenticating...' : 'Access Admin Dashboard'}
+                            {loading ? (
+                                <span className="flex items-center justify-center">
+                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Authenticating...
+                                </span>
+                            ) : (
+                                '🚀 Access Admin Dashboard'
+                            )}
                         </button>
                     </form>
 
-                    <div className="mt-6 text-center text-sm text-gray-500">
-                        <p>🎵 Vibes Hunters Admin Panel</p>
-                        <p>Manage LiveKit rooms and participants</p>
+                    <div className="mt-8 text-center text-sm text-gray-500 space-y-2">
+                        <div className="flex items-center justify-center space-x-4 text-xs">
+                            <span className="flex items-center">
+                                <span className="w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+                                Real-time Monitoring
+                            </span>
+                            <span className="flex items-center">
+                                <span className="w-2 h-2 bg-blue-500 rounded-full mr-1"></span>
+                                LiveKit Integration
+                            </span>
+                        </div>
+                        <p>Monitor active rooms, participants, and music parties</p>
                     </div>
                 </div>
             </div>
@@ -203,241 +389,140 @@ export default function AdminDashboard() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            {/* Header */}
-            <header className="bg-white border-b border-gray-200 px-6 py-4">
-                <div className="max-w-7xl mx-auto flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">🎵 Vibes Hunters Admin</h1>
-                        <p className="text-sm text-gray-500">LiveKit Room & Participant Management</p>
+        <div className="relative w-full h-screen bg-gray-900">
+            {/* Admin Info Panel */}
+            <div className="absolute top-4 left-4 z-10 bg-black/80 text-white rounded-lg backdrop-blur-sm">
+                <button
+                    onClick={() => setAdminInfoExpanded(!adminInfoExpanded)}
+                    className="w-full p-3 text-left hover:bg-white/10 transition-colors rounded-lg"
+                >
+                    <div className="text-sm font-bold text-green-400 flex items-center justify-between">
+                        <span>🔐 Admin Dashboard</span>
+                        <span className="text-xs">{adminInfoExpanded ? '▼' : '▶'}</span>
                     </div>
-                    <div className="flex items-center space-x-4">
-                        {lastUpdated && (
-                            <div className="text-sm text-gray-500">
-                                Last updated: {lastUpdated.toLocaleTimeString()}
+                </button>
+
+                {adminInfoExpanded && (
+                    <div className="p-3 pt-0 space-y-2 max-w-sm">
+                        {/* Quick Stats */}
+                        <div className="grid grid-cols-3 gap-2 mb-3">
+                            <div className="bg-blue-600/20 p-2 rounded text-center">
+                                <div className="text-lg font-bold text-blue-300">
+                                    {adminData?.summary?.totalRooms || adminData?.rooms?.length || 0}
+                                </div>
+                                <div className="text-xs text-blue-200">Rooms</div>
+                            </div>
+                            <div className="bg-green-600/20 p-2 rounded text-center">
+                                <div className="text-lg font-bold text-green-300">
+                                    {adminData?.summary?.totalParticipants || 
+                                     adminData?.rooms?.reduce((total, room) => total + room.participants.length, 0) || 0}
+                                </div>
+                                <div className="text-xs text-green-200">Users</div>
+                            </div>
+                            <div className="bg-purple-600/20 p-2 rounded text-center">
+                                <div className="text-lg font-bold text-purple-300">
+                                    {adminData?.summary?.totalMusicPublishers || 
+                                     adminData?.rooms?.reduce((total, room) => 
+                                        total + room.participants.filter(p => p.isPublishingMusic).length, 0) || 0}
+                                </div>
+                                <div className="text-xs text-purple-200">Music</div>
+                            </div>
+                        </div>
+
+                        {error && (
+                            <div className="bg-red-600/20 p-2 rounded border border-red-500/30">
+                                <div className="text-xs text-red-300">⚠️ {error}</div>
                             </div>
                         )}
-                        <button
-                            onClick={handleRefresh}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                            🔄 Refresh
-                        </button>
-                        <button
-                            onClick={handleLogout}
-                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                        >
-                            🚪 Logout
-                        </button>
-                    </div>
-                </div>
-            </header>
 
-            <main className="max-w-7xl mx-auto px-6 py-8">
-                {error && (
-                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                        <p className="text-red-600">{error}</p>
-                    </div>
-                )}
-
-                {/* Overview Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600">Active Rooms</p>
-                                <p className="text-3xl font-bold text-blue-600">
-                                    {adminData?.rooms?.length || 0}
-                                </p>
-                            </div>
-                            <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                                <span className="text-2xl">🏠</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600">Total Participants</p>
-                                <p className="text-3xl font-bold text-green-600">
-                                    {adminData?.rooms?.reduce((total, room) => total + room.participants.length, 0) || 0}
-                                </p>
-                            </div>
-                            <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
-                                <span className="text-2xl">👥</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600">Music Publishers</p>
-                                <p className="text-3xl font-bold text-purple-600">
-                                    {adminData?.rooms?.reduce((total, room) => 
-                                        total + room.participants.filter(p => p.isPublishingMusic).length, 0) || 0}
-                                </p>
-                            </div>
-                            <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                                <span className="text-2xl">🎵</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Rooms Section */}
-                {(!adminData?.rooms || adminData.rooms.length === 0) ? (
-                    <div className="bg-white rounded-xl shadow-sm p-12 border border-gray-200 text-center">
-                        <div className="text-6xl mb-4">🏜️</div>
-                        <h3 className="text-xl font-semibold text-gray-800 mb-2">No Active Rooms</h3>
-                        <p className="text-gray-600">
-                            No rooms are currently active. Rooms will appear here when users join the application.
-                        </p>
-                    </div>
-                ) : (
-                    <div className="space-y-6">
-                        <h2 className="text-xl font-semibold text-gray-800">Active Rooms ({adminData.rooms.length})</h2>
-                        
-                        {adminData.rooms.map((room) => (
-                            <div key={room.name} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                                {/* Room Header */}
-                                <div className="bg-gradient-to-r from-purple-50 to-blue-50 px-6 py-4 border-b border-gray-200">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-                                                🏠 {room.name}
-                                                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                                                    {room.participants.length} participant{room.participants.length !== 1 ? 's' : ''}
-                                                </span>
-                                            </h3>
-                                            {room.maxParticipants && (
-                                                <p className="text-sm text-gray-600">
-                                                    Max participants: {room.maxParticipants}
-                                                </p>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center space-x-4">
-                                            <div className="text-sm text-gray-500">
-                                                {room.participants.filter(p => p.isPublishingMusic).length} music publisher{room.participants.filter(p => p.isPublishingMusic).length !== 1 ? 's' : ''}
+                        {/* Room List */}
+                        <div className="text-sm">
+                            <div className="font-medium text-gray-300 mb-2">Active Rooms</div>
+                            {(!adminData?.rooms || adminData.rooms.length === 0) ? (
+                                <div className="text-amber-300 text-xs">No active rooms</div>
+                            ) : (
+                                <div className="space-y-1 max-h-48 overflow-y-auto">
+                                    {adminData.rooms.map((room) => (
+                                        <div key={room.name} className="bg-gray-700/50 p-2 rounded">
+                                            <div className="font-medium text-blue-300">🏠 {room.name}</div>
+                                            <div className="text-xs text-gray-400">
+                                                {room.participants.length} participant{room.participants.length !== 1 ? 's' : ''}
+                                                {room.participants.filter(p => p.isPublishingMusic).length > 0 && (
+                                                    <span className="ml-2 text-purple-300">
+                                                        🎵 {room.participants.filter(p => p.isPublishingMusic).length} music
+                                                    </span>
+                                                )}
                                             </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Participants */}
-                                {room.participants.length === 0 ? (
-                                    <div className="px-6 py-8 text-center text-gray-500">
-                                        <span className="text-2xl mb-2 block">👤</span>
-                                        No participants in this room
-                                    </div>
-                                ) : (
-                                    <div className="p-6">
-                                        <div className="grid gap-4">
-                                            {room.participants.map((participant) => (
-                                                <div
-                                                    key={participant.identity}
-                                                    className={`p-4 rounded-lg border-2 transition-colors ${
-                                                        participant.isPublishingMusic
-                                                            ? 'border-purple-200 bg-purple-50'
-                                                            : 'border-gray-200 bg-gray-50'
-                                                    }`}
-                                                >
-                                                    <div className="flex items-start justify-between">
-                                                        <div className="flex-1">
-                                                            <div className="flex items-center space-x-3 mb-2">
-                                                                <div className="flex items-center space-x-2">
-                                                                    <span className="text-lg">
-                                                                        {participant.isPublishingMusic ? '🎵' : '👤'}
-                                                                    </span>
-                                                                    <span className="font-semibold text-gray-800">
-                                                                        {participant.username || participant.identity}
-                                                                    </span>
-                                                                    {participant.username && participant.username !== participant.identity && (
-                                                                        <span className="text-sm text-gray-500">({participant.identity})</span>
-                                                                    )}
-                                                                </div>
-                                                                <span className={`px-2 py-1 text-xs rounded-full ${
-                                                                    participant.state === 'active' 
-                                                                        ? 'bg-green-100 text-green-800'
-                                                                        : 'bg-yellow-100 text-yellow-800'
-                                                                }`}>
-                                                                    {participant.state}
-                                                                </span>
-                                                            </div>
-
-                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                                                <div>
-                                                                    {participant.avatar && (
-                                                                        <p className="text-gray-600">
-                                                                            <span className="font-medium">Avatar:</span> {participant.avatar}
-                                                                        </p>
-                                                                    )}
-                                                                    {participant.position ? (
-                                                                        <p className="text-green-600">
-                                                                            <span className="font-medium">Position:</span> ({participant.position.x.toFixed(4)}, {participant.position.y.toFixed(4)})
-                                                                        </p>
-                                                                    ) : (
-                                                                        <p className="text-red-600">
-                                                                            <span className="font-medium">Position:</span> Not available
-                                                                        </p>
-                                                                    )}
-                                                                </div>
-
-                                                                <div>
-                                                                    {participant.isPublishingMusic && (
-                                                                        <div className="space-y-1">
-                                                                            {participant.musicTitle && (
-                                                                                <p className="text-purple-600">
-                                                                                    <span className="font-medium">Music:</span> {participant.musicTitle}
-                                                                                </p>
-                                                                            )}
-                                                                            {participant.partyTitle && (
-                                                                                <p className="text-purple-600">
-                                                                                    <span className="font-medium">Party:</span> {participant.partyTitle}
-                                                                                </p>
-                                                                            )}
-                                                                            {participant.partyDescription && (
-                                                                                <p className="text-sm text-gray-600">
-                                                                                    {participant.partyDescription}
-                                                                                </p>
-                                                                            )}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-
-                                                            {participant.tracks && participant.tracks.length > 0 && (
-                                                                <div className="mt-3">
-                                                                    <p className="text-sm font-medium text-gray-700 mb-1">Active Tracks:</p>
-                                                                    <div className="flex flex-wrap gap-2">
-                                                                        {participant.tracks.map((track) => (
-                                                                            <span
-                                                                                key={track.sid}
-                                                                                className={`px-2 py-1 text-xs rounded ${
-                                                                                    track.type === 'audio' 
-                                                                                        ? 'bg-blue-100 text-blue-800'
-                                                                                        : 'bg-gray-100 text-gray-800'
-                                                                                } ${track.muted ? 'opacity-50' : ''}`}
-                                                                            >
-                                                                                {track.type} {track.muted && '(muted)'}
-                                                                            </span>
-                                                                        ))}
-                                                                    </div>
-                                                                </div>
+                                            {room.participants.length > 0 && (
+                                                <div className="mt-1 space-y-1">
+                                                    {room.participants.slice(0, 3).map((participant) => (
+                                                        <div key={participant.identity} className="text-xs text-gray-300 flex items-center">
+                                                            <span className="mr-1">
+                                                                {participant.isPublishingMusic ? '🎵' : '👤'}
+                                                            </span>
+                                                            <span className="truncate">
+                                                                {participant.username || participant.identity}
+                                                            </span>
+                                                            {participant.position && (
+                                                                <span className="ml-1 w-2 h-2 bg-green-500 rounded-full"></span>
                                                             )}
                                                         </div>
-                                                    </div>
+                                                    ))}
+                                                    {room.participants.length > 3 && (
+                                                        <div className="text-xs text-gray-500">
+                                                            +{room.participants.length - 3} more
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            ))}
+                                            )}
                                         </div>
-                                    </div>
-                                )}
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Controls */}
+                        <div className="pt-2 border-t border-gray-600 space-y-2">
+                            <div className="flex space-x-2">
+                                <button
+                                    onClick={handleRefresh}
+                                    className="flex-1 bg-blue-600 hover:bg-blue-500 px-2 py-1 rounded text-xs font-medium transition-colors"
+                                >
+                                    🔄 Refresh
+                                </button>
+                                <button
+                                    onClick={handleLogout}
+                                    className="flex-1 bg-red-600 hover:bg-red-500 px-2 py-1 rounded text-xs font-medium transition-colors"
+                                >
+                                    🚪 Logout
+                                </button>
                             </div>
-                        ))}
+                            {lastUpdated && (
+                                <div className="text-xs text-gray-500 text-center">
+                                    Updated: {lastUpdated.toLocaleTimeString()}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
-            </main>
+            </div>
+
+            {/* Map Container */}
+            <div ref={mapContainerRef} className="w-full h-full">
+                {/* Fallback content when Google Maps is not available */}
+                {!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
+                    <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+                        <div className="text-center text-white p-8">
+                            <div className="text-4xl mb-4">🗺️</div>
+                            <h3 className="text-xl font-semibold mb-2">Map View Disabled</h3>
+                            <p className="text-gray-300 text-sm">
+                                Google Maps API key not configured.<br />
+                                Participant data is still available in the admin panel.
+                            </p>
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
