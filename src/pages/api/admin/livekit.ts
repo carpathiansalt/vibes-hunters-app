@@ -1,107 +1,187 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import axios from 'axios';
-import jwt from 'jsonwebtoken';
+import { RoomServiceClient } from 'livekit-server-sdk';
 
-// Helper to get LiveKit REST API Bearer JWT headers
-function getLiveKitAuthHeaders() {
-    const apiKey = process.env.LIVEKIT_API_KEY;
-    const apiSecret = process.env.LIVEKIT_API_SECRET;
-    if (!apiKey || !apiSecret) throw new Error('LiveKit API credentials missing');
-    const token = jwt.sign({ iss: apiKey }, apiSecret, { expiresIn: '5m' });
-    return { Authorization: `Bearer ${token}` };
+interface ParticipantInfo {
+    identity: string;
+    state: string;
+    username?: string;
+    avatar?: string;
+    position?: { x: number; y: number };
+    isPublishingMusic?: boolean;
+    musicTitle?: string;
+    partyTitle?: string;
+    partyDescription?: string;
+    joinedAt?: string;
+    tracks?: Array<{
+        sid: string;
+        name: string;
+        type: string;
+        muted: boolean;
+    }>;
+}
+
+interface RoomInfo {
+    name: string;
+    participants: ParticipantInfo[];
+    numParticipants: number;
+    creationTime?: number;
+    emptyTimeout?: number;
+    maxParticipants?: number;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    // Simple password check
+    // Authentication check
     if (req.headers['x-admin-password'] !== process.env.ADMIN_PASSWORD) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const livekitUrl = process.env.LIVEKIT_API_URL;
-    if (!livekitUrl) return res.status(500).json({ error: 'LiveKit URL not configured' });
+    // Only allow GET requests
+    if (req.method !== 'GET') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    // Check required environment variables
+    const apiKey = process.env.LIVEKIT_API_KEY;
+    const apiSecret = process.env.LIVEKIT_API_SECRET;
+    const livekitUrl = process.env.LIVEKIT_URL;
+
+    if (!apiKey || !apiSecret || !livekitUrl) {
+        return res.status(500).json({ 
+            error: 'LiveKit configuration incomplete',
+            details: 'Missing LIVEKIT_API_KEY, LIVEKIT_API_SECRET, or LIVEKIT_URL environment variables'
+        });
+    }
 
     try {
-        // Get all rooms
-        const roomsRes = await axios.get(`${livekitUrl}/rooms`, {
-            headers: getLiveKitAuthHeaders()
-        });
-        console.log('LiveKit /rooms response:', roomsRes.data);
-        const rooms = Array.isArray(roomsRes.data) ? roomsRes.data : [];
+        // Initialize RoomServiceClient using LiveKit Server SDK
+        const roomService = new RoomServiceClient(livekitUrl, apiKey, apiSecret);
 
-        // Define a type for LiveKit participant
-        type LiveKitParticipant = {
-            identity: string;
-            state: string;
-            metadata?: string;
-            [key: string]: unknown;
-        };
+        // List all rooms using the official SDK
+        const rooms = await roomService.listRooms();
+        console.log('🏠 Found rooms:', rooms.length);
 
-        // For each room, get all participants (include those without position metadata)
-        const roomDetails = await Promise.all(
-            rooms.map(async (room: { name: string }) => {
-                const participantsRes = await axios.get(`${livekitUrl}/rooms/${room.name}/participants`, {
-                    headers: getLiveKitAuthHeaders()
-                });
-                console.log(`LiveKit /rooms/${room.name}/participants response:`, participantsRes.data);
-                // Parse participant metadata and position
-                const participants = Array.isArray(participantsRes.data)
-                    ? participantsRes.data.map((p: LiveKitParticipant) => {
-                        let position = null;
-                        if (p.metadata) {
+        // Get detailed information for each room
+        const roomDetails: RoomInfo[] = await Promise.all(
+            rooms.map(async (room) => {
+                try {
+                    // List participants for each room
+                    const participantsList = await roomService.listParticipants(room.name);
+                    console.log(`👥 Room ${room.name} has ${participantsList.length} participants`);
+
+                    // Parse participant metadata and format data
+                    const participants: ParticipantInfo[] = participantsList.map((participant) => {
+                        let parsedMetadata: any = {};
+                        let position: { x: number; y: number } | undefined;
+
+                        // Parse participant metadata
+                        if (participant.metadata) {
                             try {
-                                const meta = JSON.parse(p.metadata);
-                                if (meta.position && typeof meta.position.x === 'number' && typeof meta.position.y === 'number') {
-                                    position = meta.position;
+                                parsedMetadata = JSON.parse(participant.metadata);
+                                
+                                // Extract position data
+                                if (parsedMetadata.position && 
+                                    typeof parsedMetadata.position.x === 'number' && 
+                                    typeof parsedMetadata.position.y === 'number') {
+                                    position = parsedMetadata.position;
                                 }
                             } catch (err) {
-                                console.warn('Failed to parse participant metadata:', p.metadata, err);
+                                console.warn(`Failed to parse metadata for participant ${participant.identity}:`, err);
                             }
                         }
-                        return { ...p, position };
-                    })
-                    : [];
-                return { name: room.name, participants };
+
+                        // Parse track information
+                        const tracks = participant.tracks?.map(track => ({
+                            sid: track.sid,
+                            name: track.name || 'unnamed',
+                            type: track.type,
+                            muted: track.muted
+                        })) || [];
+
+                        return {
+                            identity: participant.identity,
+                            state: participant.state.toString(),
+                            username: parsedMetadata.username,
+                            avatar: parsedMetadata.avatar,
+                            position,
+                            isPublishingMusic: parsedMetadata.isPublishingMusic || false,
+                            musicTitle: parsedMetadata.musicTitle,
+                            partyTitle: parsedMetadata.partyTitle,
+                            partyDescription: parsedMetadata.partyDescription,
+                            joinedAt: participant.joinedAt ? new Date(participant.joinedAt * 1000).toISOString() : undefined,
+                            tracks: tracks.length > 0 ? tracks : undefined
+                        };
+                    });
+
+                    return {
+                        name: room.name,
+                        participants,
+                        numParticipants: room.numParticipants,
+                        creationTime: room.creationTime,
+                        emptyTimeout: room.emptyTimeout,
+                        maxParticipants: room.maxParticipants
+                    };
+                } catch (participantError) {
+                    console.error(`Error fetching participants for room ${room.name}:`, participantError);
+                    
+                    // Return room info with empty participants list if participant fetch fails
+                    return {
+                        name: room.name,
+                        participants: [],
+                        numParticipants: room.numParticipants,
+                        creationTime: room.creationTime,
+                        emptyTimeout: room.emptyTimeout,
+                        maxParticipants: room.maxParticipants
+                    };
+                }
             })
         );
 
-        // If no rooms, return a sample for UI testing
-        if (roomDetails.length === 0) {
-            res.json({
-                rooms: [
-                    {
-                        name: "TestRoom",
-                        participants: [
-                            {
-                                identity: "test-user",
-                                state: "connected",
-                                metadata: JSON.stringify({
-                                    username: "Test User",
-                                    avatar: "char_001",
-                                    position: { x: 37.7749, y: -122.4194 }
-                                }),
-                                position: { x: 37.7749, y: -122.4194 }
-                            }
-                        ]
-                    }
-                ]
+        // Calculate summary statistics
+        const totalParticipants = roomDetails.reduce((total, room) => total + room.participants.length, 0);
+        const totalMusicPublishers = roomDetails.reduce((total, room) => 
+            total + room.participants.filter(p => p.isPublishingMusic).length, 0);
+
+        console.log(`📊 Admin Summary: ${roomDetails.length} rooms, ${totalParticipants} participants, ${totalMusicPublishers} music publishers`);
+
+        // Return structured response
+        res.json({
+            rooms: roomDetails,
+            summary: {
+                totalRooms: roomDetails.length,
+                totalParticipants,
+                totalMusicPublishers,
+                timestamp: new Date().toISOString()
+            }
+        });
+
+    } catch (error: unknown) {
+        console.error('❌ LiveKit Admin API Error:', error);
+        
+        // Handle different types of errors
+        if (error instanceof Error) {
+            if (error.message.includes('ECONNREFUSED') || error.message.includes('ENOTFOUND')) {
+                return res.status(503).json({
+                    error: 'Unable to connect to LiveKit server',
+                    details: 'Please check your LIVEKIT_URL configuration and ensure the LiveKit server is running.'
+                });
+            }
+            
+            if (error.message.includes('Unauthorized') || error.message.includes('401')) {
+                return res.status(500).json({
+                    error: 'LiveKit authentication failed',
+                    details: 'Please check your LIVEKIT_API_KEY and LIVEKIT_API_SECRET configuration.'
+                });
+            }
+
+            return res.status(500).json({
+                error: 'LiveKit API error',
+                details: error.message
             });
-            return;
         }
 
-        res.json({ rooms: roomDetails });
-    } catch (error: unknown) {
-        // Log error for debugging
-        if (typeof error === 'object' && error !== null && 'response' in error) {
-            const errObj = error as { response?: { data?: Record<string, unknown>; status?: number }; message?: string };
-            console.error('LiveKit API error:', errObj.response?.data || errObj.message || error);
-            if (errObj.response?.data) {
-                res.status(errObj.response.status || 500).json({ error: errObj.response.data });
-            } else {
-                res.status(500).json({ error: errObj.message || 'Failed to fetch LiveKit data' });
-            }
-        } else {
-            console.error('LiveKit API error:', error);
-            res.status(500).json({ error: 'Failed to fetch LiveKit data' });
-        }
+        return res.status(500).json({
+            error: 'Unknown error occurred',
+            details: 'An unexpected error occurred while fetching LiveKit data.'
+        });
     }
 }
