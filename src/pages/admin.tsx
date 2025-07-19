@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Image from 'next/image';
 import { Loader } from '@googlemaps/js-api-loader';
 
 // Google Maps will be available globally after loading
@@ -355,14 +356,13 @@ export default function AdminDashboard() {
 
     if (!isAuthenticated) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900 flex items-center justify-center p-4">
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900 p-4">
                 <div className="w-full max-w-md mx-auto bg-white/10 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 p-8 flex flex-col items-center">
                     <div className="flex items-center mb-4">
-                        <span className="text-3xl mr-2">🎵</span>
-                        <h1 className="text-3xl font-extrabold text-white tracking-tight">Vibes Hunters Admin</h1>
+                        <span className="text-4xl mr-2">🔒</span>
+                        <h1 className="text-3xl font-extrabold text-white tracking-tight">Admin Login</h1>
                     </div>
-                    <p className="text-white/80 mb-2 text-center">LiveKit Room & Participant Management</p>
-                    <p className="text-white/60 mb-6 text-center">Vibes Hunters Control Panel</p>
+                    <p className="text-white/80 mb-2 text-center">Access the Vibes Hunters Control Panel</p>
                     <form className="w-full flex flex-col gap-4" onSubmit={handleLogin}>
                         <label className="flex items-center gap-2 text-white/90 font-medium">
                             <span className="text-xl">🔑</span> Admin Password
@@ -384,12 +384,12 @@ export default function AdminDashboard() {
                             className="w-full py-2 mt-2 rounded-xl bg-gradient-to-r from-purple-500 via-blue-500 to-pink-500 text-white font-bold shadow-lg hover:scale-105 transition-transform flex items-center justify-center gap-2 disabled:opacity-50"
                             disabled={loading}
                         >
-                            <span className="text-lg">🚀</span> Access Admin Dashboard
+                            <span className="text-lg">🚀</span> Access Dashboard
                         </button>
                     </form>
                     <div className="mt-6 text-white/70 text-center text-sm">
-                        <span className="font-semibold">Real-time Monitoring</span> <span className="font-mono">LiveKit Integration</span>
-                        <br />Monitor active rooms, participants, and music parties
+                        <span className="font-semibold">LiveKit Integration</span> <span className="font-mono">Real-time Monitoring</span>
+                        <br />Monitor rooms, participants, and music parties
                     </div>
                 </div>
             </div>
@@ -401,7 +401,7 @@ export default function AdminDashboard() {
             {/* Admin Info Panel (glassmorphism overlay) */}
             <div className="absolute top-4 left-4 z-20 bg-black/80 text-white rounded-3xl backdrop-blur-lg shadow-2xl border border-white/20 p-8 min-w-[320px] max-w-[400px]">
                 <div className="flex items-center mb-4">
-                    <span className="text-2xl mr-2">�</span>
+                    <span className="text-2xl mr-2">🎛️</span>
                     <span className="font-bold text-2xl">Admin Dashboard</span>
                 </div>
                 <div className="mb-4">
@@ -418,7 +418,18 @@ export default function AdminDashboard() {
                                 <ul className="ml-4">
                                     {room.participants.map(p => (
                                         <li key={p.identity} className="flex items-center gap-2 text-sm mt-1">
-                                            <span className="text-lg">{p.avatar ? <img src={p.avatar} alt="avatar" className="w-6 h-6 rounded-full inline-block" /> : '🧑'}</span>
+                                            {p.avatar ? (
+                                                <Image
+                                                    src={p.avatar}
+                                                    alt="avatar"
+                                                    width={24}
+                                                    height={24}
+                                                    className="w-6 h-6 rounded-full inline-block border-2 border-white/30"
+                                                    style={{ objectFit: 'cover' }}
+                                                />
+                                            ) : (
+                                                <span className="text-lg">🧑</span>
+                                            )}
                                             <span className="font-semibold">{p.username ?? p.identity}</span>
                                             {p.isPublishingMusic && <span className="ml-1 text-pink-400">🎶</span>}
                                         </li>
