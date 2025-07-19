@@ -48,7 +48,6 @@ export default function AdminDashboard() {
     const [error, setError] = useState('');
     const [adminData, setAdminData] = useState<AdminData | null>(null);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-    const [adminInfoExpanded, setAdminInfoExpanded] = useState(true);
 
     // Map refs
     const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -357,66 +356,40 @@ export default function AdminDashboard() {
     if (!isAuthenticated) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900 flex items-center justify-center p-4">
-                <div className="bg-white/20 backdrop-blur-xl rounded-3xl shadow-2xl p-10 w-full max-w-lg border border-white/10 flex flex-col items-center">
-                    <div className="text-center mb-10">
-                        <div className="text-7xl mb-6">🎵</div>
-                        <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 mb-4 tracking-tight">Vibes Hunters Admin</h1>
-                        <p className="text-lg text-white/80 font-medium mb-2">LiveKit Room & Participant Management</p>
-                        <div className="mt-4 px-4 py-2 bg-gradient-to-r from-purple-200/60 to-blue-200/60 rounded-xl border border-purple-300/30 shadow">
-                            <p className="text-base text-purple-700 font-semibold">Vibes Hunters Control Panel</p>
-                        </div>
+                <div className="w-full max-w-md mx-auto bg-white/10 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 p-8 flex flex-col items-center">
+                    <div className="flex items-center mb-4">
+                        <span className="text-3xl mr-2">🎵</span>
+                        <h1 className="text-3xl font-extrabold text-white tracking-tight">Vibes Hunters Admin</h1>
                     </div>
-                    <form onSubmit={handleLogin} className="space-y-8 w-full">
-                        <div>
-                            <label htmlFor="password" className="block text-base font-semibold text-purple-300 mb-2 flex items-center">
-                                <span className="mr-2 text-2xl">🔑</span> Admin Password
-                            </label>
-                            <input
-                                type="password"
-                                id="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-5 py-4 border border-purple-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors bg-white/80 text-lg font-medium text-gray-800 placeholder:text-purple-400"
-                                placeholder="Enter admin password"
-                                disabled={loading}
-                            />
-                        </div>
+                    <p className="text-white/80 mb-2 text-center">LiveKit Room & Participant Management</p>
+                    <p className="text-white/60 mb-6 text-center">Vibes Hunters Control Panel</p>
+                    <form className="w-full flex flex-col gap-4" onSubmit={handleLogin}>
+                        <label className="flex items-center gap-2 text-white/90 font-medium">
+                            <span className="text-xl">🔑</span> Admin Password
+                        </label>
+                        <input
+                            type="password"
+                            className="w-full px-4 py-2 rounded-xl bg-white/20 text-white border border-white/30 focus:outline-none focus:ring-2 focus:ring-purple-400 placeholder-white/60"
+                            placeholder="Enter admin password"
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                        />
                         {error && (
-                            <div className="p-4 bg-red-100/80 border border-red-300 rounded-xl flex items-center mb-2">
-                                <span className="text-red-500 text-2xl mr-3">⚠️</span>
-                                <p className="text-base text-red-700 font-semibold">{error}</p>
+                            <div className="flex items-center gap-2 text-red-400 text-sm">
+                                <span className="text-lg">⚠️</span> {error}
                             </div>
                         )}
                         <button
                             type="submit"
-                            disabled={loading || !password.trim()}
-                            className="w-full bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-white font-extrabold text-lg py-4 px-6 rounded-xl shadow-xl hover:from-pink-600 hover:to-blue-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                            className="w-full py-2 mt-2 rounded-xl bg-gradient-to-r from-purple-500 via-blue-500 to-pink-500 text-white font-bold shadow-lg hover:scale-105 transition-transform flex items-center justify-center gap-2 disabled:opacity-50"
+                            disabled={loading}
                         >
-                            {loading ? (
-                                <span className="flex items-center justify-center">
-                                    <svg className="animate-spin -ml-1 mr-2 h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Authenticating...
-                                </span>
-                            ) : (
-                                '🚀 Access Admin Dashboard'
-                            )}
+                            <span className="text-lg">🚀</span> Access Admin Dashboard
                         </button>
                     </form>
-                    <div className="mt-10 text-center text-base text-white/70 space-y-3">
-                        <div className="flex items-center justify-center space-x-6 text-base">
-                            <span className="flex items-center">
-                                <span className="w-3 h-3 bg-green-400 rounded-full mr-2"></span>
-                                Real-time Monitoring
-                            </span>
-                            <span className="flex items-center">
-                                <span className="w-3 h-3 bg-blue-400 rounded-full mr-2"></span>
-                                LiveKit Integration
-                            </span>
-                        </div>
-                        <p>Monitor active rooms, participants, and music parties</p>
+                    <div className="mt-6 text-white/70 text-center text-sm">
+                        <span className="font-semibold">Real-time Monitoring</span> <span className="font-mono">LiveKit Integration</span>
+                        <br />Monitor active rooms, participants, and music parties
                     </div>
                 </div>
             </div>
@@ -424,139 +397,60 @@ export default function AdminDashboard() {
     }
 
     return (
-        <div className="relative w-full h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900">
+        <div className="relative w-full h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900 overflow-hidden">
             {/* Admin Info Panel (glassmorphism overlay) */}
-            <div className="absolute top-4 left-4 z-20 bg-black/80 text-white rounded-2xl backdrop-blur-md shadow-2xl border border-white/10">
-                <button
-                    onClick={() => setAdminInfoExpanded(!adminInfoExpanded)}
-                    className="w-full p-3 text-left hover:bg-white/10 transition-colors rounded-lg"
-                >
-                    <div className="text-sm font-bold text-green-400 flex items-center justify-between">
-                        <span>🔐 Admin Dashboard</span>
-                        <span className="text-xs">{adminInfoExpanded ? '▼' : '▶'}</span>
-                    </div>
-                </button>
-
-                {adminInfoExpanded && (
-                    <div className="p-3 pt-0 space-y-2 max-w-sm">
-                        {/* Quick Stats */}
-                        <div className="grid grid-cols-3 gap-2 mb-3">
-                            <div className="bg-blue-600/20 p-2 rounded text-center">
-                                <div className="text-lg font-bold text-blue-300">
-                                    {adminData?.summary?.totalRooms || adminData?.rooms?.length || 0}
-                                </div>
-                                <div className="text-xs text-blue-200">Rooms</div>
-                            </div>
-                            <div className="bg-green-600/20 p-2 rounded text-center">
-                                <div className="text-lg font-bold text-green-300">
-                                    {adminData?.summary?.totalParticipants ||
-                                        adminData?.rooms?.reduce((total, room) => total + room.participants.length, 0) || 0}
-                                </div>
-                                <div className="text-xs text-green-200">Users</div>
-                            </div>
-                            <div className="bg-purple-600/20 p-2 rounded text-center">
-                                <div className="text-lg font-bold text-purple-300">
-                                    {adminData?.summary?.totalMusicPublishers ||
-                                        adminData?.rooms?.reduce((total, room) =>
-                                            total + room.participants.filter(p => p.isPublishingMusic).length, 0) || 0}
-                                </div>
-                                <div className="text-xs text-purple-200">Music</div>
-                            </div>
-                        </div>
-
-                        {error && (
-                            <div className="bg-red-600/20 p-2 rounded border border-red-500/30">
-                                <div className="text-xs text-red-300">⚠️ {error}</div>
-                            </div>
-                        )}
-
-                        {/* Room List */}
-                        <div className="text-sm">
-                            <div className="font-medium text-gray-300 mb-2">Active Rooms</div>
-                            {(!adminData?.rooms || adminData.rooms.length === 0) ? (
-                                <div className="text-amber-300 text-xs">No active rooms</div>
-                            ) : (
-                                <div className="space-y-1 max-h-48 overflow-y-auto">
-                                    {adminData.rooms.map((room) => (
-                                        <div key={room.name} className="bg-gray-700/50 p-2 rounded">
-                                            <div className="font-medium text-blue-300">🏠 {room.name}</div>
-                                            <div className="text-xs text-gray-400">
-                                                {room.participants.length} participant{room.participants.length !== 1 ? 's' : ''}
-                                                {room.participants.filter(p => p.isPublishingMusic).length > 0 && (
-                                                    <span className="ml-2 text-purple-300">
-                                                        🎵 {room.participants.filter(p => p.isPublishingMusic).length} music
-                                                    </span>
-                                                )}
-                                            </div>
-                                            {room.participants.length > 0 && (
-                                                <div className="mt-1 space-y-1">
-                                                    {room.participants.slice(0, 3).map((participant) => (
-                                                        <div key={participant.identity} className="text-xs text-gray-300 flex items-center">
-                                                            <span className="mr-1">
-                                                                {participant.isPublishingMusic ? '🎵' : '👤'}
-                                                            </span>
-                                                            <span className="truncate">
-                                                                {participant.username || participant.identity}
-                                                            </span>
-                                                            {participant.position && (
-                                                                <span className="ml-1 w-2 h-2 bg-green-500 rounded-full"></span>
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                    {room.participants.length > 3 && (
-                                                        <div className="text-xs text-gray-500">
-                                                            +{room.participants.length - 3} more
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
+            <div className="absolute top-4 left-4 z-20 bg-black/80 text-white rounded-3xl backdrop-blur-lg shadow-2xl border border-white/20 p-8 min-w-[320px] max-w-[400px]">
+                <div className="flex items-center mb-4">
+                    <span className="text-2xl mr-2">�</span>
+                    <span className="font-bold text-2xl">Admin Dashboard</span>
+                </div>
+                <div className="mb-4">
+                    <span className="font-semibold">Rooms:</span> {adminData?.summary?.totalRooms ?? 0}<br />
+                    <span className="font-semibold">Users:</span> {adminData?.summary?.totalParticipants ?? 0}<br />
+                    <span className="font-semibold">Music:</span> {adminData?.summary?.totalMusicPublishers ?? 0}
+                </div>
+                <div className="mb-4">
+                    <span className="font-semibold">Active Rooms</span>
+                    <ul className="ml-2 mt-2">
+                        {adminData?.rooms?.map(room => (
+                            <li key={room.name} className="mb-2">
+                                <span className="mr-1">🏠</span> <span className="font-bold">{room.name}</span> <span className="text-xs text-white/60">({room.numParticipants} participant{room.numParticipants !== 1 ? 's' : ''})</span>
+                                <ul className="ml-4">
+                                    {room.participants.map(p => (
+                                        <li key={p.identity} className="flex items-center gap-2 text-sm mt-1">
+                                            <span className="text-lg">{p.avatar ? <img src={p.avatar} alt="avatar" className="w-6 h-6 rounded-full inline-block" /> : '🧑'}</span>
+                                            <span className="font-semibold">{p.username ?? p.identity}</span>
+                                            {p.isPublishingMusic && <span className="ml-1 text-pink-400">🎶</span>}
+                                        </li>
                                     ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Controls */}
-                        <div className="pt-2 border-t border-gray-600 space-y-2">
-                            <div className="flex space-x-2">
-                                <button
-                                    onClick={handleRefresh}
-                                    className="flex-1 bg-blue-600 hover:bg-blue-500 px-2 py-1 rounded text-xs font-medium transition-colors"
-                                >
-                                    🔄 Refresh
-                                </button>
-                                <button
-                                    onClick={handleLogout}
-                                    className="flex-1 bg-red-600 hover:bg-red-500 px-2 py-1 rounded text-xs font-medium transition-colors"
-                                >
-                                    🚪 Logout
-                                </button>
-                            </div>
-                            {lastUpdated && (
-                                <div className="text-xs text-gray-500 text-center">
-                                    Updated: {lastUpdated.toLocaleTimeString()}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
+                                </ul>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+                <div className="flex gap-2 mt-2">
+                    <button onClick={handleRefresh} className="px-3 py-1 rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 flex items-center gap-1">
+                        <span>🔄</span> Refresh
+                    </button>
+                    <button onClick={handleLogout} className="px-3 py-1 rounded-lg bg-red-600 text-white font-semibold shadow hover:bg-red-700 flex items-center gap-1">
+                        <span>🚪</span> Logout
+                    </button>
+                </div>
+                <div className="mt-2 text-xs text-white/60">
+                    Updated: {lastUpdated ? lastUpdated.toLocaleTimeString() : 'N/A'}
+                </div>
             </div>
 
             {/* Map Container (glassmorphism, always visible) */}
             <div className="absolute inset-0 z-10 flex items-center justify-center">
-                <div className="w-[80vw] h-[80vh] bg-white/10 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-md overflow-hidden">
-                    <div ref={mapContainerRef} className="w-full h-full" />
-                    {/* Fallback content when Google Maps is not available */}
+                <div className="w-[80vw] h-[80vh] bg-white/10 rounded-3xl shadow-2xl border border-white/20 backdrop-blur-lg flex items-center justify-center relative">
+                    <div ref={mapContainerRef} className="w-full h-full rounded-3xl" />
+                    {/* Overlay for missing API key or error */}
                     {!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-gray-800/80">
-                            <div className="text-center text-white p-8">
-                                <div className="text-4xl mb-4">🗺️</div>
-                                <h3 className="text-xl font-semibold mb-2">Map View Disabled</h3>
-                                <p className="text-gray-300 text-sm">
-                                    Google Maps API key not configured.<br />
-                                    Participant data is still available in the admin panel.
-                                </p>
-                            </div>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 rounded-3xl">
+                            <span className="text-4xl mb-2">⚠️</span>
+                            <span className="text-white font-bold text-lg">Google Maps API Key Missing</span>
+                            <span className="text-white/70 mt-2">Please set <span className="font-mono">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</span> in your environment.</span>
                         </div>
                     )}
                 </div>
