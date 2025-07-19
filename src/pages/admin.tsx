@@ -159,6 +159,7 @@ export default function AdminDashboard() {
                     <div className="text-center mb-8">
                         <h1 className="text-3xl font-bold text-gray-800 mb-2">🔐 Admin Dashboard</h1>
                         <p className="text-gray-600">Enter admin password to access LiveKit room management</p>
+                        <p className="text-xs text-gray-400 mt-2">Updated: 2025-07-19</p>
                     </div>
 
                     <form onSubmit={handleLogin} className="space-y-6">
