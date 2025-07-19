@@ -357,49 +357,44 @@ export default function AdminDashboard() {
     if (!isAuthenticated) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900 flex items-center justify-center p-4">
-                <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 w-full max-w-md border border-white/20">
-                    <div className="text-center mb-8">
-                        <div className="text-6xl mb-4">🔐</div>
-                        <h1 className="text-3xl font-bold text-gray-800 mb-2">Admin Dashboard</h1>
-                        <p className="text-gray-600">LiveKit Room & Participant Management</p>
-                        <div className="mt-4 px-4 py-2 bg-gradient-to-r from-purple-100 to-blue-100 rounded-lg border border-purple-200">
-                            <p className="text-sm text-gray-700 font-medium">🎵 Vibes Hunters Control Panel</p>
+                <div className="bg-white/20 backdrop-blur-xl rounded-3xl shadow-2xl p-10 w-full max-w-lg border border-white/10 flex flex-col items-center">
+                    <div className="text-center mb-10">
+                        <div className="text-7xl mb-6">🎵</div>
+                        <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 mb-4 tracking-tight">Vibes Hunters Admin</h1>
+                        <p className="text-lg text-white/80 font-medium mb-2">LiveKit Room & Participant Management</p>
+                        <div className="mt-4 px-4 py-2 bg-gradient-to-r from-purple-200/60 to-blue-200/60 rounded-xl border border-purple-300/30 shadow">
+                            <p className="text-base text-purple-700 font-semibold">Vibes Hunters Control Panel</p>
                         </div>
                     </div>
-
-                    <form onSubmit={handleLogin} className="space-y-6">
+                    <form onSubmit={handleLogin} className="space-y-8 w-full">
                         <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                                🔑 Admin Password
+                            <label htmlFor="password" className="block text-base font-semibold text-purple-300 mb-2 flex items-center">
+                                <span className="mr-2 text-2xl">🔑</span> Admin Password
                             </label>
                             <input
                                 type="password"
                                 id="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors bg-white/90"
+                                className="w-full px-5 py-4 border border-purple-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors bg-white/80 text-lg font-medium text-gray-800 placeholder:text-purple-400"
                                 placeholder="Enter admin password"
                                 disabled={loading}
                             />
                         </div>
-
                         {error && (
-                            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                                <div className="flex items-center">
-                                    <span className="text-red-500 text-lg mr-2">⚠️</span>
-                                    <p className="text-sm text-red-600">{error}</p>
-                                </div>
+                            <div className="p-4 bg-red-100/80 border border-red-300 rounded-xl flex items-center mb-2">
+                                <span className="text-red-500 text-2xl mr-3">⚠️</span>
+                                <p className="text-base text-red-700 font-semibold">{error}</p>
                             </div>
                         )}
-
                         <button
                             type="submit"
                             disabled={loading || !password.trim()}
-                            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-medium py-3 px-4 rounded-lg hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
+                            className="w-full bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-white font-extrabold text-lg py-4 px-6 rounded-xl shadow-xl hover:from-pink-600 hover:to-blue-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                         >
                             {loading ? (
                                 <span className="flex items-center justify-center">
-                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <svg className="animate-spin -ml-1 mr-2 h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
@@ -410,15 +405,14 @@ export default function AdminDashboard() {
                             )}
                         </button>
                     </form>
-
-                    <div className="mt-8 text-center text-sm text-gray-500 space-y-2">
-                        <div className="flex items-center justify-center space-x-4 text-xs">
+                    <div className="mt-10 text-center text-base text-white/70 space-y-3">
+                        <div className="flex items-center justify-center space-x-6 text-base">
                             <span className="flex items-center">
-                                <span className="w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+                                <span className="w-3 h-3 bg-green-400 rounded-full mr-2"></span>
                                 Real-time Monitoring
                             </span>
                             <span className="flex items-center">
-                                <span className="w-2 h-2 bg-blue-500 rounded-full mr-1"></span>
+                                <span className="w-3 h-3 bg-blue-400 rounded-full mr-2"></span>
                                 LiveKit Integration
                             </span>
                         </div>
