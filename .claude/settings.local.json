@@ -13,7 +13,8 @@
       "Bash(npx tsc:*)",
       "Bash(npm run type-check:*)",
       "Bash(npm run:*)",
-      "Bash(npx next build:*)"
+      "Bash(npx next build:*)",
+      "Bash(npx next lint:*)"
     ],
     "deny": []
   }

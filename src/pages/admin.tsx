@@ -1,20 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Loader } from '@googlemaps/js-api-loader';
 
-// Google Maps API type declaration
-declare global {
-    interface Window {
-        google?: {
-            maps: {
-                Map: new (element: HTMLElement, options: any) => any;
-                Marker: new (options: any) => any;
-                InfoWindow: new (options: any) => any;
-                LatLngBounds: new () => any;
-                Size: new (width: number, height: number) => any;
-            };
-        };
-    }
-}
+// Google Maps will be available globally after loading
 
 interface ParticipantInfo {
     identity: string;
@@ -65,8 +52,8 @@ export default function AdminDashboard() {
 
     // Map refs
     const mapContainerRef = useRef<HTMLDivElement>(null);
-    const mapRef = useRef<any>(null);
-    const markersRef = useRef<Map<string, any>>(new Map());
+    const mapRef = useRef<google.maps.Map | null>(null);
+    const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
 
     const fetchAdminData = useCallback(async () => {
         if (!isAuthenticated) return;
@@ -205,7 +192,7 @@ export default function AdminDashboard() {
                 throw new Error('Google Maps failed to load properly');
             }
 
-            const map = new window.google.maps.Map(mapContainerRef.current, {
+            const map = new google.maps.Map(mapContainerRef.current, {
                 center: { lat: 37.7749, lng: -122.4194 }, // Default to San Francisco
                 zoom: 2, // World view for admin
                 mapTypeControl: true,
@@ -233,7 +220,7 @@ export default function AdminDashboard() {
 
         // Clear existing markers
         markersRef.current.forEach(marker => {
-            if (marker && marker.setMap) marker.setMap(null);
+            marker.setMap(null);
         });
         markersRef.current.clear();
 
@@ -252,19 +239,19 @@ export default function AdminDashboard() {
                     const iconUrl = participant.isPublishingMusic ? '/boombox.png' : `/characters_001/${avatarFile}`;
                     const markerSize = participant.isPublishingMusic ? 40 : 32;
 
-                    const marker = new window.google.maps.Marker({
+                    const marker = new google.maps.Marker({
                         position: { lat: participant.position.x, lng: participant.position.y },
                         map: mapRef.current,
                         icon: {
                             url: iconUrl,
-                            scaledSize: new window.google.maps.Size(markerSize, markerSize),
+                            scaledSize: new google.maps.Size(markerSize, markerSize),
                         },
                         title: `${participant.username || participant.identity} (${room.name})${participant.isPublishingMusic ? ' 🎵' : ''}`,
                         zIndex: participant.isPublishingMusic ? 999 : 500,
                     });
 
                     // Add info window on click
-                    const infoWindow = new window.google.maps.InfoWindow({
+                    const infoWindow = new google.maps.InfoWindow({
                         content: `
                             <div class="p-2">
                                 <div class="font-semibold text-gray-800">${participant.username || participant.identity}</div>
@@ -292,11 +279,14 @@ export default function AdminDashboard() {
 
         // Adjust map bounds to show all markers if any exist
         if (markersRef.current.size > 0 && window.google?.maps) {
-            const bounds = new window.google.maps.LatLngBounds();
+            const bounds = new google.maps.LatLngBounds();
             markersRef.current.forEach(marker => {
-                bounds.extend(marker.getPosition());
+                const position = marker.getPosition();
+                if (position) {
+                    bounds.extend(position);
+                }
             });
-            mapRef.current.fitBounds(bounds);
+            mapRef.current?.fitBounds(bounds);
         }
 
     }, [adminData]);
