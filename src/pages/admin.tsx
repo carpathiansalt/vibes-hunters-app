@@ -84,7 +84,7 @@ export default function AdminDashboard() {
             setAdminData(data);
             setLastUpdated(new Date());
             setError('');
-            
+
         } catch (err) {
             console.error('Failed to fetch admin data:', err);
             setError('Failed to fetch admin data');
@@ -146,7 +146,7 @@ export default function AdminDashboard() {
             setIsAuthenticated(true);
             setLastUpdated(new Date());
             sessionStorage.setItem('admin-authenticated', 'true');
-            
+
         } catch (err) {
             console.error('Admin login error:', err);
             setError('Failed to connect to admin API');
@@ -221,17 +221,17 @@ export default function AdminDashboard() {
     // Update map markers for participants
     const updateMapMarkers = useCallback(() => {
         console.log('🗺️ updateMapMarkers called');
-        
+
         if (!mapRef.current) {
             console.log('❌ Map not ready, skipping marker update');
             return;
         }
-        
+
         if (!window.google?.maps) {
             console.log('❌ Google Maps not loaded, skipping marker update');
             return;
         }
-        
+
         if (!adminData?.rooms) {
             console.log('❌ No admin data available, skipping marker update');
             return;
@@ -249,7 +249,7 @@ export default function AdminDashboard() {
         // Add markers for all participants with positions
         adminData.rooms.forEach(room => {
             console.log(`🏠 Processing room: ${room.name} with ${room.participants.length} participants`);
-            
+
             room.participants.forEach(participant => {
                 console.log(`👤 Processing participant: ${participant.identity}`, {
                     username: participant.username,
@@ -259,15 +259,15 @@ export default function AdminDashboard() {
                 });
 
                 // Validate position data (same as HuntersMapView)
-                if (!participant.position || 
-                    typeof participant.position.x !== 'number' || 
+                if (!participant.position ||
+                    typeof participant.position.x !== 'number' ||
                     typeof participant.position.y !== 'number' ||
                     isNaN(participant.position.x) ||
                     isNaN(participant.position.y)) {
                     console.warn(`❌ Invalid position for participant ${participant.identity}:`, participant.position);
                     return;
                 }
-                    
+
                 totalParticipantsWithPosition++;
 
                 // Ensure avatar icon URL always ends with .png (same logic as HuntersMapView)
@@ -275,7 +275,7 @@ export default function AdminDashboard() {
                 if (avatarFile && !avatarFile.endsWith('.png')) {
                     avatarFile = avatarFile + '.png';
                 }
-                
+
                 const iconUrl = participant.isPublishingMusic ? '/boombox.png' : `/characters_001/${avatarFile}`;
                 const markerSize = participant.isPublishingMusic ? 60 : 50; // Same sizes as HuntersMapView
 
@@ -430,9 +430,9 @@ export default function AdminDashboard() {
     }
 
     return (
-        <div className="relative w-full h-screen bg-gray-900">
-            {/* Admin Info Panel */}
-            <div className="absolute top-4 left-4 z-10 bg-black/80 text-white rounded-lg backdrop-blur-sm">
+        <div className="relative w-full h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900">
+            {/* Admin Info Panel (glassmorphism overlay) */}
+            <div className="absolute top-4 left-4 z-20 bg-black/80 text-white rounded-2xl backdrop-blur-md shadow-2xl border border-white/10">
                 <button
                     onClick={() => setAdminInfoExpanded(!adminInfoExpanded)}
                     className="w-full p-3 text-left hover:bg-white/10 transition-colors rounded-lg"
@@ -455,16 +455,16 @@ export default function AdminDashboard() {
                             </div>
                             <div className="bg-green-600/20 p-2 rounded text-center">
                                 <div className="text-lg font-bold text-green-300">
-                                    {adminData?.summary?.totalParticipants || 
-                                     adminData?.rooms?.reduce((total, room) => total + room.participants.length, 0) || 0}
+                                    {adminData?.summary?.totalParticipants ||
+                                        adminData?.rooms?.reduce((total, room) => total + room.participants.length, 0) || 0}
                                 </div>
                                 <div className="text-xs text-green-200">Users</div>
                             </div>
                             <div className="bg-purple-600/20 p-2 rounded text-center">
                                 <div className="text-lg font-bold text-purple-300">
-                                    {adminData?.summary?.totalMusicPublishers || 
-                                     adminData?.rooms?.reduce((total, room) => 
-                                        total + room.participants.filter(p => p.isPublishingMusic).length, 0) || 0}
+                                    {adminData?.summary?.totalMusicPublishers ||
+                                        adminData?.rooms?.reduce((total, room) =>
+                                            total + room.participants.filter(p => p.isPublishingMusic).length, 0) || 0}
                                 </div>
                                 <div className="text-xs text-purple-200">Music</div>
                             </div>
@@ -548,21 +548,24 @@ export default function AdminDashboard() {
                 )}
             </div>
 
-            {/* Map Container */}
-            <div ref={mapContainerRef} className="w-full h-full">
-                {/* Fallback content when Google Maps is not available */}
-                {!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
-                    <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-                        <div className="text-center text-white p-8">
-                            <div className="text-4xl mb-4">🗺️</div>
-                            <h3 className="text-xl font-semibold mb-2">Map View Disabled</h3>
-                            <p className="text-gray-300 text-sm">
-                                Google Maps API key not configured.<br />
-                                Participant data is still available in the admin panel.
-                            </p>
+            {/* Map Container (glassmorphism, always visible) */}
+            <div className="absolute inset-0 z-10 flex items-center justify-center">
+                <div className="w-[80vw] h-[80vh] bg-white/10 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-md overflow-hidden">
+                    <div ref={mapContainerRef} className="w-full h-full" />
+                    {/* Fallback content when Google Maps is not available */}
+                    {!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-gray-800/80">
+                            <div className="text-center text-white p-8">
+                                <div className="text-4xl mb-4">🗺️</div>
+                                <h3 className="text-xl font-semibold mb-2">Map View Disabled</h3>
+                                <p className="text-gray-300 text-sm">
+                                    Google Maps API key not configured.<br />
+                                    Participant data is still available in the admin panel.
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
         </div>
     );
