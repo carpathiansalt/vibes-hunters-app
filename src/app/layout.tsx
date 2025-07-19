@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
     title: 'Vibes Hunters - Spatial Audio Social Experience',
@@ -35,6 +36,7 @@ export default function RootLayout({
         <html lang="en">
             <body className="antialiased">
                 {children}
+                <Analytics />
             </body>
         </html>
     )
