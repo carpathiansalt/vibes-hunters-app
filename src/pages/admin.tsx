@@ -40,6 +40,42 @@ export default function AdminDashboard() {
     const [adminData, setAdminData] = useState<AdminData | null>(null);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+    const fetchAdminData = React.useCallback(async () => {
+        if (!isAuthenticated) return;
+
+        try {
+            const response = await fetch('/api/admin/livekit', {
+                method: 'GET',
+                headers: {
+                    'x-admin-password': password,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.status === 401) {
+                setIsAuthenticated(false);
+                sessionStorage.removeItem('admin-authenticated');
+                setError('Authentication expired');
+                return;
+            }
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                setError(errorData.error || 'Failed to fetch data');
+                return;
+            }
+
+            const data = await response.json();
+            setAdminData(data);
+            setLastUpdated(new Date());
+            setError('');
+            
+        } catch (err) {
+            console.error('Failed to fetch admin data:', err);
+            setError('Failed to fetch admin data');
+        }
+    }, [isAuthenticated, password]);
+
     // Check if already authenticated on mount
     useEffect(() => {
         const savedAuth = sessionStorage.getItem('admin-authenticated');
@@ -47,7 +83,7 @@ export default function AdminDashboard() {
             setIsAuthenticated(true);
             fetchAdminData();
         }
-    }, []);
+    }, [fetchAdminData]);
 
     // Auto-refresh data every 10 seconds when authenticated
     useEffect(() => {
@@ -58,7 +94,7 @@ export default function AdminDashboard() {
         }, 10000);
 
         return () => clearInterval(interval);
-    }, [isAuthenticated]);
+    }, [isAuthenticated, fetchAdminData]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -101,42 +137,6 @@ export default function AdminDashboard() {
             setError('Failed to connect to admin API');
         } finally {
             setLoading(false);
-        }
-    };
-
-    const fetchAdminData = async () => {
-        if (!isAuthenticated) return;
-
-        try {
-            const response = await fetch('/api/admin/livekit', {
-                method: 'GET',
-                headers: {
-                    'x-admin-password': password,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (response.status === 401) {
-                setIsAuthenticated(false);
-                sessionStorage.removeItem('admin-authenticated');
-                setError('Authentication expired');
-                return;
-            }
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                setError(errorData.error || 'Failed to fetch data');
-                return;
-            }
-
-            const data = await response.json();
-            setAdminData(data);
-            setLastUpdated(new Date());
-            setError('');
-            
-        } catch (err) {
-            console.error('Failed to fetch admin data:', err);
-            setError('Failed to fetch admin data');
         }
     };
 
