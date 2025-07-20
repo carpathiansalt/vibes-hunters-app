@@ -7,6 +7,7 @@ import { Vector2, ParticipantMetadata, UserPosition } from '@/types';
 import { BoomboxMusicDialog } from './BoomboxMusicDialog';
 import { MicrophoneButton } from './MicrophoneButton';
 import { EarshotRadius } from './EarshotRadius';
+import { GenreSelector } from './GenreSelector';
 import { useSpatialAudio } from '@/hooks/useSpatialAudio';
 
 interface HuntersMapViewProps {
@@ -40,8 +41,22 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [showVoiceRange, setShowVoiceRange] = useState(false);
     const [roomInfoExpanded, setRoomInfoExpanded] = useState(false);
     const [instructionsExpanded, setInstructionsExpanded] = useState(false);
+    // Add genre state for switching rooms
+    const genres = [
+        { name: 'classical', image: '/music_gendre/classical.png' },
+        { name: 'country', image: '/music_gendre/country.png' },
+        { name: 'electronic', image: '/music_gendre/electronic.png' },
+        { name: 'folk', image: '/music_gendre/folk.png' },
+        { name: 'hip-hop', image: '/music_gendre/hip-hop.png' },
+        { name: 'jazz', image: '/music_gendre/jazz.png' },
+        { name: 'metal', image: '/music_gendre/metal.png' },
+        { name: 'pop', image: '/music_gendre/pop.png' },
+        { name: 'rock', image: '/music_gendre/rock.png' },
+    ];
+    const [genre, setGenre] = useState(room || 'pop');
 
     const mapContainerRef = useRef<HTMLDivElement>(null);
+    // ...existing code...
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mapRef = useRef<any>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -838,8 +853,25 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         }
     }, [livekitRoom, musicSource]);
 
+    // Handle genre change: disconnect and join new room
+    const handleGenreChange = async (newGenre: string) => {
+        if (newGenre === genre) return;
+        // Disconnect from current room
+        if (livekitRoom) {
+            await livekitRoom.disconnect();
+            setLivekitRoom(null);
+            setIsConnected(false);
+        }
+        setGenre(newGenre);
+        // Connect to new room (will trigger useEffect)
+    };
+
     return (
         <div className="relative w-full h-screen bg-gray-900">
+            {/* Genre Selector at the top, between info box and mic toggle */}
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 w-full max-w-lg flex justify-center">
+                <GenreSelector genres={genres} genre={genre} setGenre={handleGenreChange} />
+            </div>
             {error && (
                 <div className="absolute top-4 left-4 right-4 z-10 bg-red-500 text-white p-4 rounded-lg shadow-lg">
                     <div className="font-bold mb-2">Error</div>
@@ -847,7 +879,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 </div>
             )}
 
-            <div className="absolute top-4 left-4 z-10 bg-black/80 text-white rounded-lg backdrop-blur-sm">
+            <div className="absolute top-24 left-4 z-10 bg-black/80 text-white rounded-lg backdrop-blur-sm">
                 <button
                     onClick={() => setRoomInfoExpanded(!roomInfoExpanded)}
                     className="w-full p-3 text-left hover:bg-white/10 transition-colors rounded-lg"

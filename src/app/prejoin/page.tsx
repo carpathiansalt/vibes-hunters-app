@@ -1,14 +1,32 @@
 "use client";
 
 import React, { useState } from 'react';
+type Genre = {
+    name: string;
+    image: string;
+};
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 
-const genres = [
-    'Pop', 'Rock', 'Jazz', 'Classical', 'Hip-Hop', 'Electronic', 'World', 'Reggae', 'Folk', 'Other'
+// Dynamically use all images from public/music_gendre
+const genreImages = [
+    'classical.png',
+    'country.png',
+    'electronic.png',
+    'folk.png',
+    'hip-hop.png',
+    'jazz.png',
+    'metal.png',
+    'pop.png',
+    'rock.png',
 ];
+
+const genres = genreImages.map(img => ({
+    image: `/music_gendre/${img}`,
+    name: img.replace('.png', ''), // Used for selection only
+}));
 
 // Dynamically generate avatar filenames (supporting up to 25 for now)
 const avatarCount = 25;
@@ -51,27 +69,23 @@ export default function PreJoinPage() {
                 <div className="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 w-full max-w-md mx-auto">
                     <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-center text-gray-800">Choose Your Vibe</h2>
 
-                    <div className="space-y-6">
+                    <div className="space-y-8">
                         {/* Music Genre */}
-                        <div>
+                        <div className="pb-2">
                             <label className="block font-semibold mb-3 text-gray-900">Music Genre</label>
-                            <select
-                                value={genre}
-                                onChange={e => setGenre(e.target.value)}
-                                className="w-full p-4 rounded-2xl border-2 border-gray-300 focus:border-purple-500 focus:outline-none transition-colors text-lg text-gray-900 bg-white/80 placeholder-gray-400"
-                            >
-                                {genres.map(g => <option key={g} value={g}>{g}</option>)}
-                            </select>
+                            <div className="bg-gray-50 rounded-2xl shadow-sm px-3 py-4 border border-gray-200">
+                                <GenreCarousel genres={genres} genre={genre} setGenre={setGenre} />
+                            </div>
                         </div>
-
                         {/* Avatar Selection */}
-                        <div>
+                        <div className="pb-2">
                             <label className="block font-semibold mb-3 text-gray-900">Choose Your Avatar</label>
-                            <AvatarCarousel avatars={avatars} avatar={avatar} setAvatar={setAvatar} />
+                            <div className="bg-gray-50 rounded-2xl shadow-sm px-3 py-4 border border-gray-200">
+                                <AvatarCarousel avatars={avatars} avatar={avatar} setAvatar={setAvatar} />
+                            </div>
                         </div>
-
                         {/* Username Input */}
-                        <div>
+                        <div className="pb-2">
                             <label className="block font-semibold mb-3 text-gray-900">Username</label>
                             <input
                                 type="text"
@@ -82,7 +96,6 @@ export default function PreJoinPage() {
                                 onKeyPress={(e) => e.key === 'Enter' && handleJoinRoom()}
                             />
                         </div>
-
                         {/* Join Button */}
                         <button
                             onClick={handleJoinRoom}
@@ -93,7 +106,6 @@ export default function PreJoinPage() {
                     </div>
                 </div>
             </div>
-
             {/* Footer */}
             <div className="text-center text-purple-200 text-sm mt-8 pb-8 space-y-4">
                 <p>Connect with others who share your musical taste</p>
@@ -207,6 +219,8 @@ function AvatarCarousel({ avatars, avatar, setAvatar }: { avatars: string[], ava
                         )}
                     </button>
                 ))}
+                {/* End padding for last card visibility */}
+                <div style={{ minWidth: '24px' }} />
             </div>
             <button
                 type="button"
@@ -214,6 +228,85 @@ function AvatarCarousel({ avatars, avatar, setAvatar }: { avatars: string[], ava
                 disabled={end >= avatars.length}
                 className="px-2 py-2 rounded bg-gray-200 text-gray-600 disabled:opacity-50 min-w-[32px]"
                 aria-label="Next avatars"
+            >
+                &#8594;
+            </button>
+        </div>
+    );
+}
+
+// GenreCarousel component for scrolling genres with arrows (like AvatarCarousel)
+function GenreCarousel({ genres, genre, setGenre }: { genres: Genre[], genre: string, setGenre: (g: string) => void }) {
+    const [start, setStart] = React.useState(0);
+    const [visibleCount, setVisibleCount] = React.useState(4);
+
+    React.useEffect(() => {
+        const updateVisibleCount = () => {
+            const width = window.innerWidth;
+            if (width >= 640) {
+                setVisibleCount(5);
+            } else if (width >= 480) {
+                setVisibleCount(4);
+            } else {
+                setVisibleCount(3);
+            }
+        };
+        updateVisibleCount();
+        window.addEventListener('resize', updateVisibleCount);
+        return () => window.removeEventListener('resize', updateVisibleCount);
+    }, []);
+
+    const end = Math.min(start + visibleCount, genres.length);
+    const handlePrev = () => setStart(s => Math.max(0, s - 1));
+    const handleNext = () => setStart(s => Math.min(genres.length - visibleCount, s + 1));
+
+    return (
+        <div className="flex items-center gap-2">
+            <button
+                type="button"
+                onClick={handlePrev}
+                disabled={start === 0}
+                className="px-2 py-2 rounded bg-gray-200 text-gray-600 disabled:opacity-50 min-w-[32px]"
+                aria-label="Previous genres"
+            >
+                &#8592;
+            </button>
+            <div className="flex gap-2 overflow-hidden">
+                {genres.slice(start, end).map(g => (
+                    <button
+                        type="button"
+                        key={g.image}
+                        onClick={() => setGenre(g.name)}
+                        className={`relative rounded-2xl border-3 p-2 transition-all min-w-[72px] min-h-[72px] ${genre === g.name
+                            ? 'border-purple-500 bg-purple-50 scale-105'
+                            : 'border-gray-200 hover:border-gray-300'}`}
+                    >
+                        <Image
+                            src={g.image}
+                            alt={g.name}
+                            width={56}
+                            height={56}
+                            className="min-w-[56px] min-h-[56px] w-14 h-14 rounded-xl object-cover"
+                            style={{ width: '56px', height: '56px' }}
+                        />
+                        {/* No text overlay, only image */}
+                        {genre === g.name && (
+                            <div className="absolute -top-1 -right-1 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
+                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                        )}
+                    </button>
+                ))}
+                <div style={{ minWidth: '24px' }} />
+            </div>
+            <button
+                type="button"
+                onClick={handleNext}
+                disabled={end >= genres.length}
+                className="px-2 py-2 rounded bg-gray-200 text-gray-600 disabled:opacity-50 min-w-[32px]"
+                aria-label="Next genres"
             >
                 &#8594;
             </button>
