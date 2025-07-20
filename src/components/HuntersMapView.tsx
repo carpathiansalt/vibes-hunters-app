@@ -861,9 +861,11 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             await livekitRoom.disconnect();
             setLivekitRoom(null);
             setIsConnected(false);
+            setParticipants(new Map());
         }
         setGenre(newGenre);
-        // Connect to new room (will trigger useEffect)
+        // Force re-initialization by resetting key
+        window.location.replace(`/map?room=${newGenre}&username=${username}&avatar=${avatar}`);
     };
 
     return (
