@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 
 
 const genres = [
-    'Pop', 'Rock', 'Jazz', 'Classical', 'Hip-Hop', 'Electronic', 'World', 'Reggae', 'Folk', 'Other'
+    'Ambient', 'Blues', 'Classical', 'Disco', 'Folk', 'Funk', 'Hip-Hop', 'Jazz', 'Pop', 'Punk', 'R&B', 'Reggae','Rock', 'Soul', 'Techno'
 ];
 
 // Dynamically generate avatar filenames (supporting up to 25 for now)
