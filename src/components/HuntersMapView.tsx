@@ -923,34 +923,40 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                 handleGenreChange(genres[genreIndex].name);
                             }
                         }}
-                        className={`focus:outline-none w-full h-full relative ${genres[genreIndex].name === genre ? 'ring-4 ring-green-400 shadow-2xl' : ''}`}
-                        style={{ position: 'relative' }}
+                        className={`focus:outline-none w-32 h-32 relative transition-all duration-200 group ${genres[genreIndex].name === genre ? 'shadow-2xl' : 'shadow-lg'} rounded-2xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700 flex flex-col items-center justify-center`}
+                        style={{ position: 'relative', boxShadow: genres[genreIndex].name === genre ? '0 0 0 6px #34d39955, 0 8px 32px rgba(0,0,0,0.35)' : '0 4px 16px rgba(0,0,0,0.25)' }}
                     >
+                        {/* Elegant Selected badge */}
+                        {genres[genreIndex].name === genre && (
+                            <span className="absolute top-2 left-2 bg-green-500/90 text-white rounded-full px-3 py-1 text-xs font-semibold shadow-md animate-fade-in">Selected</span>
+                        )}
+                        {/* Genre image */}
                         <Image
                             src={genres[genreIndex].image}
                             alt={genres[genreIndex].name}
-                            width={96}
-                            height={96}
-                            className={`rounded-xl shadow-lg object-contain w-full h-full ${genres[genreIndex].name === genre ? 'border-4 border-green-400' : ''}`}
+                            width={112}
+                            height={112}
+                            className={`rounded-xl object-cover w-28 h-28 transition-all duration-200 ${genres[genreIndex].name === genre ? 'ring-4 ring-green-400/80' : 'ring-2 ring-gray-700'} group-hover:scale-105`}
                             priority
                         />
-                        {genres[genreIndex].name === genre && (
-                            <span className="absolute bottom-2 right-2 bg-green-400 text-white rounded-full px-2 py-1 text-xs font-bold shadow-lg">Selected</span>
-                        )}
-                        {/* Slick overlay arrows */}
+                        {/* Genre name label */}
+                        <span className="mt-2 text-base font-bold text-green-300 drop-shadow-sm bg-black/40 px-2 py-0.5 rounded-lg pointer-events-none select-none">
+                            {genres[genreIndex].name}
+                        </span>
+                        {/* Minimal overlay arrows, only visible on hover/focus */}
                         <span
                             onClick={handlePrevGenre}
-                            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/60 rounded-full p-1 cursor-pointer hover:bg-black/80"
+                            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 rounded-full p-2 cursor-pointer opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-200 hover:bg-black/70"
                             style={{ zIndex: 2 }}
                         >
-                            <svg width="20" height="20" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="13 16 7 10 13 4" /></svg>
+                            <svg width="24" height="24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 20 8 12 16 4" /></svg>
                         </span>
                         <span
                             onClick={handleNextGenre}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/60 rounded-full p-1 cursor-pointer hover:bg-black/80"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 rounded-full p-2 cursor-pointer opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-200 hover:bg-black/70"
                             style={{ zIndex: 2 }}
                         >
-                            <svg width="20" height="20" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="7 4 13 10 7 16" /></svg>
+                            <svg width="24" height="24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="8 4 16 12 8 20" /></svg>
                         </span>
                     </button>
                 </div>
