@@ -27,6 +27,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [isPublishingMusic, setIsPublishingMusic] = useState(false);
     const [isMusicPaused, setIsMusicPaused] = useState(false);
     const [musicSource, setMusicSource] = useState<'file' | 'tab-capture' | null>(null); // Track the source of music
+    // Ref for touch start X position in genre selector carousel
+    const genreTouchStartXRef = useRef<number | null>(null);
     // Party (event/venue) info
     const [partyTitle, setPartyTitle] = useState<string>('');
     const [partyDescription, setPartyDescription] = useState<string>('');
@@ -40,7 +42,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
     const [showVoiceRange, setShowVoiceRange] = useState(false);
     const [roomInfoExpanded, setRoomInfoExpanded] = useState(false);
-    const [instructionsExpanded, setInstructionsExpanded] = useState(false);
     // All available genres (from public/music_gendre)
     const genres = [
         { name: 'ambient', image: '/music_gendre/ambient.png' },
@@ -898,27 +899,34 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
     return (
         <div className="fixed inset-0 w-full h-full bg-gray-900" style={{ zIndex: 0 }}>
-            {/* Stylish single-image carousel for genre selection */}
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30 w-full max-w-xs flex items-center justify-center gap-4">
-                <button
-                    aria-label="Previous genre"
-                    onClick={handlePrevGenre}
-                    className="p-2 rounded-full bg-gray-800 hover:bg-gray-700 shadow-lg transition-colors"
-                    style={{ minWidth: 40 }}
-                >
-                    <svg width="24" height="24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-                </button>
-                <div className="w-24 h-24 flex items-center justify-center">
+            {/* Swipeable genre selector with slick overlay arrows */}
+            <div
+                className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30 w-full max-w-xs flex items-center justify-center"
+                style={{ touchAction: 'pan-x' }}
+                onTouchStart={e => {
+                    if (e.touches.length === 1 && genreTouchStartXRef.current !== undefined) {
+                        genreTouchStartXRef.current = e.touches[0].clientX;
+                    }
+                }}
+                onTouchEnd={e => {
+                    if (genreTouchStartXRef.current !== null && typeof genreTouchStartXRef.current === 'number' && e.changedTouches.length === 1) {
+                        const dx = e.changedTouches[0].clientX - genreTouchStartXRef.current;
+                        if (dx > 40) handlePrevGenre();
+                        if (dx < -40) handleNextGenre();
+                        genreTouchStartXRef.current = null;
+                    }
+                }}
+            >
+                <div className="w-24 h-24 flex items-center justify-center relative">
                     <button
                         aria-label={`Select genre: ${genres[genreIndex].name}`}
                         onClick={() => {
-                            // Only trigger room change if the selected genre is different
                             if (genres[genreIndex].name !== genre) {
                                 handleGenreChange(genres[genreIndex].name);
                             }
                         }}
-                        className="focus:outline-none"
-                        style={{ width: '100%', height: '100%' }}
+                        className="focus:outline-none w-full h-full"
+                        style={{ position: 'relative' }}
                     >
                         <Image
                             src={genres[genreIndex].image}
@@ -928,16 +936,23 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                             className="rounded-xl shadow-lg object-contain w-full h-full"
                             priority
                         />
+                        {/* Slick overlay arrows */}
+                        <span
+                            onClick={handlePrevGenre}
+                            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/60 rounded-full p-1 cursor-pointer hover:bg-black/80"
+                            style={{ zIndex: 2 }}
+                        >
+                            <svg width="20" height="20" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="13 16 7 10 13 4" /></svg>
+                        </span>
+                        <span
+                            onClick={handleNextGenre}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/60 rounded-full p-1 cursor-pointer hover:bg-black/80"
+                            style={{ zIndex: 2 }}
+                        >
+                            <svg width="20" height="20" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="7 4 13 10 7 16" /></svg>
+                        </span>
                     </button>
                 </div>
-                <button
-                    aria-label="Next genre"
-                    onClick={handleNextGenre}
-                    className="p-2 rounded-full bg-gray-800 hover:bg-gray-700 shadow-lg transition-colors"
-                    style={{ minWidth: 40 }}
-                >
-                    <svg width="24" height="24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18" /></svg>
-                </button>
             </div>
             {error && (
                 <div className="absolute top-4 left-4 right-4 z-30 bg-red-500 text-white p-4 rounded-lg shadow-lg">
@@ -946,8 +961,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 </div>
             )}
 
-            {/* Move Info box to top left corner, styled for balance with mic button */}
-            <div className="absolute top-4 left-4 z-30 bg-black/80 text-white rounded-lg backdrop-blur-sm shadow-lg w-auto" style={{ minWidth: 0, maxWidth: '100%', width: 'auto' }}>
+            {/* Move Info box to bottom left corner */}
+            <div className="absolute bottom-4 left-4 z-30 bg-black/80 text-white rounded-lg backdrop-blur-sm shadow-lg w-auto" style={{ minWidth: 0, maxWidth: '100%', width: 'auto' }}>
                 <button
                     onClick={() => setRoomInfoExpanded(!roomInfoExpanded)}
                     className="w-full p-3 text-left hover:bg-white/10 transition-colors rounded-lg"
@@ -1069,32 +1084,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 )}
             </div>
 
-            {!error && (
-                <div className="absolute bottom-4 left-4 z-30 bg-black/80 text-white rounded-lg backdrop-blur-sm">
-                    <button
-                        onClick={() => setInstructionsExpanded(!instructionsExpanded)}
-                        className="w-full p-3 text-left hover:bg-white/10 transition-colors rounded-lg"
-                        title="Help & Instructions"
-                    >
-                        <div className="text-sm font-bold text-green-400 flex items-center justify-between">
-                            <span>❓ Help</span>
-                            <span className="text-xs">{instructionsExpanded ? '▼' : '▶'}</span>
-                        </div>
-                    </button>
-
-                    {instructionsExpanded && (
-                        <div className="p-3 pt-0">
-                            <div className="text-sm space-y-1">
-                                <div>• Your position updates automatically via GPS</div>
-                                <div>• Click on the map for manual positioning</div>
-                                <div>• Click on 📻 boombox to join music parties</div>
-                                <div>• Use 🎤 button for proximity voice chat</div>
-                                <div>• Experience spatial audio as you move around</div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
 
             {locationPermission === 'denied' && (
                 <div className="absolute bottom-4 right-4 z-30 bg-orange-600 text-white p-3 rounded-lg backdrop-blur-sm">
