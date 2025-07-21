@@ -12,15 +12,21 @@ import { useRouter } from 'next/navigation';
 
 // Dynamically use all images from public/music_gendre
 const genreImages = [
+    'ambient.png',
+    'blues.png',
     'classical.png',
-    'country.png',
-    'electronic.png',
+    'disco.png',
     'folk.png',
+    'funk.png',
     'hip-hop.png',
     'jazz.png',
-    'metal.png',
     'pop.png',
+    'punk.png',
+    'R&B.png',
+    'raggae.png',
     'rock.png',
+    'soul.png',
+    'techno.png',
 ];
 
 const genres = genreImages.map(img => ({
@@ -154,82 +160,58 @@ export default function PreJoinPage() {
 
 // AvatarCarousel component for scrolling avatars
 function AvatarCarousel({ avatars, avatar, setAvatar }: { avatars: string[], avatar: string, setAvatar: (a: string) => void }) {
-    const [start, setStart] = React.useState(0);
-    const [visibleCount, setVisibleCount] = React.useState(4); // Default to 4 for mobile
+    const [index, setIndex] = React.useState(0);
 
-    // Adjust visible count based on screen size
     React.useEffect(() => {
-        const updateVisibleCount = () => {
-            const width = window.innerWidth;
-            if (width >= 640) { // sm breakpoint
-                setVisibleCount(5);
-            } else if (width >= 480) {
-                setVisibleCount(4);
-            } else {
-                setVisibleCount(3);
-            }
-        };
+        const currentIdx = avatars.findIndex(a => a === avatar);
+        if (currentIdx !== -1) setIndex(currentIdx);
+    }, [avatar, avatars]);
 
-        updateVisibleCount();
-        window.addEventListener('resize', updateVisibleCount);
-        return () => window.removeEventListener('resize', updateVisibleCount);
-    }, []);
-
-    const end = Math.min(start + visibleCount, avatars.length);
-
-    const handlePrev = () => setStart(s => Math.max(0, s - 1));
-    const handleNext = () => setStart(s => Math.min(avatars.length - visibleCount, s + 1));
+    const handlePrev = () => setIndex(i => Math.max(0, i - 1));
+    const handleNext = () => setIndex(i => Math.min(avatars.length - 1, i + 1));
 
     return (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center gap-4">
             <button
                 type="button"
                 onClick={handlePrev}
-                disabled={start === 0}
-                className="px-2 py-2 rounded bg-gray-200 text-gray-600 disabled:opacity-50 min-w-[32px]"
-                aria-label="Previous avatars"
+                disabled={index === 0}
+                className="p-3 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 text-gray-700 shadow-lg hover:scale-110 transition-all disabled:opacity-50"
+                aria-label="Previous avatar"
             >
-                &#8592;
+                <svg width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" /></svg>
             </button>
-            <div className="flex gap-2 overflow-hidden">
-                {avatars.slice(start, end).map(a => (
-                    <button
-                        type="button"
-                        key={a}
-                        onClick={() => setAvatar(a)}
-                        className={`relative rounded-2xl border-3 p-2 transition-all min-w-[72px] min-h-[72px] ${avatar === a
-                            ? 'border-purple-500 bg-purple-50 scale-105'
-                            : 'border-gray-200 hover:border-gray-300'
-                            }`}
-                    >
-                        <Image
-                            src={`/characters_001/${a}.png`}
-                            alt={a}
-                            width={56}
-                            height={56}
-                            className="min-w-[56px] min-h-[56px] w-14 h-14 rounded-xl object-cover"
-                            style={{ width: '56px', height: '56px' }}
-                        />
-                        {avatar === a && (
-                            <div className="absolute -top-1 -right-1 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
-                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                </svg>
-                            </div>
-                        )}
-                    </button>
-                ))}
-                {/* End padding for last card visibility */}
-                <div style={{ minWidth: '24px' }} />
-            </div>
+            <button
+                type="button"
+                onClick={() => setAvatar(avatars[index])}
+                className={`relative rounded-3xl border-4 p-2 transition-all w-28 h-28 flex items-center justify-center bg-white shadow-xl ${avatar === avatars[index]
+                    ? 'border-purple-500 scale-105'
+                    : 'border-gray-200 hover:border-purple-300'}`}
+            >
+                <Image
+                    src={`/characters_001/${avatars[index]}.png`}
+                    alt={avatars[index]}
+                    width={96}
+                    height={96}
+                    className="w-24 h-24 rounded-2xl object-cover"
+                    style={{ width: '96px', height: '96px' }}
+                />
+                {avatar === avatars[index] && (
+                    <div className="absolute -top-2 -right-2 w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center shadow-lg">
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                )}
+            </button>
             <button
                 type="button"
                 onClick={handleNext}
-                disabled={end >= avatars.length}
-                className="px-2 py-2 rounded bg-gray-200 text-gray-600 disabled:opacity-50 min-w-[32px]"
-                aria-label="Next avatars"
+                disabled={index === avatars.length - 1}
+                className="p-3 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 text-gray-700 shadow-lg hover:scale-110 transition-all disabled:opacity-50"
+                aria-label="Next avatar"
             >
-                &#8594;
+                <svg width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" /></svg>
             </button>
         </div>
     );
@@ -237,78 +219,58 @@ function AvatarCarousel({ avatars, avatar, setAvatar }: { avatars: string[], ava
 
 // GenreCarousel component for scrolling genres with arrows (like AvatarCarousel)
 function GenreCarousel({ genres, genre, setGenre }: { genres: Genre[], genre: string, setGenre: (g: string) => void }) {
-    const [start, setStart] = React.useState(0);
-    const [visibleCount, setVisibleCount] = React.useState(4);
+    const [index, setIndex] = React.useState(0);
 
     React.useEffect(() => {
-        const updateVisibleCount = () => {
-            const width = window.innerWidth;
-            if (width >= 640) {
-                setVisibleCount(5);
-            } else if (width >= 480) {
-                setVisibleCount(4);
-            } else {
-                setVisibleCount(3);
-            }
-        };
-        updateVisibleCount();
-        window.addEventListener('resize', updateVisibleCount);
-        return () => window.removeEventListener('resize', updateVisibleCount);
-    }, []);
+        const currentIdx = genres.findIndex(g => g.name === genre);
+        if (currentIdx !== -1) setIndex(currentIdx);
+    }, [genre, genres]);
 
-    const end = Math.min(start + visibleCount, genres.length);
-    const handlePrev = () => setStart(s => Math.max(0, s - 1));
-    const handleNext = () => setStart(s => Math.min(genres.length - visibleCount, s + 1));
+    const handlePrev = () => setIndex(i => Math.max(0, i - 1));
+    const handleNext = () => setIndex(i => Math.min(genres.length - 1, i + 1));
 
     return (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center gap-4">
             <button
                 type="button"
                 onClick={handlePrev}
-                disabled={start === 0}
-                className="px-2 py-2 rounded bg-gray-200 text-gray-600 disabled:opacity-50 min-w-[32px]"
-                aria-label="Previous genres"
+                disabled={index === 0}
+                className="p-3 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 text-gray-700 shadow-lg hover:scale-110 transition-all disabled:opacity-50"
+                aria-label="Previous genre"
             >
-                &#8592;
+                <svg width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" /></svg>
             </button>
-            <div className="flex gap-2 overflow-hidden">
-                {genres.slice(start, end).map(g => (
-                    <button
-                        type="button"
-                        key={g.image}
-                        onClick={() => setGenre(g.name)}
-                        className={`relative rounded-2xl border-3 p-2 transition-all min-w-[72px] min-h-[72px] ${genre === g.name
-                            ? 'border-purple-500 bg-purple-50 scale-105'
-                            : 'border-gray-200 hover:border-gray-300'}`}
-                    >
-                        <Image
-                            src={g.image}
-                            alt={g.name}
-                            width={56}
-                            height={56}
-                            className="min-w-[56px] min-h-[56px] w-14 h-14 rounded-xl object-cover"
-                            style={{ width: '56px', height: '56px' }}
-                        />
-                        {/* No text overlay, only image */}
-                        {genre === g.name && (
-                            <div className="absolute -top-1 -right-1 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
-                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                </svg>
-                            </div>
-                        )}
-                    </button>
-                ))}
-                <div style={{ minWidth: '24px' }} />
-            </div>
+            <button
+                type="button"
+                onClick={() => setGenre(genres[index].name)}
+                className={`relative rounded-3xl border-4 p-2 transition-all w-28 h-28 flex items-center justify-center bg-white shadow-xl ${genre === genres[index].name
+                    ? 'border-purple-500 scale-105'
+                    : 'border-gray-200 hover:border-purple-300'}`}
+            >
+                <Image
+                    src={genres[index].image}
+                    alt={genres[index].name}
+                    width={96}
+                    height={96}
+                    className="w-24 h-24 rounded-2xl object-cover"
+                    style={{ width: '96px', height: '96px' }}
+                />
+                {genre === genres[index].name && (
+                    <div className="absolute -top-2 -right-2 w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center shadow-lg">
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                )}
+            </button>
             <button
                 type="button"
                 onClick={handleNext}
-                disabled={end >= genres.length}
-                className="px-2 py-2 rounded bg-gray-200 text-gray-600 disabled:opacity-50 min-w-[32px]"
-                aria-label="Next genres"
+                disabled={index === genres.length - 1}
+                className="p-3 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 text-gray-700 shadow-lg hover:scale-110 transition-all disabled:opacity-50"
+                aria-label="Next genre"
             >
-                &#8594;
+                <svg width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" /></svg>
             </button>
         </div>
     );

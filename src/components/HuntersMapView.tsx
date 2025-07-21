@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import Image from 'next/image';
 import { Room, RoomEvent, RemoteParticipant, LocalAudioTrack } from 'livekit-client';
 import { Loader } from '@googlemaps/js-api-loader';
 import { Vector2, ParticipantMetadata, UserPosition } from '@/types';
 import { BoomboxMusicDialog } from './BoomboxMusicDialog';
 import { MicrophoneButton } from './MicrophoneButton';
 import { EarshotRadius } from './EarshotRadius';
-import { GenreSelector } from './GenreSelector';
 import { useSpatialAudio } from '@/hooks/useSpatialAudio';
 
 interface HuntersMapViewProps {
@@ -41,19 +41,47 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [showVoiceRange, setShowVoiceRange] = useState(false);
     const [roomInfoExpanded, setRoomInfoExpanded] = useState(false);
     const [instructionsExpanded, setInstructionsExpanded] = useState(false);
-    // Add genre state for switching rooms
+    // All available genres (from public/music_gendre)
     const genres = [
+        { name: 'ambient', image: '/music_gendre/ambient.png' },
+        { name: 'blues', image: '/music_gendre/blues.png' },
         { name: 'classical', image: '/music_gendre/classical.png' },
-        { name: 'country', image: '/music_gendre/country.png' },
-        { name: 'electronic', image: '/music_gendre/electronic.png' },
+        { name: 'disco', image: '/music_gendre/disco.png' },
         { name: 'folk', image: '/music_gendre/folk.png' },
         { name: 'hip-hop', image: '/music_gendre/hip-hop.png' },
+        { name: 'funk', image: '/music_gendre/funk.png' },
+        { name: 'hip-hop', image: '/music_gendre/hip-hop.png' },
         { name: 'jazz', image: '/music_gendre/jazz.png' },
-        { name: 'metal', image: '/music_gendre/metal.png' },
         { name: 'pop', image: '/music_gendre/pop.png' },
+        { name: 'punk', image: '/music_gendre/punk.png' },
+        { name: 'R&B', image: '/music_gendre/R&B.png' },
+        { name: 'reggae', image: '/music_gendre/reggae.png' },
         { name: 'rock', image: '/music_gendre/rock.png' },
+        { name: 'soul', image: '/music_gendre/soul.png' },
+        { name: 'techno', image: '/music_gendre/techno.png' },
     ];
-    const [genre, setGenre] = useState(room || 'pop');
+    const [genreIndex, setGenreIndex] = useState(() => {
+        const idx = genres.findIndex(g => g.name === room);
+        return idx >= 0 ? idx : genres.findIndex(g => g.name === 'pop');
+    });
+    const [genre, setGenre] = useState(genres[genreIndex]?.name || 'pop');
+    // Carousel navigation handlers
+    const handlePrevGenre = () => {
+        setGenreIndex((prev) => {
+            const newIdx = prev === 0 ? genres.length - 1 : prev - 1;
+            setGenre(genres[newIdx].name);
+            return newIdx;
+        });
+    };
+    const handleNextGenre = () => {
+        setGenreIndex((prev) => {
+            const newIdx = prev === genres.length - 1 ? 0 : prev + 1;
+            setGenre(genres[newIdx].name);
+            return newIdx;
+        });
+    };
+    // Room switch logic
+    // (Removed duplicate handleGenreChange declaration)
 
     const mapContainerRef = useRef<HTMLDivElement>(null);
     // ...existing code...
@@ -869,25 +897,63 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     };
 
     return (
-        <div className="relative w-full h-screen bg-gray-900">
-            {/* Genre Selector at the top, between info box and mic toggle */}
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 w-full max-w-lg flex justify-center">
-                <GenreSelector genres={genres} genre={genre} setGenre={handleGenreChange} />
+        <div className="fixed inset-0 w-full h-full bg-gray-900" style={{ zIndex: 0 }}>
+            {/* Stylish single-image carousel for genre selection */}
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30 w-full max-w-xs flex items-center justify-center gap-4">
+                <button
+                    aria-label="Previous genre"
+                    onClick={handlePrevGenre}
+                    className="p-2 rounded-full bg-gray-800 hover:bg-gray-700 shadow-lg transition-colors"
+                    style={{ minWidth: 40 }}
+                >
+                    <svg width="24" height="24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+                </button>
+                <div className="w-24 h-24 flex items-center justify-center">
+                    <button
+                        aria-label={`Select genre: ${genres[genreIndex].name}`}
+                        onClick={() => {
+                            // Only trigger room change if the selected genre is different
+                            if (genres[genreIndex].name !== genre) {
+                                handleGenreChange(genres[genreIndex].name);
+                            }
+                        }}
+                        className="focus:outline-none"
+                        style={{ width: '100%', height: '100%' }}
+                    >
+                        <Image
+                            src={genres[genreIndex].image}
+                            alt={genres[genreIndex].name}
+                            width={96}
+                            height={96}
+                            className="rounded-xl shadow-lg object-contain w-full h-full"
+                            priority
+                        />
+                    </button>
+                </div>
+                <button
+                    aria-label="Next genre"
+                    onClick={handleNextGenre}
+                    className="p-2 rounded-full bg-gray-800 hover:bg-gray-700 shadow-lg transition-colors"
+                    style={{ minWidth: 40 }}
+                >
+                    <svg width="24" height="24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18" /></svg>
+                </button>
             </div>
             {error && (
-                <div className="absolute top-4 left-4 right-4 z-10 bg-red-500 text-white p-4 rounded-lg shadow-lg">
+                <div className="absolute top-4 left-4 right-4 z-30 bg-red-500 text-white p-4 rounded-lg shadow-lg">
                     <div className="font-bold mb-2">Error</div>
                     <pre className="whitespace-pre-wrap text-sm">{error}</pre>
                 </div>
             )}
 
-            <div className="absolute top-24 left-4 z-10 bg-black/80 text-white rounded-lg backdrop-blur-sm">
+            {/* Move Info box to top left corner, styled for balance with mic button */}
+            <div className="absolute top-4 left-4 z-30 bg-black/80 text-white rounded-lg backdrop-blur-sm shadow-lg w-auto" style={{ minWidth: 0, maxWidth: '100%', width: 'auto' }}>
                 <button
                     onClick={() => setRoomInfoExpanded(!roomInfoExpanded)}
                     className="w-full p-3 text-left hover:bg-white/10 transition-colors rounded-lg"
                 >
                     <div className="text-sm font-bold text-green-400 flex items-center justify-between">
-                        <span>🎵 Vibes Hunters</span>
+                        <span>🎵 Info</span>
                         <span className="text-xs">{roomInfoExpanded ? '▼' : '▶'}</span>
                     </div>
                 </button>
@@ -1004,7 +1070,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             </div>
 
             {!error && (
-                <div className="absolute bottom-4 left-4 z-10 bg-black/80 text-white rounded-lg backdrop-blur-sm">
+                <div className="absolute bottom-4 left-4 z-30 bg-black/80 text-white rounded-lg backdrop-blur-sm">
                     <button
                         onClick={() => setInstructionsExpanded(!instructionsExpanded)}
                         className="w-full p-3 text-left hover:bg-white/10 transition-colors rounded-lg"
@@ -1031,7 +1097,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             )}
 
             {locationPermission === 'denied' && (
-                <div className="absolute bottom-4 right-4 z-10 bg-orange-600 text-white p-3 rounded-lg backdrop-blur-sm">
+                <div className="absolute bottom-4 right-4 z-30 bg-orange-600 text-white p-3 rounded-lg backdrop-blur-sm">
                     <div className="text-sm">
                         <div className="font-bold mb-1">📍 Enable GPS</div>
                         <div className="mb-2">For the best experience, enable location access in your browser.</div>
@@ -1054,16 +1120,22 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 </div>
             )}
 
-            <div ref={mapContainerRef} className="w-full h-full" />
-
-            {/* Microphone Button for Spatial Voice Chat */}
-            <MicrophoneButton
-                room={livekitRoom}
-                localParticipant={livekitRoom?.localParticipant || null}
+            <div
+                ref={mapContainerRef}
+                className="absolute top-0 left-0 w-full h-full z-20"
+                style={{ width: '100%', height: '100%', top: 0, left: 0 }}
             />
 
+            {/* Microphone Button for Spatial Voice Chat */}
+            <div className="absolute top-4 right-4 z-30">
+                <MicrophoneButton
+                    room={livekitRoom}
+                    localParticipant={livekitRoom?.localParticipant || null}
+                />
+            </div>
+
             {/* Bottom Center Music Button */}
-            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10">
+            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-30">
                 <button
                     onClick={async () => {
                         if (isPublishingMusic) {
