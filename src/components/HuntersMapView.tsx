@@ -66,6 +66,19 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     });
     const [genre, setGenre] = useState(genres[genreIndex]?.name || 'pop');
     // Carousel navigation handlers
+    const handleGenreChange = async (newGenre: string) => {
+        if (newGenre === genre) return;
+        // Disconnect from current room
+        if (livekitRoom) {
+            await livekitRoom.disconnect();
+            setLivekitRoom(null);
+            setIsConnected(false);
+            setParticipants(new Map());
+        }
+        setGenre(newGenre);
+        // Force re-initialization by resetting key
+        window.location.replace(`/map?room=${newGenre}&username=${username}&avatar=${avatar}`);
+    };
     const handlePrevGenre = () => {
         setGenreIndex((prev) => {
             const newIdx = prev === 0 ? genres.length - 1 : prev - 1;
@@ -881,20 +894,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         }
     }, [livekitRoom, musicSource]);
 
-    // Handle genre change: disconnect and join new room
-    const handleGenreChange = async (newGenre: string) => {
-        if (newGenre === genre) return;
-        // Disconnect from current room
-        if (livekitRoom) {
-            await livekitRoom.disconnect();
-            setLivekitRoom(null);
-            setIsConnected(false);
-            setParticipants(new Map());
-        }
-        setGenre(newGenre);
-        // Force re-initialization by resetting key
-        window.location.replace(`/map?room=${newGenre}&username=${username}&avatar=${avatar}`);
-    };
 
     return (
         <div className="fixed inset-0 w-full h-full bg-gray-900" style={{ zIndex: 0 }}>
@@ -924,7 +923,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                 handleGenreChange(genres[genreIndex].name);
                             }
                         }}
-                        className="focus:outline-none w-full h-full"
+                        className={`focus:outline-none w-full h-full relative ${genres[genreIndex].name === genre ? 'ring-4 ring-green-400 shadow-2xl' : ''}`}
                         style={{ position: 'relative' }}
                     >
                         <Image
@@ -932,9 +931,12 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                             alt={genres[genreIndex].name}
                             width={96}
                             height={96}
-                            className="rounded-xl shadow-lg object-contain w-full h-full"
+                            className={`rounded-xl shadow-lg object-contain w-full h-full ${genres[genreIndex].name === genre ? 'border-4 border-green-400' : ''}`}
                             priority
                         />
+                        {genres[genreIndex].name === genre && (
+                            <span className="absolute bottom-2 right-2 bg-green-400 text-white rounded-full px-2 py-1 text-xs font-bold shadow-lg">Selected</span>
+                        )}
                         {/* Slick overlay arrows */}
                         <span
                             onClick={handlePrevGenre}
