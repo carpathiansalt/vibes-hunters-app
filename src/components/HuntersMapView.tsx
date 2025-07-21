@@ -923,7 +923,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                 handleGenreChange(genres[genreIndex].name);
                             }
                         }}
-                        className={`focus:outline-none w-full h-full relative ${genres[genreIndex].name === genre ? 'ring-4 ring-green-400 shadow-2xl' : ''}`}
+                        className="focus:outline-none w-full h-full"
                         style={{ position: 'relative' }}
                     >
                         <Image
@@ -931,12 +931,9 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                             alt={genres[genreIndex].name}
                             width={96}
                             height={96}
-                            className={`rounded-xl shadow-lg object-contain w-full h-full ${genres[genreIndex].name === genre ? 'border-4 border-green-400' : ''}`}
+                            className="rounded-xl shadow-lg object-contain w-full h-full"
                             priority
                         />
-                        {genres[genreIndex].name === genre && (
-                            <span className="absolute bottom-2 right-2 bg-green-400 text-white rounded-full px-2 py-1 text-xs font-bold shadow-lg">Selected</span>
-                        )}
                         {/* Slick overlay arrows */}
                         <span
                             onClick={handlePrevGenre}
