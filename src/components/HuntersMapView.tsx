@@ -82,14 +82,14 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const handlePrevGenre = () => {
         setGenreIndex((prev) => {
             const newIdx = prev === 0 ? genres.length - 1 : prev - 1;
-            setGenre(genres[newIdx].name);
+            handleGenreChange(genres[newIdx].name);
             return newIdx;
         });
     };
     const handleNextGenre = () => {
         setGenreIndex((prev) => {
             const newIdx = prev === genres.length - 1 ? 0 : prev + 1;
-            setGenre(genres[newIdx].name);
+            handleGenreChange(genres[newIdx].name);
             return newIdx;
         });
     };
