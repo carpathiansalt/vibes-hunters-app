@@ -27,8 +27,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [isPublishingMusic, setIsPublishingMusic] = useState(false);
     const [isMusicPaused, setIsMusicPaused] = useState(false);
     const [musicSource, setMusicSource] = useState<'file' | 'tab-capture' | null>(null); // Track the source of music
-    // Ref for touch start X position in genre selector carousel
-    const genreTouchStartXRef = useRef<number | null>(null);
     // Party (event/venue) info
     const [partyTitle, setPartyTitle] = useState<string>('');
     const [partyDescription, setPartyDescription] = useState<string>('');
@@ -82,14 +80,14 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const handlePrevGenre = () => {
         setGenreIndex((prev) => {
             const newIdx = prev === 0 ? genres.length - 1 : prev - 1;
-            handleGenreChange(genres[newIdx].name);
+            setGenre(genres[newIdx].name);
             return newIdx;
         });
     };
     const handleNextGenre = () => {
         setGenreIndex((prev) => {
             const newIdx = prev === genres.length - 1 ? 0 : prev + 1;
-            handleGenreChange(genres[newIdx].name);
+            setGenre(genres[newIdx].name);
             return newIdx;
         });
     };
@@ -900,20 +898,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             {/* Swipeable genre selector with slick overlay arrows */}
             <div
                 className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30 w-full max-w-xs flex items-center justify-center"
-                style={{ touchAction: 'pan-x' }}
-                onTouchStart={e => {
-                    if (e.touches.length === 1 && genreTouchStartXRef.current !== undefined) {
-                        genreTouchStartXRef.current = e.touches[0].clientX;
-                    }
-                }}
-                onTouchEnd={e => {
-                    if (genreTouchStartXRef.current !== null && typeof genreTouchStartXRef.current === 'number' && e.changedTouches.length === 1) {
-                        const dx = e.changedTouches[0].clientX - genreTouchStartXRef.current;
-                        if (dx > 40) handlePrevGenre();
-                        if (dx < -40) handleNextGenre();
-                        genreTouchStartXRef.current = null;
-                    }
-                }}
             >
                 <div className="w-24 h-24 flex items-center justify-center relative">
                     <button
