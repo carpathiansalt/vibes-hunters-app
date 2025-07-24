@@ -881,7 +881,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     return (
         <div className="fixed inset-0 w-full h-full bg-gray-900" style={{ zIndex: 0 }}>
             {/* Upgraded genre selector UI: centered, modern card, aligned, responsive */}
-            <div className="fixed top-4 left-0 w-full z-30 flex flex-row items-start justify-center px-4 pointer-events-none">
+            <div className="fixed top-4 left-0 z-30 flex flex-row items-start justify-left px-4 pointer-events-none">
                 <div className="w-full max-w-sm pointer-events-auto flex flex-col items-center">
                     <div className="bg-white/90 rounded-3xl shadow-xl border border-purple-200 px-6 py-4 flex flex-col items-center gap-2" style={{ minWidth: '220px' }}>
                         <div className="relative w-full flex items-center justify-center">
@@ -922,7 +922,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                     className="w-full p-3 text-left hover:bg-white/10 transition-colors rounded-lg"
                 >
                     <div className="text-sm font-bold text-green-400 flex items-center justify-between">
-                        <span>?</span>
+                        <span>🎵 Info</span>
                         <span className="text-xs">{roomInfoExpanded ? '▼' : '▶'}</span>
                     </div>
                 </button>
@@ -1070,7 +1070,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             />
 
             {/* Microphone Button for Spatial Voice Chat */}
-            <div className="absolute top-4 right-4 z-30">
+            <div className="absolute bottom-30 right-4 z-30">
                 <MicrophoneButton
                     room={livekitRoom}
                     localParticipant={livekitRoom?.localParticipant || null}
