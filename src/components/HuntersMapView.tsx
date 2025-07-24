@@ -907,12 +907,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         </div>
                     </div>
                 </div>
-                <div className="pointer-events-auto flex items-center justify-end h-full ml-4">
-                    <MicrophoneButton
-                        room={livekitRoom}
-                        localParticipant={livekitRoom?.localParticipant || null}
-                    />
-                </div>
             </div>
             {error && (
                 <div className="absolute top-4 left-4 right-4 z-30 bg-red-500 text-white p-4 rounded-lg shadow-lg">
@@ -922,13 +916,13 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             )}
 
             {/* Move Info box to bottom left corner */}
-            <div className="absolute top-4 left-4 z-30 bg-black/80 text-white rounded-lg backdrop-blur-sm shadow-lg w-auto" style={{ minWidth: 0, maxWidth: '100%', width: 'auto' }}>
+            <div className="absolute bottom-4 left-4 z-30 bg-black/80 text-white rounded-lg backdrop-blur-sm shadow-lg w-auto" style={{ minWidth: 0, maxWidth: '100%', width: 'auto' }}>
                 <button
                     onClick={() => setRoomInfoExpanded(!roomInfoExpanded)}
                     className="w-full p-3 text-left hover:bg-white/10 transition-colors rounded-lg"
                 >
                     <div className="text-sm font-bold text-green-400 flex items-center justify-between">
-                        <span>🎵 Info</span>
+                        <span>?</span>
                         <span className="text-xs">{roomInfoExpanded ? '▼' : '▶'}</span>
                     </div>
                 </button>
