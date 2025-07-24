@@ -303,7 +303,7 @@ export default function AdminMapView() {
             mapRef.current!.fitBounds(bounds);
         } else if (mapRef.current) {
             // If no participants, reset to default center/zoom
-            mapRef.current.setCenter({ lat: 37.7749, lng: -122.4194 });
+            mapRef.current.setCenter({ lat: 51.5074, lng: -0.1278 });
             mapRef.current.setZoom(2);
         }
     }, [adminData, selectedRoom]);
