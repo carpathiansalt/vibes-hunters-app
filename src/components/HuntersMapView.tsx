@@ -27,7 +27,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [isPublishingMusic, setIsPublishingMusic] = useState(false);
     const [isMusicPaused, setIsMusicPaused] = useState(false);
     const [musicSource, setMusicSource] = useState<'file' | 'tab-capture' | null>(null); // Track the source of music
-    
+
     // Party (event/venue) info
     const [partyTitle, setPartyTitle] = useState<string>('');
     const [partyDescription, setPartyDescription] = useState<string>('');
@@ -880,27 +880,38 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
     return (
         <div className="fixed inset-0 w-full h-full bg-gray-900" style={{ zIndex: 0 }}>
-            {/* Genre dropdown UI (like prejoin) */}
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30 w-full max-w-xs flex flex-col items-center justify-center">
-                <div className="relative w-full">
-                    <select
-                        value={genre}
-                        onChange={handleGenreChange}
-                        className="w-full p-4 rounded-2xl border-2 border-purple-400 focus:border-purple-500 focus:outline-none transition-colors text-lg text-gray-900 bg-white/80 placeholder-gray-400 appearance-none pr-16"
-                    >
-                        {genres.map(g => (
-                            <option key={g.name} value={g.name}>{g.name}</option>
-                        ))}
-                    </select>
-                    {/* Show selected genre image inside the select box (right side) */}
-                    <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 flex items-center">
-                        {(() => {
-                            const selected = genres.find(g => g.name === genre);
-                            return selected ? (
-                                <Image src={selected.image} alt={selected.name} width={48} height={48} className="rounded-lg object-contain shadow-md border border-purple-200" />
-                            ) : null;
-                        })()}
+            {/* Upgraded genre selector UI: centered, modern card, aligned, responsive */}
+            <div className="fixed top-4 left-0 w-full z-30 flex flex-row items-start justify-center px-4 pointer-events-none">
+                <div className="w-full max-w-sm pointer-events-auto flex flex-col items-center">
+                    <div className="bg-white/90 rounded-3xl shadow-xl border border-purple-200 px-6 py-4 flex flex-col items-center gap-2" style={{ minWidth: '220px' }}>
+                        <div className="relative w-full flex items-center justify-center">
+                            <select
+                                value={genre}
+                                onChange={handleGenreChange}
+                                className="w-full p-3 rounded-2xl border-2 border-purple-400 focus:border-purple-500 focus:outline-none transition-colors text-lg text-gray-900 bg-white placeholder-gray-400 appearance-none pr-16 text-center font-semibold"
+                                style={{ paddingRight: '64px', maxWidth: '100%' }}
+                            >
+                                {genres.map(g => (
+                                    <option key={g.name} value={g.name}>{g.name}</option>
+                                ))}
+                            </select>
+                            {/* Genre image visually prominent, right aligned */}
+                            <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+                                {(() => {
+                                    const selected = genres.find(g => g.name === genre);
+                                    return selected ? (
+                                        <Image src={selected.image} alt={selected.name} width={48} height={48} className="rounded-xl object-contain shadow-lg border-2 border-purple-300 bg-white" />
+                                    ) : null;
+                                })()}
+                            </div>
+                        </div>
                     </div>
+                </div>
+                <div className="pointer-events-auto flex items-center justify-end h-full ml-4">
+                    <MicrophoneButton
+                        room={livekitRoom}
+                        localParticipant={livekitRoom?.localParticipant || null}
+                    />
                 </div>
             </div>
             {error && (
@@ -911,7 +922,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             )}
 
             {/* Move Info box to bottom left corner */}
-            <div className="absolute bottom-4 left-4 z-30 bg-black/80 text-white rounded-lg backdrop-blur-sm shadow-lg w-auto" style={{ minWidth: 0, maxWidth: '100%', width: 'auto' }}>
+            <div className="absolute top-4 left-4 z-30 bg-black/80 text-white rounded-lg backdrop-blur-sm shadow-lg w-auto" style={{ minWidth: 0, maxWidth: '100%', width: 'auto' }}>
                 <button
                     onClick={() => setRoomInfoExpanded(!roomInfoExpanded)}
                     className="w-full p-3 text-left hover:bg-white/10 transition-colors rounded-lg"
