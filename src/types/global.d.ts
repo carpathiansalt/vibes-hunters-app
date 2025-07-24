@@ -7,27 +7,71 @@ declare global {
     }
 }
 
-
 interface GoogleMapsAPI {
-    Map: typeof google.maps.Map;
-    Marker: typeof google.maps.Marker;
-    Size: typeof google.maps.Size;
-    InfoWindow: typeof google.maps.InfoWindow;
-    LatLngBounds: typeof google.maps.LatLngBounds;
-    event: typeof google.maps.event;
+    Map: new (element: HTMLElement, options: GoogleMapOptions) => GoogleMap;
+    Marker: new (options: MarkerOptions) => GoogleMarker;
+    Size: new (width: number, height: number) => GoogleSize;
+    event: GoogleMapsEvent;
 }
 
-// No need to redeclare MapOptions, MarkerOptions, etc. Use google.maps.* types directly
+interface GoogleMapOptions {
+    center: { lat: number; lng: number };
+    zoom: number;
+    mapTypeControl?: boolean;
+    streetViewControl?: boolean;
+    fullscreenControl?: boolean;
+    styles?: Array<{
+        featureType?: string;
+        stylers: Array<{ visibility?: string }>;
+    }>;
+}
 
-// For legacy code, you may add type aliases if needed:
-// type GoogleMap = google.maps.Map;
-// type GoogleMarker = google.maps.Marker;
-// type GoogleSize = google.maps.Size;
-// type GoogleInfoWindow = google.maps.InfoWindow;
-// type GoogleLatLngBounds = google.maps.LatLngBounds;
+interface GoogleMap {
+    addListener: (event: string, handler: (event?: GoogleMouseEvent) => void) => void;
+    setCenter: (position: { lat: number; lng: number }) => void;
+    setZoom: (zoom: number) => void;
+}
 
-// If you want to extend or override, you can do so here
+interface MarkerOptions {
+    position: { lat: number; lng: number };
+    map: GoogleMap;
+    icon?: {
+        url: string;
+        scaledSize: GoogleSize;
+    };
+    title?: string;
+    zIndex?: number;
+}
 
-// No-op export to ensure this file is a module
+interface GoogleMarker {
+    setPosition: (position: { lat: number; lng: number }) => void;
+    setIcon: (icon: { url: string; scaledSize: GoogleSize }) => void;
+    setMap: (map: GoogleMap | null) => void;
+    setTitle: (title: string) => void;
+    setZIndex: (zIndex: number) => void;
+    addListener: (event: string, handler: () => void) => void;
+}
+
+interface GoogleMapsEvent {
+    clearListeners: (instance: object, eventName: string) => void;
+    addListener: (instance: object, eventName: string, handler: (...args: unknown[]) => void) => GoogleMapsEventListener;
+    removeListener: (listener: GoogleMapsEventListener) => void;
+}
+
+interface GoogleMapsEventListener {
+    remove: () => void;
+}
+
+interface GoogleSize {
+    width: number;
+    height: number;
+}
+
+interface GoogleMouseEvent {
+    latLng: {
+        lat(): number;
+        lng(): number;
+    };
+}
 
 export { };

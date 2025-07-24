@@ -27,7 +27,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [isPublishingMusic, setIsPublishingMusic] = useState(false);
     const [isMusicPaused, setIsMusicPaused] = useState(false);
     const [musicSource, setMusicSource] = useState<'file' | 'tab-capture' | null>(null); // Track the source of music
-
+    
     // Party (event/venue) info
     const [partyTitle, setPartyTitle] = useState<string>('');
     const [partyDescription, setPartyDescription] = useState<string>('');
@@ -880,42 +880,26 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
     return (
         <div className="fixed inset-0 w-full h-full bg-gray-900" style={{ zIndex: 0 }}>
-            {/* Top bar: Chat (left), Genre dropdown (center), Mic button (right) */}
-            <div className="absolute top-4 left-0 w-full z-30 flex flex-row items-center justify-between px-2 sm:px-6 gap-2">
-                {/* Chat box placeholder (TODO) */}
-                <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-white/10 rounded-xl flex items-center justify-center text-white text-lg font-bold border border-white/20 shadow-sm">
-                    💬
-                </div>
-                {/* Genre dropdown center */}
-                <div className="flex-1 flex justify-center">
-                    <div className="relative w-full max-w-xs">
-                        <select
-                            value={genre}
-                            onChange={handleGenreChange}
-                            className="w-full p-3 sm:p-4 rounded-2xl border-2 border-purple-400 focus:border-purple-500 focus:outline-none transition-colors text-base sm:text-lg text-gray-900 bg-white/80 placeholder-gray-400 appearance-none pr-16"
-                        >
-                            {genres.map(g => (
-                                <option key={g.name} value={g.name}>{g.name}</option>
-                            ))}
-                        </select>
-                        {/* Show selected genre image inside the select box (right side) */}
-                        <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
-                            {(() => {
-                                const selected = genres.find(g => g.name === genre);
-                                return selected ? (
-                                    <Image src={selected.image} alt={selected.name} width={40} height={40} className="rounded-lg object-contain shadow-md border border-purple-200" />
-                                ) : null;
-                            })()}
-                        </div>
-                    </div>
-                </div>
-                {/* Mic toggle button right */}
-                <div className="flex-shrink-0">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center">
-                        <MicrophoneButton
-                            room={livekitRoom}
-                            localParticipant={livekitRoom?.localParticipant || null}
-                        />
+            {/* Genre dropdown UI (like prejoin) */}
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30 w-full max-w-xs flex flex-col items-center justify-center">
+                <div className="relative w-full">
+                    <select
+                        value={genre}
+                        onChange={handleGenreChange}
+                        className="w-full p-4 rounded-2xl border-2 border-purple-400 focus:border-purple-500 focus:outline-none transition-colors text-lg text-gray-900 bg-white/80 placeholder-gray-400 appearance-none pr-16"
+                    >
+                        {genres.map(g => (
+                            <option key={g.name} value={g.name}>{g.name}</option>
+                        ))}
+                    </select>
+                    {/* Show selected genre image inside the select box (right side) */}
+                    <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 flex items-center">
+                        {(() => {
+                            const selected = genres.find(g => g.name === genre);
+                            return selected ? (
+                                <Image src={selected.image} alt={selected.name} width={48} height={48} className="rounded-lg object-contain shadow-md border border-purple-200" />
+                            ) : null;
+                        })()}
                     </div>
                 </div>
             </div>
