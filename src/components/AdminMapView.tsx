@@ -1,8 +1,7 @@
+"use client";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { Loader } from '@googlemaps/js-api-loader';
-
-// Google Maps will be available globally after loading
 
 interface ParticipantInfo {
     identity: string;
@@ -42,7 +41,7 @@ interface AdminData {
     };
 }
 
-export default function AdminDashboard() {
+export default function AdminMapView() {
     const [password, setPassword] = useState('');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -161,7 +160,15 @@ export default function AdminDashboard() {
         setAdminData(null);
         setError('');
         sessionStorage.removeItem('admin-authenticated');
+        mapRef.current = null;
     };
+
+    // Reset mapRef when authentication is lost (e.g., after logout or session expiration)
+    useEffect(() => {
+        if (!isAuthenticated) {
+            mapRef.current = null;
+        }
+    }, [isAuthenticated]);
 
     const handleRefresh = () => {
         fetchAdminData();
@@ -169,8 +176,8 @@ export default function AdminDashboard() {
 
     // Initialize Google Maps
     const initializeMap = useCallback(async () => {
-        if (!mapContainerRef.current) {
-            console.log('❌ Map container not available');
+        if (!mapContainerRef.current || mapRef.current) {
+            // Map already initialized or container missing
             return;
         }
 
@@ -181,7 +188,6 @@ export default function AdminDashboard() {
                 return;
             }
 
-            console.log('🗺️ Loading Google Maps for admin dashboard...');
             const loader = new Loader({
                 apiKey: GOOGLE_MAPS_API_KEY,
                 version: 'weekly',
@@ -189,16 +195,15 @@ export default function AdminDashboard() {
             });
 
             await loader.load();
-            console.log('✅ Google Maps loaded successfully');
 
             if (!window.google?.maps) {
                 throw new Error('Google Maps failed to load properly');
             }
 
-            // Create map with admin-friendly settings
-            const map = new google.maps.Map(mapContainerRef.current, {
-                center: { lat: 37.7749, lng: -122.4194 }, // Default to San Francisco
-                zoom: 2, // World view for admin
+            // Use default center/zoom
+            const map = new window.google.maps.Map(mapContainerRef.current, {
+                center: { lat: 37.7749, lng: -122.4194 },
+                zoom: 2,
                 mapTypeControl: true,
                 streetViewControl: false,
                 fullscreenControl: true,
@@ -218,141 +223,104 @@ export default function AdminDashboard() {
         }
     }, []);
 
-    // Update map markers for participants
+    // Room selection state
+    const [selectedRoom, setSelectedRoom] = useState<string>('__all__');
+    // Update map markers for participants (filtered by selectedRoom)
     const updateMapMarkers = useCallback(() => {
-        console.log('🗺️ updateMapMarkers called');
+        if (!mapRef.current || !window.google?.maps || !adminData?.rooms) return;
 
-        if (!mapRef.current) {
-            console.log('❌ Map not ready, skipping marker update');
-            return;
-        }
-
-        if (!window.google?.maps) {
-            console.log('❌ Google Maps not loaded, skipping marker update');
-            return;
-        }
-
-        if (!adminData?.rooms) {
-            console.log('❌ No admin data available, skipping marker update');
-            return;
-        }
-
-        console.log('🗺️ Clearing existing markers...');
         // Clear existing markers
-        markersRef.current.forEach(marker => {
-            marker.setMap(null);
-        });
+        markersRef.current.forEach(marker => marker.setMap(null));
         markersRef.current.clear();
 
+        // Find the room(s) to display
+        let roomsToShow = adminData.rooms;
+        if (selectedRoom && selectedRoom !== '__all__') {
+            roomsToShow = adminData.rooms.filter(r => r.name === selectedRoom);
+        }
+
         let totalParticipantsWithPosition = 0;
+        const bounds = new window.google.maps.LatLngBounds();
 
-        // Add markers for all participants with positions
-        adminData.rooms.forEach(room => {
-            console.log(`🏠 Processing room: ${room.name} with ${room.participants.length} participants`);
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
+        roomsToShow.forEach(room => {
             room.participants.forEach(participant => {
-                console.log(`👤 Processing participant: ${participant.identity}`, {
-                    username: participant.username,
-                    position: participant.position,
-                    isPublishingMusic: participant.isPublishingMusic,
-                    avatar: participant.avatar
-                });
-
-                // Validate position data (same as HuntersMapView)
-                if (!participant.position ||
-                    typeof participant.position.x !== 'number' ||
-                    typeof participant.position.y !== 'number' ||
-                    isNaN(participant.position.x) ||
-                    isNaN(participant.position.y)) {
-                    console.warn(`❌ Invalid position for participant ${participant.identity}:`, participant.position);
-                    return;
-                }
-
+                // Validate position
+                if (!participant.position || typeof participant.position.x !== 'number' || typeof participant.position.y !== 'number' || isNaN(participant.position.x) || isNaN(participant.position.y)) return;
                 totalParticipantsWithPosition++;
-
-                // Ensure avatar icon URL always ends with .png (same logic as HuntersMapView)
+                // Avatar icon logic (same as HuntersMapView)
                 let avatarFile = participant.avatar;
+                if (!avatarFile) avatarFile = 'char_001.png';
                 if (avatarFile && !avatarFile.endsWith('.png')) {
                     avatarFile = avatarFile + '.png';
                 }
-
-                const iconUrl = participant.isPublishingMusic ? '/boombox.png' : `/characters_001/${avatarFile}`;
-                const markerSize = participant.isPublishingMusic ? 60 : 50; // Same sizes as HuntersMapView
-
-                console.log(`📍 Creating marker for ${participant.identity} at (${participant.position.x}, ${participant.position.y})`);
-
-                const marker = new google.maps.Marker({
-                    position: { lat: participant.position.x, lng: participant.position.y },
-                    map: mapRef.current,
-                    icon: {
-                        url: iconUrl,
-                        scaledSize: new google.maps.Size(markerSize, markerSize),
-                    },
-                    title: `${participant.username || participant.identity} (${room.name})${participant.isPublishingMusic ? ' 🎵' : ''}`,
-                    zIndex: participant.isPublishingMusic ? 999 : 500,
-                });
-
-                // Add info window on click
-                const infoWindow = new google.maps.InfoWindow({
-                    content: `
-                        <div class="p-2">
-                            <div class="font-semibold text-gray-800">${participant.username || participant.identity}</div>
-                            <div class="text-sm text-gray-600">Room: ${room.name}</div>
-                            <div class="text-sm text-gray-600">State: ${participant.state}</div>
-                            ${participant.isPublishingMusic ? `
-                                <div class="text-sm text-purple-600 font-medium">🎵 Publishing Music</div>
-                                ${participant.partyTitle ? `<div class="text-xs text-purple-600">${participant.partyTitle}</div>` : ''}
-                            ` : ''}
-                            <div class="text-xs text-gray-500 mt-1">
-                                Position: (${participant.position.x.toFixed(4)}, ${participant.position.y.toFixed(4)})
+                let relIconUrl = participant.isPublishingMusic ? '/boombox.png' : `/characters_001/${avatarFile}`;
+                // Ensure no double slashes
+                relIconUrl = relIconUrl.replace(/\\/g, '/').replace(/\\/g, '/');
+                const iconUrl = origin + relIconUrl;
+                const markerSize = participant.isPublishingMusic ? 60 : 50;
+                try {
+                    const marker = new window.google.maps.Marker({
+                        position: { lat: participant.position.x, lng: participant.position.y },
+                        map: mapRef.current,
+                        icon: {
+                            url: iconUrl,
+                            scaledSize: new window.google.maps.Size(markerSize, markerSize),
+                        },
+                        title: `${participant.username || participant.identity} (${room.name})${participant.isPublishingMusic ? ' 🎵' : ''}`,
+                        zIndex: participant.isPublishingMusic ? 999 : 500,
+                    });
+                    // Info window
+                    const infoWindow = new window.google.maps.InfoWindow({
+                        content: `
+                            <div class="p-2">
+                                <div class="font-semibold text-gray-800">${participant.username || participant.identity}</div>
+                                <div class="text-sm text-gray-600">Room: ${room.name}</div>
+                                <div class="text-sm text-gray-600">State: ${participant.state}</div>
+                                ${participant.isPublishingMusic ? `
+                                    <div class="text-sm text-purple-600 font-medium">🎵 Publishing Music</div>
+                                    ${participant.partyTitle ? `<div class="text-xs text-purple-600">${participant.partyTitle}</div>` : ''}
+                                ` : ''}
+                                <div class="text-xs text-gray-500 mt-1">
+                                    Position: (${participant.position.x.toFixed(4)}, ${participant.position.y.toFixed(4)})
+                                </div>
                             </div>
-                        </div>
-                    `
-                });
-
-                marker.addListener('click', () => {
-                    infoWindow.open(mapRef.current, marker);
-                });
-
-                markersRef.current.set(participant.identity, marker);
-                console.log(`✅ Created marker for ${participant.identity}`);
-            });
-        });
-
-        console.log(`🗺️ Created ${markersRef.current.size} markers for ${totalParticipantsWithPosition} participants with valid positions`);
-
-        // Adjust map bounds to show all markers if any exist
-        if (markersRef.current.size > 0 && window.google?.maps) {
-            console.log('🗺️ Adjusting map bounds to show all markers');
-            const bounds = new google.maps.LatLngBounds();
-            markersRef.current.forEach(marker => {
-                const position = marker.getPosition();
-                if (position) {
-                    bounds.extend(position);
+                        `
+                    });
+                    marker.addListener('click', () => infoWindow.open(mapRef.current, marker));
+                    markersRef.current.set(participant.identity, marker);
+                    bounds.extend({ lat: participant.position.x, lng: participant.position.y });
+                } catch (err) {
+                    // Log marker creation errors for debugging
+                    // eslint-disable-next-line no-console
+                    console.error('Failed to create marker for', participant, 'with icon', iconUrl, err);
                 }
             });
-            mapRef.current?.fitBounds(bounds);
-        } else {
-            console.log('🗺️ No markers to show, keeping default view');
+        });
+        // Fit map to markers only if there are any
+        if (totalParticipantsWithPosition > 0) {
+            mapRef.current!.fitBounds(bounds);
+        } else if (mapRef.current) {
+            // If no participants, reset to default center/zoom
+            mapRef.current.setCenter({ lat: 37.7749, lng: -122.4194 });
+            mapRef.current.setZoom(2);
         }
-
-    }, [adminData]);
+    }, [adminData, selectedRoom]);
 
     // Initialize map when authenticated
     useEffect(() => {
         if (isAuthenticated) {
-            console.log('🔐 User authenticated, initializing map...');
             initializeMap();
         }
     }, [isAuthenticated, initializeMap]);
 
-    // Update markers when data changes
+    // Update markers when data or selectedRoom changes
     useEffect(() => {
         if (adminData && mapRef.current) {
-            console.log('📊 Admin data updated, refreshing markers...');
             updateMapMarkers();
         }
-    }, [adminData, updateMapMarkers]);
+    }, [adminData, updateMapMarkers, selectedRoom]);
 
     if (!isAuthenticated) {
         return (
@@ -409,10 +377,25 @@ export default function AdminDashboard() {
                     <span className="font-semibold">Users:</span> {adminData?.summary?.totalParticipants ?? 0}<br />
                     <span className="font-semibold">Music:</span> {adminData?.summary?.totalMusicPublishers ?? 0}
                 </div>
+                {/* Room selector dropdown (like prejoin page) */}
+                <div className="mb-4">
+                    <label className="block text-white/90 font-medium mb-1">Select Room</label>
+                    <select
+                        className="w-full px-3 py-2 rounded-xl bg-white/20 text-white border border-white/30 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                        value={selectedRoom}
+                        onChange={e => setSelectedRoom(e.target.value)}
+                    >
+                        <option value="__all__">All Rooms</option>
+                        {adminData?.rooms?.map(room => (
+                            <option key={room.name} value={room.name}>{room.name} ({room.numParticipants})</option>
+                        ))}
+                    </select>
+                </div>
+                {/* Active Rooms and Participants */}
                 <div className="mb-4">
                     <span className="font-semibold">Active Rooms</span>
                     <ul className="ml-2 mt-2">
-                        {adminData?.rooms?.map(room => (
+                        {(selectedRoom && selectedRoom !== '__all__' ? adminData?.rooms?.filter(r => r.name === selectedRoom) : adminData?.rooms)?.map(room => (
                             <li key={room.name} className="mb-2">
                                 <span className="mr-1">🏠</span> <span className="font-bold">{room.name}</span> <span className="text-xs text-white/60">({room.numParticipants} participant{room.numParticipants !== 1 ? 's' : ''})</span>
                                 <ul className="ml-4">
@@ -420,12 +403,13 @@ export default function AdminDashboard() {
                                         <li key={p.identity} className="flex items-center gap-2 text-sm mt-1">
                                             {p.avatar ? (
                                                 <Image
-                                                    src={p.avatar}
+                                                    src={p.isPublishingMusic ? '/boombox.png' : `/characters_001/${p.avatar.endsWith('.png') ? p.avatar : p.avatar + '.png'}`}
                                                     alt="avatar"
                                                     width={24}
                                                     height={24}
-                                                    className="w-6 h-6 rounded-full inline-block border-2 border-white/30"
+                                                    className="w-6 h-6 rounded-full inline-block border-2 border-white/30 object-cover"
                                                     style={{ objectFit: 'cover' }}
+                                                    unoptimized={p.isPublishingMusic}
                                                 />
                                             ) : (
                                                 <span className="text-lg">🧑</span>
@@ -452,19 +436,21 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
-            {/* Map Container (glassmorphism, always visible) */}
-            <div className="absolute inset-0 z-10 flex items-center justify-center">
-                <div className="w-[80vw] h-[80vh] bg-white/10 rounded-3xl shadow-2xl border border-white/20 backdrop-blur-lg flex items-center justify-center relative">
-                    <div ref={mapContainerRef} className="w-full h-full rounded-3xl" />
-                    {/* Overlay for missing API key or error */}
-                    {!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 rounded-3xl">
-                            <span className="text-4xl mb-2">⚠️</span>
-                            <span className="text-white font-bold text-lg">Google Maps API Key Missing</span>
-                            <span className="text-white/70 mt-2">Please set <span className="font-mono">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</span> in your environment.</span>
-                        </div>
-                    )}
-                </div>
+            {/* Map Container (full screen, absolutely positioned, like HuntersMapView) */}
+            <div className="absolute inset-0 z-10">
+                <div
+                    ref={mapContainerRef}
+                    className="absolute top-0 left-0 w-full h-full"
+                    style={{ width: '100%', height: '100%', top: 0, left: 0 }}
+                ></div>
+                {/* Overlay for missing API key or error */}
+                {!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70">
+                        <span className="text-4xl mb-2">⚠️</span>
+                        <span className="text-white font-bold text-lg">Google Maps API Key Missing</span>
+                        <span className="text-white/70 mt-2">Please set <span className="font-mono">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</span> in your environment.</span>
+                    </div>
+                )}
             </div>
         </div>
     );

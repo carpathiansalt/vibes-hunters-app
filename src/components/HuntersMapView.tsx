@@ -17,7 +17,7 @@ interface HuntersMapViewProps {
 }
 
 export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) {
-    const [myPosition, setMyPosition] = useState<Vector2>({ x: 37.7749, y: -122.4194 });
+    const [myPosition, setMyPosition] = useState<Vector2>({ x: 51.5074, y: -0.1278 });
     const [participants, setParticipants] = useState<Map<string, UserPosition>>(new Map());
     const [isConnected, setIsConnected] = useState(false);
     const [isConnecting, setIsConnecting] = useState(false);
@@ -27,8 +27,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [isPublishingMusic, setIsPublishingMusic] = useState(false);
     const [isMusicPaused, setIsMusicPaused] = useState(false);
     const [musicSource, setMusicSource] = useState<'file' | 'tab-capture' | null>(null); // Track the source of music
-    // Ref for touch start X position in genre selector carousel
-    const genreTouchStartXRef = useRef<number | null>(null);
+    
     // Party (event/venue) info
     const [partyTitle, setPartyTitle] = useState<string>('');
     const [partyDescription, setPartyDescription] = useState<string>('');
@@ -44,31 +43,30 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [roomInfoExpanded, setRoomInfoExpanded] = useState(false);
     // All available genres (from public/music_gendre)
     const genres = [
-        { name: 'ambient', image: '/music_gendre/ambient.png' },
-        { name: 'blues', image: '/music_gendre/blues.png' },
-        { name: 'classical', image: '/music_gendre/classical.png' },
-        { name: 'disco', image: '/music_gendre/disco.png' },
-        { name: 'folk', image: '/music_gendre/folk.png' },
-        { name: 'funk', image: '/music_gendre/funk.png' },
-        { name: 'hip-hop', image: '/music_gendre/hip-hop.png' },
-        { name: 'jazz', image: '/music_gendre/jazz.png' },
-        { name: 'pop', image: '/music_gendre/pop.png' },
-        { name: 'punk', image: '/music_gendre/punk.png' },
-        { name: 'R&B', image: '/music_gendre/R&B.png' },
-        { name: 'reggae', image: '/music_gendre/raggae.png' },
-        { name: 'rock', image: '/music_gendre/rock.png' },
-        { name: 'soul', image: '/music_gendre/soul.png' },
-        { name: 'techno', image: '/music_gendre/techno.png' },
+        { name: 'Ambient', image: '/music_gendre/ambient.png' },
+        { name: 'Blues', image: '/music_gendre/blues.png' },
+        { name: 'Classical', image: '/music_gendre/classical.png' },
+        { name: 'Disco', image: '/music_gendre/disco.png' },
+        { name: 'Folk', image: '/music_gendre/folk.png' },
+        { name: 'Funk', image: '/music_gendre/funk.png' },
+        { name: 'Hip-hop', image: '/music_gendre/hip-hop.png' },
+        { name: 'Jazz', image: '/music_gendre/jazz.png' },
+        { name: 'Pop', image: '/music_gendre/pop.png' },
+        { name: 'Punk', image: '/music_gendre/punk.png' },
+        { name: 'Reggae', image: '/music_gendre/raggae.png' },
+        { name: 'Rock', image: '/music_gendre/rock.png' },
+        { name: 'Soul', image: '/music_gendre/soul.png' },
+        { name: 'Techno', image: '/music_gendre/techno.png' },
     ];
-    const [genreIndex, setGenreIndex] = useState(() => {
+    const [genreIndex] = useState(() => {
         const idx = genres.findIndex(g => g.name === room);
         return idx >= 0 ? idx : genres.findIndex(g => g.name === 'pop');
     });
     const [genre, setGenre] = useState(genres[genreIndex]?.name || 'pop');
-    // Carousel navigation handlers
-    const handleGenreChange = async (newGenre: string) => {
+    // Room switch logic using dropdown UI (like prejoin)
+    const handleGenreChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newGenre = e.target.value;
         if (newGenre === genre) return;
-        // Disconnect from current room
         if (livekitRoom) {
             await livekitRoom.disconnect();
             setLivekitRoom(null);
@@ -76,22 +74,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             setParticipants(new Map());
         }
         setGenre(newGenre);
-        // Force re-initialization by resetting key
         window.location.replace(`/map?room=${newGenre}&username=${username}&avatar=${avatar}`);
-    };
-    const handlePrevGenre = () => {
-        setGenreIndex((prev) => {
-            const newIdx = prev === 0 ? genres.length - 1 : prev - 1;
-            handleGenreChange(genres[newIdx].name);
-            return newIdx;
-        });
-    };
-    const handleNextGenre = () => {
-        setGenreIndex((prev) => {
-            const newIdx = prev === genres.length - 1 ? 0 : prev + 1;
-            handleGenreChange(genres[newIdx].name);
-            return newIdx;
-        });
     };
     // Room switch logic
     // (Removed duplicate handleGenreChange declaration)
@@ -897,59 +880,27 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
     return (
         <div className="fixed inset-0 w-full h-full bg-gray-900" style={{ zIndex: 0 }}>
-            {/* Swipeable genre selector with slick overlay arrows */}
-            <div
-                className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30 w-full max-w-xs flex items-center justify-center"
-                style={{ touchAction: 'pan-x' }}
-                onTouchStart={e => {
-                    if (e.touches.length === 1 && genreTouchStartXRef.current !== undefined) {
-                        genreTouchStartXRef.current = e.touches[0].clientX;
-                    }
-                }}
-                onTouchEnd={e => {
-                    if (genreTouchStartXRef.current !== null && typeof genreTouchStartXRef.current === 'number' && e.changedTouches.length === 1) {
-                        const dx = e.changedTouches[0].clientX - genreTouchStartXRef.current;
-                        if (dx > 40) handlePrevGenre();
-                        if (dx < -40) handleNextGenre();
-                        genreTouchStartXRef.current = null;
-                    }
-                }}
-            >
-                <div className="w-24 h-24 flex items-center justify-center relative">
-                    <button
-                        aria-label={`Select genre: ${genres[genreIndex].name}`}
-                        onClick={() => {
-                            if (genres[genreIndex].name !== genre) {
-                                handleGenreChange(genres[genreIndex].name);
-                            }
-                        }}
-                        className="focus:outline-none w-full h-full"
-                        style={{ position: 'relative' }}
+            {/* Genre dropdown UI (like prejoin) */}
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30 w-full max-w-xs flex flex-col items-center justify-center">
+                <div className="relative w-full">
+                    <select
+                        value={genre}
+                        onChange={handleGenreChange}
+                        className="w-full p-4 rounded-2xl border-2 border-purple-400 focus:border-purple-500 focus:outline-none transition-colors text-lg text-gray-900 bg-white/80 placeholder-gray-400 appearance-none pr-16"
                     >
-                        <Image
-                            src={genres[genreIndex].image}
-                            alt={genres[genreIndex].name}
-                            width={96}
-                            height={96}
-                            className="rounded-xl shadow-lg object-contain w-full h-full"
-                            priority
-                        />
-                        {/* Slick overlay arrows */}
-                        <span
-                            onClick={handlePrevGenre}
-                            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/60 rounded-full p-1 cursor-pointer hover:bg-black/80"
-                            style={{ zIndex: 2 }}
-                        >
-                            <svg width="20" height="20" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="13 16 7 10 13 4" /></svg>
-                        </span>
-                        <span
-                            onClick={handleNextGenre}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/60 rounded-full p-1 cursor-pointer hover:bg-black/80"
-                            style={{ zIndex: 2 }}
-                        >
-                            <svg width="20" height="20" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="7 4 13 10 7 16" /></svg>
-                        </span>
-                    </button>
+                        {genres.map(g => (
+                            <option key={g.name} value={g.name}>{g.name}</option>
+                        ))}
+                    </select>
+                    {/* Show selected genre image inside the select box (right side) */}
+                    <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 flex items-center">
+                        {(() => {
+                            const selected = genres.find(g => g.name === genre);
+                            return selected ? (
+                                <Image src={selected.image} alt={selected.name} width={48} height={48} className="rounded-lg object-contain shadow-md border border-purple-200" />
+                            ) : null;
+                        })()}
+                    </div>
                 </div>
             </div>
             {error && (
