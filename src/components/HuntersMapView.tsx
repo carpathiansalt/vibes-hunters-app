@@ -883,7 +883,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             {/* Upgraded genre selector UI: centered, modern card, aligned, responsive */}
             <div className="fixed top-4 left-0 z-30 flex flex-row items-start justify-left px-4 pointer-events-none">
                 <div className="w-full max-w-sm pointer-events-auto flex flex-col items-center">
-                    <div className="bg-white/90 rounded-3xl shadow-xl border border-purple-200 px-6 py-4 flex flex-col items-center gap-2" style={{ minWidth: '220px' }}>
+                    <div className="bg-white/90 rounded-3xl shadow-xl border border-purple-200 px-0 py-0 flex flex-col items-center gap-2" style={{ minWidth: '200px' }}>
                         <div className="relative w-full flex items-center justify-center">
                             <select
                                 value={genre}
