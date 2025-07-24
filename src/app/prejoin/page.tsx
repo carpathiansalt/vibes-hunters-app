@@ -7,7 +7,20 @@ import { useRouter } from 'next/navigation';
 
 
 const genres = [
-    'Pop', 'Rock', 'Jazz', 'Classical', 'Hip-Hop', 'Electronic', 'World', 'Reggae', 'Folk', 'Other'
+    { name: 'Ambient', image: '/music_gendre/ambient.png' },
+    { name: 'Blues', image: '/music_gendre/blues.png' },
+    { name: 'Classical', image: '/music_gendre/classical.png' },
+    { name: 'Disco', image: '/music_gendre/disco.png' },
+    { name: 'Folk', image: '/music_gendre/folk.png' },
+    { name: 'Funk', image: '/music_gendre/funk.png' },
+    { name: 'Hip-Hop', image: '/music_gendre/hip-hop.png' },
+    { name: 'Jazz', image: '/music_gendre/jazz.png' },
+    { name: 'Pop', image: '/music_gendre/pop.png' },
+    { name: 'Punk', image: '/music_gendre/punk.png' },
+    { name: 'Reggae', image: '/music_gendre/raggae.png' },
+    { name: 'Rock', image: '/music_gendre/rock.png' },
+    { name: 'Soul', image: '/music_gendre/soul.png' },
+    { name: 'Techno', image: '/music_gendre/techno.png' },
 ];
 
 // Dynamically generate avatar filenames (supporting up to 25 for now)
@@ -55,13 +68,34 @@ export default function PreJoinPage() {
                         {/* Music Genre */}
                         <div>
                             <label className="block font-semibold mb-3 text-gray-900">Music Genre</label>
-                            <select
-                                value={genre}
-                                onChange={e => setGenre(e.target.value)}
-                                className="w-full p-4 rounded-2xl border-2 border-gray-300 focus:border-purple-500 focus:outline-none transition-colors text-lg text-gray-900 bg-white/80 placeholder-gray-400"
-                            >
-                                {genres.map(g => <option key={g} value={g}>{g}</option>)}
-                            </select>
+                            <div className="relative">
+                                <select
+                                    value={genre}
+                                    onChange={e => setGenre(e.target.value)}
+                                    className="w-full p-4 rounded-2xl border-2 border-gray-300 focus:border-purple-500 focus:outline-none transition-colors text-lg text-gray-900 bg-white/80 placeholder-gray-400 appearance-none pr-12"
+                                >
+                                    {genres.map(g => (
+                                        <option key={g.name} value={g.name}>{g.name}</option>
+                                    ))}
+                                </select>
+                                {/* Show selected genre image inside the select box (right side) */}
+                                <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                                    {(() => {
+                                        const selected = genres.find(g => g.name === genre);
+                                        return selected ? (
+                                            <Image src={selected.image} alt={selected.name} width={48} height={48} className="rounded-lg object-contain shadow-md border border-purple-200" />
+                                        ) : null;
+                                    })()}
+                                </div>
+                            </div>
+                            {/* Custom dropdown list with images for accessibility (hidden visually, but available for screen readers) */}
+                            <div className="sr-only">
+                                {genres.map(g => (
+                                    <span key={g.name}>
+                                        <img src={g.image} alt={g.name} width={24} height={24} /> {g.name}
+                                    </span>
+                                ))}
+                            </div>
                         </div>
 
                         {/* Avatar Selection */}
