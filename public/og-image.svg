@@ -1,0 +1,50 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7C3AED;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#1E40AF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#EC4899;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="text" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#FDE047;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#FB7185;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#60A5FA;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  
+  <text x="600" y="200" font-family="Arial, sans-serif" font-size="72" font-weight="bold" text-anchor="middle" fill="url(#text)">
+    🎵 Vibes Hunters
+  </text>
+  
+  <text x="600" y="280" font-family="Arial, sans-serif" font-size="32" text-anchor="middle" fill="white" opacity="0.9">
+    Global Spatial Audio Music Experience
+  </text>
+  
+  <text x="600" y="340" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="white" opacity="0.8">
+    Discover, share, and enjoy music together worldwide
+  </text>
+  
+  <!-- Feature icons -->
+  <g transform="translate(300, 420)">
+    <rect width="180" height="120" rx="20" fill="white" opacity="0.2"/>
+    <text x="90" y="40" font-size="40" text-anchor="middle">🌍</text>
+    <text x="90" y="70" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="white">Global</text>
+    <text x="90" y="95" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="white" opacity="0.9">Connect Worldwide</text>
+  </g>
+  
+  <g transform="translate(510, 420)">
+    <rect width="180" height="120" rx="20" fill="white" opacity="0.2"/>
+    <text x="90" y="40" font-size="40" text-anchor="middle">🎧</text>
+    <text x="90" y="70" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="white">Spatial Audio</text>
+    <text x="90" y="95" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="white" opacity="0.9">3D Music Experience</text>
+  </g>
+  
+  <g transform="translate(720, 420)">
+    <rect width="180" height="120" rx="20" fill="white" opacity="0.2"/>
+    <text x="90" y="40" font-size="40" text-anchor="middle">🤝</text>
+    <text x="90" y="70" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="white">Social</text>
+    <text x="90" y="95" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="white" opacity="0.9">Share Your Vibe</text>
+  </g>
+</svg> 

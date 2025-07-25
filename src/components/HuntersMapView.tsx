@@ -9,7 +9,6 @@ import { BoomboxMusicDialog } from './BoomboxMusicDialog';
 import { MicrophoneButton } from './MicrophoneButton';
 import { EarshotRadius } from './EarshotRadius';
 import { useSpatialAudio } from '@/hooks/useSpatialAudio';
-import { logger, perf } from '@/core/utils';
 
 interface HuntersMapViewProps {
     room: string;
@@ -68,46 +67,14 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const handleGenreChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newGenre = e.target.value;
         if (newGenre === genre) return;
-        
-        console.log('Switching from room', genre, 'to', newGenre);
-        
-        // Disconnect from current room
         if (livekitRoom) {
-            console.log('Disconnecting from current room...');
             await livekitRoom.disconnect();
             setLivekitRoom(null);
             setIsConnected(false);
-            setIsConnecting(false);
             setParticipants(new Map());
-            
-            // Clear map markers
-            markersRef.current.forEach((marker) => {
-                if (marker && marker.setMap) marker.setMap(null);
-            });
-            markersRef.current.clear();
-            
-            // Wait a moment for disconnection to fully complete
-            await new Promise(resolve => setTimeout(resolve, 200));
-            console.log('Disconnection completed, ready for new connection');
         }
-        
-        // Update state and URL
         setGenre(newGenre);
-        setError(null); // Clear any previous errors
-        
-        // Update URL without reload
-        const newUrl = `/map?room=${newGenre}&username=${username}&avatar=${avatar}`;
-        window.history.pushState({}, '', newUrl);
-        console.log('Updated URL to:', newUrl);
-        
-        // Connect to new room
-        try {
-            console.log('Attempting to connect to new room:', newGenre);
-            await connectToLiveKitForRoom(newGenre);
-        } catch (error) {
-            console.error('Failed to connect to new room:', error);
-            setError(`Failed to switch to ${newGenre} room: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
+        window.location.replace(`/map?room=${newGenre}&username=${username}&avatar=${avatar}`);
     };
     // Room switch logic
     // (Removed duplicate handleGenreChange declaration)
@@ -190,12 +157,12 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         await publishMyMetadataThrottled();
     }, [livekitRoom, publishMyMetadataThrottled]);
 
-    // Update map marker with throttling to prevent excessive updates
+    // Update map marker
     const updateMapMarker = useCallback((identity: string, user: UserPosition) => {
-        logger.log('🗺️ updateMapMarker called for:', identity, 'position:', user.position);
+        console.log('🗺️ updateMapMarker called for:', identity, 'position:', user.position);
 
         if (!mapRef.current || !window.google?.maps) {
-            logger.log('❌ Map not ready, skipping marker update for:', identity);
+            console.log('❌ Map not ready, skipping marker update for:', identity);
             return;
         }
 
@@ -219,7 +186,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         const iconUrl = user.isPublishingMusic ? '/boombox.png' : `/characters_001/${avatarFile}`;
         const markerSize = user.isPublishingMusic ? 60 : 50;
 
-        logger.log('🔍 Creating/updating marker:', {
+        console.log('🔍 Creating/updating marker:', {
             identity,
             hasExistingMarker: !!marker,
             iconUrl,
@@ -240,15 +207,15 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             // Clear existing listeners and add new one with current music state
             window.google.maps.event.clearListeners(marker, 'click');
             marker.addListener('click', () => {
-                logger.log('Clicked on participant:', user.username, 'isPublishingMusic:', user.isPublishingMusic);
+                console.log('Clicked on participant:', user.username, 'isPublishingMusic:', user.isPublishingMusic);
                 if (user.isPublishingMusic) {
                     setSelectedMusicUser(user);
                 } else {
-                    logger.log('Clicked on non-music participant:', user.username);
+                    console.log('Clicked on non-music participant:', user.username);
                 }
             });
 
-            logger.log('✅ Updated existing marker for:', user.username, 'at:', user.position);
+            console.log('✅ Updated existing marker for:', user.username, 'at:', user.position);
         } else {
             // Create new marker
             marker = new window.google.maps.Marker({
@@ -263,35 +230,30 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             });
 
             marker.addListener('click', () => {
-                logger.log('Clicked on participant:', user.username, 'isPublishingMusic:', user.isPublishingMusic);
+                console.log('Clicked on participant:', user.username, 'isPublishingMusic:', user.isPublishingMusic);
                 if (user.isPublishingMusic) {
                     setSelectedMusicUser(user);
                 } else {
-                    logger.log('Clicked on non-music participant:', user.username);
+                    console.log('Clicked on non-music participant:', user.username);
                 }
             });
 
             markersRef.current.set(identity, marker);
-            logger.log('✅ Created new marker for:', user.username, 'at:', user.position, 'marker:', marker);
+            console.log('✅ Created new marker for:', user.username, 'at:', user.position, 'marker:', marker);
         }
     }, []);
 
-    // Refresh all participant markers (optimized with performance monitoring)
+    // Refresh all participant markers (useful after map initialization)
     const refreshAllMarkers = useCallback(() => {
         if (!mapRef.current || !window.google?.maps) {
-            logger.log('Map not ready, cannot refresh markers');
+            console.log('Map not ready, cannot refresh markers');
             return;
         }
 
-        perf.mark('refreshAllMarkers-start');
-        logger.log('Refreshing all participant markers, total participants:', participants.size);
-        
+        console.log('Refreshing all participant markers, total participants:', participants.size);
         participants.forEach((user, identity) => {
             updateMapMarker(identity, user);
         });
-        
-        perf.mark('refreshAllMarkers-end');
-        perf.measure('refreshAllMarkers', 'refreshAllMarkers-start', 'refreshAllMarkers-end');
     }, [participants, updateMapMarker]);
 
     // Debug function to log current state
@@ -343,14 +305,10 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 console.warn('Skipping participant with invalid position metadata:', participant.identity, metadata);
                 return;
             }
-            
-            // For local participant, preserve current state values to avoid overwriting during room switch
-            const isLocalParticipant = participant.identity === livekitRoom?.localParticipant?.identity;
-            
             const userPosition: UserPosition = {
                 userId: participant.identity,
-                username: isLocalParticipant ? username : metadata.username,
-                avatar: isLocalParticipant ? avatar : metadata.avatar,
+                username: metadata.username,
+                avatar: metadata.avatar,
                 position: metadata.position,
                 isPublishingMusic: metadata.isPublishingMusic || false,
                 musicTitle: metadata.musicTitle,
@@ -362,17 +320,18 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             setParticipants(prev => {
                 const updated = new Map(prev);
                 updated.set(participant.identity, userPosition);
-                console.log('Updated participant from metadata:', participant.identity, isLocalParticipant ? '(local)' : '(remote)', userPosition);
+                console.log('All participant positions after metadata update:', Array.from(updated.entries()).map(([id, u]) => ({ id, pos: u.position })));
                 return updated;
             });
 
             // Update map marker
             updateMapMarker(participant.identity, userPosition);
+            console.log('Updated participant with metadata:', participant.identity, metadata);
         } catch (error) {
             console.error('Error parsing participant metadata for', participant.identity, ':', error);
             console.log('Raw metadata:', participant.metadata);
         }
-    }, [updateMapMarker, username, avatar, livekitRoom]);
+    }, [updateMapMarker]);
 
     // Update track positions for spatial audio
     const updateTrackPositions = useCallback(() => {
@@ -613,44 +572,23 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         updateVoiceRangeCircle();
     }, [updateVoiceRangeCircle]);
 
-    // Auto-dismiss error after 5 seconds
-    useEffect(() => {
-        if (error) {
-            const timeout = setTimeout(() => setError(null), 2000);
-            return () => clearTimeout(timeout);
-        }
-    }, [error]);
-
-    // Connect to LiveKit (refactored to accept room parameter)
-    const connectToLiveKitForRoom = useCallback(async (roomName: string) => {
-        console.log('connectToLiveKitForRoom called for:', roomName, {
-            hasRoom: !!livekitRoom,
-            isConnected,
-            isConnecting,
-            currentRoomName: livekitRoom?.name
-        });
-
-        // Only prevent connection if we're connecting to the SAME room
-        if (livekitRoom && isConnected && livekitRoom.name === roomName) {
-            console.log('Already connected to the same room:', roomName);
+    // Connect to LiveKit
+    const connectToLiveKit = useCallback(async () => {
+        // Prevent multiple connections
+        if (livekitRoom || isConnected || isConnecting) {
+            console.log('Already connected or connecting to LiveKit');
             return;
-        }
-
-        if (isConnecting) {
-            console.log('Currently connecting, waiting before attempting new connection...');
-            // Wait a bit for any ongoing connection to complete
-            await new Promise(resolve => setTimeout(resolve, 500));
         }
 
         setIsConnecting(true);
         setError(null);
 
         try {
-            console.log('Connecting to LiveKit room:', roomName);
+            console.log('Connecting to LiveKit room:', room);
             const response = await fetch('/api/token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ room: roomName, username }),
+                body: JSON.stringify({ room, username }),
             });
 
             if (!response.ok) {
@@ -672,8 +610,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             newRoom.on(RoomEvent.Connected, () => {
                 setIsConnected(true);
                 setIsConnecting(false);
-                console.log('Connected to room:', roomName, 'with', newRoom.remoteParticipants.size, 'existing participants');
-                console.log('Local participant after connection:', newRoom.localParticipant?.identity, 'metadata:', newRoom.localParticipant?.metadata ? 'present' : 'missing');
+                console.log('Connected to room:', room, 'with', newRoom.remoteParticipants.size, 'existing participants');
 
                 // Remove all old markers from the map before clearing
                 markersRef.current.forEach((marker) => {
@@ -687,18 +624,35 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 // Process all participants: local and remote
                 const newParticipants = new Map();
 
-                // Add local participant (yourself) - ALWAYS add with current data
+                // Add local participant (yourself)
                 const localParticipant = newRoom.localParticipant;
-                const localUserPosition: UserPosition = {
-                    userId: localParticipant.identity,
-                    username: username,
-                    avatar: avatar,
-                    position: myPosition,
-                    isPublishingMusic: isPublishingMusic || false,
-                    musicTitle: musicTitle,
-                };
-                newParticipants.set(localParticipant.identity, localUserPosition);
-                console.log('Added local participant to new room:', localParticipant.identity, localUserPosition);
+                let localUserPosition;
+                if (localParticipant.metadata) {
+                    try {
+                        const metadata = JSON.parse(localParticipant.metadata);
+                        localUserPosition = {
+                            userId: localParticipant.identity,
+                            username: metadata.username,
+                            avatar: metadata.avatar,
+                            position: metadata.position,
+                            isPublishingMusic: metadata.isPublishingMusic || false,
+                            musicTitle: metadata.musicTitle,
+                        };
+                    } catch (error) {
+                        console.error('Error parsing local participant metadata:', error);
+                        // Skip local participant if metadata is invalid - will be added when correct metadata is published
+                        console.log('Local participant metadata is invalid, skipping until valid metadata is published');
+                        localUserPosition = null;
+                    }
+                } else {
+                    // Skip local participant if no metadata - will be added when metadata is published
+                    console.log('Local participant has no metadata yet, skipping until metadata is published');
+                    localUserPosition = null;
+                }
+
+                if (localUserPosition) {
+                    newParticipants.set(localParticipant.identity, localUserPosition);
+                }
 
                 // Add remote participants
                 newRoom.remoteParticipants.forEach((participant) => {
@@ -723,18 +677,18 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         console.log('Participant has no metadata yet, skipping:', participant.identity);
                     }
                 });
-                
                 setParticipants(newParticipants);
-                console.log('Set participants for new room:', newParticipants.size, 'total participants');
-                
-                // Immediately create markers for all participants, including local
+                // After state is set, refresh all markers for all participants
                 setTimeout(() => {
-                    console.log('Creating markers for all participants in new room...');
-                    newParticipants.forEach((participant, identity) => {
-                        updateMapMarker(identity, participant);
-                        console.log('Created marker for participant:', identity, participant.username);
+                    refreshAllMarkers();
+                    // Remove any markers for users not in the newParticipants map
+                    markersRef.current.forEach((marker, identity) => {
+                        if (!newParticipants.has(identity)) {
+                            if (marker && marker.setMap) marker.setMap(null);
+                            markersRef.current.delete(identity);
+                        }
                     });
-                }, 100); // Small delay to ensure state is updated
+                }, 0);
             });
 
             newRoom.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
@@ -784,12 +738,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
             await newRoom.connect(wsUrl, token);
             setLivekitRoom(newRoom);
-            console.log('LiveKit room connected successfully to:', roomName);
-            console.log('Room state after setting:', { 
-                room: !!newRoom, 
-                localParticipant: !!newRoom.localParticipant, 
-                identity: newRoom.localParticipant?.identity 
-            });
+            console.log('LiveKit room connected successfully');
 
             await publishMyMetadataThrottled(newRoom);
 
@@ -798,14 +747,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             setError(`Failed to connect to audio service: ${err instanceof Error ? err.message : 'Unknown error'}`);
             setIsConnecting(false);
         }
-    }, [username, publishMyMetadataThrottled, updateParticipantFromMetadata, removeParticipant, updateTrackPositions, isConnected, livekitRoom, isConnecting, refreshAllMarkers, avatar, myPosition, isPublishingMusic, musicTitle]);
-
-    // Original connectToLiveKit function (now calls connectToLiveKitForRoom)
-    const connectToLiveKit = useCallback(async () => {
-        return connectToLiveKitForRoom(room);
-    }, [connectToLiveKitForRoom, room]);
-
-    // Initialize everything
+    }, [room, username, publishMyMetadataThrottled, updateParticipantFromMetadata, removeParticipant, updateTrackPositions, isConnected, livekitRoom, isConnecting, refreshAllMarkers]);    // Initialize everything
     useEffect(() => {
         let mounted = true;
 
@@ -945,18 +887,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             setMusicSource(null);
         }
     }, [livekitRoom, musicSource]);
-
-    // Debug effect to track livekitRoom and localParticipant state
-    useEffect(() => {
-        console.log('LiveKit room state changed:', {
-            hasRoom: !!livekitRoom,
-            isConnected,
-            isConnecting,
-            hasLocalParticipant: !!livekitRoom?.localParticipant,
-            localParticipantIdentity: livekitRoom?.localParticipant?.identity,
-            roomState: livekitRoom?.state
-        });
-    }, [livekitRoom, isConnected, isConnecting]);
 
 
     return (
@@ -1152,13 +1082,10 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
             {/* Microphone Button for Spatial Voice Chat */}
             <div className="absolute bottom-30 right-4 z-30">
-                {/* Show microphone button if we have a room OR if we're connecting (don't hide during room switch) */}
-                {(livekitRoom || isConnecting) && (
-                    <MicrophoneButton
-                        room={livekitRoom}
-                        localParticipant={livekitRoom?.localParticipant || null}
-                    />
-                )}
+                <MicrophoneButton
+                    room={livekitRoom}
+                    localParticipant={livekitRoom?.localParticipant || null}
+                />
             </div>
 
             {/* Bottom Center Music Button */}

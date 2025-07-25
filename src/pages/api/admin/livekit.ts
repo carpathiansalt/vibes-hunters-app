@@ -30,6 +30,12 @@ interface RoomInfo {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+    console.log('ENV DEBUG', {
+      LIVEKIT_API_KEY: process.env.LIVEKIT_API_KEY,
+      LIVEKIT_API_SECRET: process.env.LIVEKIT_API_SECRET,
+      LIVEKIT_URL: process.env.LIVEKIT_URL,
+      ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
+    });
     // Authentication check
     if (req.headers['x-admin-password'] !== process.env.ADMIN_PASSWORD) {
         console.warn('[LiveKit API] Unauthorized access attempt');
