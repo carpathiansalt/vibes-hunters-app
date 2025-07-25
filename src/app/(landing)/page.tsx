@@ -102,22 +102,22 @@ export default function LandingPage() {
                         
                         {/* Features Grid */}
                         <section className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12" aria-label="Key features">
-                            <article className="bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl p-6 text-white shadow-lg transition-transform hover:scale-105 hover:shadow-2xl focus-within:ring-2 focus-within:ring-pink-400">
+                            <article className="bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl p-6 text-gray-900 shadow-lg transition-transform hover:scale-105 hover:shadow-2xl focus-within:ring-2 focus-within:ring-pink-400">
                                 <div className="text-3xl mb-3" role="img" aria-label="Globe icon">🌍</div>
-                                <h3 className="font-semibold mb-2 text-lg">Global</h3>
-                                <p className="text-sm font-medium text-white/90">Connect with music lovers worldwide</p>
+                                <h3 className="font-semibold mb-2 text-lg text-gray-900">Global</h3>
+                                <p className="text-sm font-medium text-gray-800">Connect with music lovers worldwide</p>
                             </article>
                             
-                            <article className="bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl p-6 text-white shadow-lg transition-transform hover:scale-105 hover:shadow-2xl focus-within:ring-2 focus-within:ring-pink-400">
+                            <article className="bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl p-6 text-gray-900 shadow-lg transition-transform hover:scale-105 hover:shadow-2xl focus-within:ring-2 focus-within:ring-pink-400">
                                 <div className="text-3xl mb-3" role="img" aria-label="Headphones icon">🎧</div>
-                                <h3 className="font-semibold mb-2 text-lg">Spatial Audio</h3>
-                                <p className="text-sm font-medium text-white/90">Experience music in 3D space</p>
+                                <h3 className="font-semibold mb-2 text-lg text-gray-900">Spatial Audio</h3>
+                                <p className="text-sm font-medium text-gray-800">Experience music in 3D space</p>
                             </article>
                             
-                            <article className="bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl p-6 text-white shadow-lg transition-transform hover:scale-105 hover:shadow-2xl focus-within:ring-2 focus-within:ring-pink-400">
+                            <article className="bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl p-6 text-gray-900 shadow-lg transition-transform hover:scale-105 hover:shadow-2xl focus-within:ring-2 focus-within:ring-pink-400">
                                 <div className="text-3xl mb-3" role="img" aria-label="Handshake icon">🤝</div>
-                                <h3 className="font-semibold mb-2 text-lg">Social</h3>
-                                <p className="text-sm font-medium text-white/90">Share your vibe with others</p>
+                                <h3 className="font-semibold mb-2 text-lg text-gray-900">Social</h3>
+                                <p className="text-sm font-medium text-gray-800">Share your vibe with others</p>
                             </article>
                         </section>
                         
