@@ -572,6 +572,14 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         updateVoiceRangeCircle();
     }, [updateVoiceRangeCircle]);
 
+    // Auto-dismiss error after 5 seconds
+    useEffect(() => {
+        if (error) {
+            const timeout = setTimeout(() => setError(null), 2000);
+            return () => clearTimeout(timeout);
+        }
+    }, [error]);
+
     // Connect to LiveKit
     const connectToLiveKit = useCallback(async () => {
         // Prevent multiple connections
