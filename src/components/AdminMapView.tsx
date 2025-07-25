@@ -207,6 +207,15 @@ export default function AdminMapView() {
                 mapTypeControl: true,
                 streetViewControl: false,
                 fullscreenControl: true,
+                restriction: {
+                    latLngBounds: {
+                        north: 85,
+                        south: -85,
+                        west: -180,
+                        east: 180,
+                    },
+                    strictBounds: true,
+                },
                 styles: [
                     {
                         featureType: 'poi',

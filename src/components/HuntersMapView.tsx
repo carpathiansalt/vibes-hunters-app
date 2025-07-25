@@ -457,9 +457,20 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             const map = new window.google.maps.Map(mapContainerRef.current, {
                 center: { lat: mapCenter.x, lng: mapCenter.y },
                 zoom: 16,
+                minZoom: 3, // Prevent zooming out too far
+                maxZoom: 20, // Prevent zooming in too far
                 mapTypeControl: false,
                 streetViewControl: false,
                 fullscreenControl: false,
+                restriction: {
+                    latLngBounds: {
+                        north: 85,
+                        south: -85,
+                        west: -180,
+                        east: 180,
+                    },
+                    strictBounds: true,
+                },
                 styles: [
                     {
                         featureType: 'poi',
