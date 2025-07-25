@@ -294,24 +294,28 @@ export class SpatialAudioController {
     private updatePannerPosition(pannerNode: PannerNode, relativePosition: Vector2): void {
         if (!this._audioContext) return;
 
+        // TEMP: Force all positions to {x: 0, y: 0} for debugging
+        const debugPosition = TEST_MODE ? { x: 0, y: 0 } : relativePosition;
+
         // Use relative positioning as per LiveKit documentation
         // Map 2D coordinates: x -> x, y -> z (since PannerNode uses y as vertical)
         if (pannerNode.positionX) {
             // Modern browsers - use setTargetAtTime for smooth transitions
-            pannerNode.positionX.setTargetAtTime(relativePosition.x, this._audioContext.currentTime, 0.02);
+            pannerNode.positionX.setTargetAtTime(debugPosition.x, this._audioContext.currentTime, 0.02);
             pannerNode.positionY.setTargetAtTime(0, this._audioContext.currentTime, 0.02); // Keep at ground level
-            pannerNode.positionZ.setTargetAtTime(relativePosition.y, this._audioContext.currentTime, 0.02);
+            pannerNode.positionZ.setTargetAtTime(debugPosition.y, this._audioContext.currentTime, 0.02);
         } else {
             // Fallback for older browsers
             (pannerNode as PannerNode & { setPosition: (x: number, y: number, z: number) => void }).setPosition(
-                relativePosition.x, 0, relativePosition.y
+                debugPosition.x, 0, debugPosition.y
             );
         }
         // Log for debugging
         console.log('[SpatialAudio] Panner position', {
-            x: relativePosition.x,
+            x: debugPosition.x,
             y: 0,
-            z: relativePosition.y
+            z: debugPosition.y,
+            original: relativePosition
         });
     }
 
@@ -325,6 +329,8 @@ export class SpatialAudioController {
         const source = this.sources.get(participantIdentity);
         if (source) {
             source.gainNode.gain.setValueAtTime(volume, this._audioContext!.currentTime);
+            // Log for debugging
+            console.log('[SpatialAudio] Set gain for', participantIdentity, 'to', volume);
         }
     }
 
@@ -349,3 +355,6 @@ export class SpatialAudioController {
         console.log('SpatialAudioController destroyed');
     }
 }
+
+// TEMP: Set to true to force all panner positions to {x: 0, y: 0} for debugging
+const TEST_MODE = true;
