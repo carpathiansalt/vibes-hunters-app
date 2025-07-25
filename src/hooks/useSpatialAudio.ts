@@ -175,8 +175,8 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                             console.log(`🎤 Adding voice track for ${participant.identity} (entered range: ${distance.toFixed(1)}m)`);
                             controllerRef.current.addAudioSource(participant, publication.track, participantData.position, publication.trackName);
 
-                            // Set volume based on distance (exponential falloff)
-                            const volumeMultiplier = calculateVolumeFromDistance(distance, 1, VOICE_CHAT_RADIUS, 2);
+                            // Set volume based on distance (linear attenuation)
+                            const volumeMultiplier = Math.max(0, 1 - (distance / VOICE_CHAT_RADIUS));
                             controllerRef.current.setSourceVolume(participant.identity, volumeMultiplier);
                         }
                     } else if (!isWithinVoiceRange && controllerRef.current?.hasAudioSource(participant.identity)) {
@@ -184,8 +184,8 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                         console.log(`🔇 Removing voice track for ${participant.identity} (left range: ${distance.toFixed(1)}m)`);
                         controllerRef.current.removeAudioSource(participant.identity);
                     } else if (isWithinVoiceRange && controllerRef.current?.hasAudioSource(participant.identity)) {
-                        // Update volume based on current distance (exponential falloff)
-                        const volumeMultiplier = calculateVolumeFromDistance(distance, 1, VOICE_CHAT_RADIUS, 2);
+                        // Update volume based on current distance (linear attenuation)
+                        const volumeMultiplier = Math.max(0, 1 - (distance / VOICE_CHAT_RADIUS));
                         controllerRef.current.setSourceVolume(participant.identity, volumeMultiplier);
                     }
                 }
@@ -306,7 +306,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                         controllerRef.current.addAudioSource(participant, track, participantData.position, publication.trackName);
 
                         // Calculate volume based on distance for proximity-based voice chat
-                        const volumeMultiplier = calculateVolumeFromDistance(distance, 1, VOICE_CHAT_RADIUS, 2);
+                        const volumeMultiplier = Math.max(0, 1 - (distance / VOICE_CHAT_RADIUS));
                         controllerRef.current.setSourceVolume(participant.identity, volumeMultiplier);
 
                         console.log(`Voice chat enabled for ${participant.identity} at distance ${distance.toFixed(1)}m (volume: ${(volumeMultiplier * 100).toFixed(0)}%)`);
