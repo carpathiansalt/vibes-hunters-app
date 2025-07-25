@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import Image from 'next/image';
 
 export const dynamic = 'force-dynamic';
 
@@ -136,41 +137,59 @@ export default function LandingPage() {
                 {/* Footer */}
                 <footer className="text-center text-white/80 text-sm py-8 space-y-4" role="contentinfo">
                     {/* Social Media Links */}
-                    <section className="mb-6" aria-label="Follow us on social media">
-                        <h3 className="text-white font-semibold mb-3">🎵 Follow the Hunt</h3>
-                        <div className="flex justify-center gap-6 mb-4">
+                    <section className="mb-6 px-4" aria-label="Follow us on social media">
+                        <h3 className="text-white font-semibold mb-4 text-base sm:text-lg">🎵 Follow the Hunt</h3>
+                        <div className="flex justify-center items-center gap-4 sm:gap-6 mb-4">
                             <a
                                 href="https://www.tiktok.com/@vibeshunters"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full hover:bg-white/20 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-pink-400"
+                                className="flex items-center justify-center p-3 bg-black/20 backdrop-blur-sm rounded-full hover:bg-black/30 transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white/50"
                                 aria-label="Follow us on TikTok @vibeshunters"
+                                title="Follow @vibeshunters on TikTok"
                             >
-                                <span className="text-lg">🎬</span>
-                                <span className="font-medium">TikTok</span>
+                                <Image
+                                    src="/media_brands/TikTok.png"
+                                    alt="TikTok"
+                                    width={32}
+                                    height={32}
+                                    className="w-8 h-8"
+                                />
                             </a>
                             <a
                                 href="https://www.youtube.com/@vibes-hunters"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full hover:bg-white/20 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-400"
+                                className="flex items-center justify-center p-3 bg-red-600/20 backdrop-blur-sm rounded-full hover:bg-red-600/30 transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-red-400/50"
                                 aria-label="Subscribe to our YouTube channel @vibes-hunters"
+                                title="Subscribe to @vibes-hunters on YouTube"
                             >
-                                <span className="text-lg">📺</span>
-                                <span className="font-medium">YouTube</span>
+                                <Image
+                                    src="/media_brands/YouTube.png"
+                                    alt="YouTube"
+                                    width={40}
+                                    height={28}
+                                    className="w-10 h-7"
+                                />
                             </a>
                             <a
                                 href="https://www.instagram.com/vibes.hunters"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full hover:bg-white/20 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                className="flex items-center justify-center p-3 bg-gradient-to-r from-purple-600/20 to-pink-600/20 backdrop-blur-sm rounded-full hover:from-purple-600/30 hover:to-pink-600/30 transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-purple-400/50"
                                 aria-label="Follow us on Instagram @vibes.hunters"
+                                title="Follow @vibes.hunters on Instagram"
                             >
-                                <span className="text-lg">📸</span>
-                                <span className="font-medium">Instagram</span>
+                                <Image
+                                    src="/media_brands/Instagram.png"
+                                    alt="Instagram"
+                                    width={32}
+                                    height={32}
+                                    className="w-8 h-8"
+                                />
                             </a>
                         </div>
-                        <p className="text-xs text-white/60">
+                        <p className="text-xs text-white/60 px-2">
                             Join our community for updates, tips, and behind-the-scenes content!
                         </p>
                     </section>
