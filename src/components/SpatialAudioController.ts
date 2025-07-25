@@ -157,7 +157,7 @@ export class SpatialAudioController {
 
             // Set initial position using relative coordinates, scaled to meters
             const relativePosition = {
-                x: (position.x - this.listenerPosition.x) * this.positionScale,
+                x: (this.listenerPosition.x - position.x) * this.positionScale,
                 y: (position.y - this.listenerPosition.y) * this.positionScale
             };
             this.updatePannerPosition(pannerNode, relativePosition);
@@ -257,7 +257,7 @@ export class SpatialAudioController {
         // Update all source positions relative to new listener position
         this.sources.forEach((source) => {
             const relativePosition = {
-                x: (source.position.x - this.listenerPosition.x) * this.positionScale,
+                x: (this.listenerPosition.x - source.position.x) * this.positionScale,
                 y: (source.position.y - this.listenerPosition.y) * this.positionScale
             };
             this.updatePannerPosition(source.pannerNode, relativePosition);
@@ -278,7 +278,7 @@ export class SpatialAudioController {
             source.position = position;
             // Update using relative position, scaled to meters
             const relativePosition = {
-                x: (position.x - this.listenerPosition.x) * this.positionScale,
+                x: (this.listenerPosition.x - position.x) * this.positionScale,
                 y: (position.y - this.listenerPosition.y) * this.positionScale
             };
             this.updatePannerPosition(source.pannerNode, relativePosition);

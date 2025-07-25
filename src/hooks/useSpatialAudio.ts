@@ -7,7 +7,7 @@ import { Vector2, UserPosition } from '@/types';
 import { haversineDistance } from '@/core/utils';
 
 // Proximity-based voice chat configuration
-const VOICE_CHAT_RADIUS = 500; // Distance in meters where voice chat becomes active
+const VOICE_CHAT_RADIUS = 200; // Distance in meters where voice chat becomes active
 
 // Helper function to calculate distance between two positions
 // Use haversineDistance for real-world meters
