@@ -4,16 +4,14 @@ import { useEffect, useRef, useCallback } from 'react';
 import { Room, RemoteAudioTrack, RemoteParticipant, RoomEvent, RemoteTrack, RemoteTrackPublication } from 'livekit-client';
 import { SpatialAudioController } from '@/components/SpatialAudioController';
 import { Vector2, UserPosition } from '@/types';
+import { haversineDistance } from '@/core/utils';
 
 // Proximity-based voice chat configuration
-const VOICE_CHAT_RADIUS = 50; // Distance in meters where voice chat becomes active
+const VOICE_CHAT_RADIUS = 500; // Distance in meters where voice chat becomes active
 
 // Helper function to calculate distance between two positions
-function calculateDistance(pos1: Vector2, pos2: Vector2): number {
-    const dx = pos1.x - pos2.x;
-    const dy = pos1.y - pos2.y;
-    return Math.sqrt(dx * dx + dy * dy);
-}
+// Use haversineDistance for real-world meters
+const calculateDistance = haversineDistance;
 
 export function useSpatialAudio(room: Room | null, participants: Map<string, UserPosition>, myPosition: Vector2) {
     const controllerRef = useRef<SpatialAudioController | null>(null);
