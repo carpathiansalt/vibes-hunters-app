@@ -357,7 +357,9 @@ function latLngDeltaMeters(listener: Vector2, source: Vector2): { x: number; z: 
     // X: east-west (longitude), Z: north-south (latitude)
     // For X, keep latitude fixed, vary longitude
     // For Z, keep longitude fixed, vary latitude
-    const x = haversineMeters(listener.x, listener.y, listener.x, source.y) * (source.y > listener.y ? 1 : -1);
-    const z = haversineMeters(listener.x, listener.y, source.x, listener.y) * (source.x > listener.x ? -1 : 1);
+    // Invert X and Z for correct panning: positive X = right, negative X = left, positive Z = forward, negative Z = back
+    const x = haversineMeters(listener.x, listener.y, listener.x, source.y) * (source.y > listener.y ? -1 : 1);
+    const z = haversineMeters(listener.x, listener.y, source.x, listener.y) * (source.x > listener.x ? 1 : -1);
+    console.log('[SpatialAudio] latLngDeltaMeters', { listener, source, x, z });
     return { x, z };
 }
