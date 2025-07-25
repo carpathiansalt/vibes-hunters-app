@@ -84,6 +84,10 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 if (marker && marker.setMap) marker.setMap(null);
             });
             markersRef.current.clear();
+            
+            // Wait a moment for disconnection to fully complete
+            await new Promise(resolve => setTimeout(resolve, 200));
+            console.log('Disconnection completed, ready for new connection');
         }
         
         // Update state and URL
@@ -97,6 +101,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         
         // Connect to new room
         try {
+            console.log('Attempting to connect to new room:', newGenre);
             await connectToLiveKitForRoom(newGenre);
         } catch (error) {
             console.error('Failed to connect to new room:', error);
@@ -612,10 +617,23 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
     // Connect to LiveKit (refactored to accept room parameter)
     const connectToLiveKitForRoom = useCallback(async (roomName: string) => {
-        // Prevent multiple connections
-        if (livekitRoom || isConnected || isConnecting) {
-            console.log('Already connected or connecting to LiveKit');
+        console.log('connectToLiveKitForRoom called for:', roomName, {
+            hasRoom: !!livekitRoom,
+            isConnected,
+            isConnecting,
+            currentRoomName: livekitRoom?.name
+        });
+
+        // Only prevent connection if we're connecting to the SAME room
+        if (livekitRoom && isConnected && livekitRoom.name === roomName) {
+            console.log('Already connected to the same room:', roomName);
             return;
+        }
+
+        if (isConnecting) {
+            console.log('Currently connecting, waiting before attempting new connection...');
+            // Wait a bit for any ongoing connection to complete
+            await new Promise(resolve => setTimeout(resolve, 500));
         }
 
         setIsConnecting(true);
