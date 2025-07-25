@@ -5,7 +5,7 @@ import { Room, RemoteAudioTrack, RemoteParticipant, RoomEvent, RemoteTrack, Remo
 import { SpatialAudioController } from '@/components/SpatialAudioController';
 import { Vector2, UserPosition } from '@/types';
 import { haversineDistance } from '@/core/utils';
-import { logger, perf } from '@/core/utils';
+import { logger } from '@/core/utils';
 
 // Proximity-based voice chat configuration
 const VOICE_CHAT_RADIUS = 500; // Distance in meters where voice chat becomes active

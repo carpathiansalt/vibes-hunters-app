@@ -92,7 +92,7 @@ export default function PreJoinPage() {
                             <div className="sr-only">
                                 {genres.map(g => (
                                     <span key={g.name}>
-                                        <img src={g.image} alt={g.name} width={24} height={24} /> {g.name}
+                                        <Image src={g.image} alt={g.name} width={24} height={24} /> {g.name}
                                     </span>
                                 ))}
                             </div>

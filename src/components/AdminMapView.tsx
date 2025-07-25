@@ -302,7 +302,6 @@ export default function AdminMapView() {
                     bounds.extend({ lat: participant.position.x, lng: participant.position.y });
                 } catch (err) {
                     // Log marker creation errors for debugging
-                    // eslint-disable-next-line no-console
                     console.error('Failed to create marker for', participant, 'with icon', iconUrl, err);
                 }
             });
