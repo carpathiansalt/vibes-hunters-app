@@ -3,6 +3,11 @@
 import { RemoteAudioTrack, RemoteParticipant } from 'livekit-client';
 import { Vector2 } from '@/types';
 
+// Add a scaling factor to convert map units to meters for spatial audio
+interface SpatialAudioControllerOptions {
+    positionScale?: number; // Number of meters per map unit (default: 1)
+}
+
 interface SpatialAudioSource {
     participant: RemoteParticipant;
     track: RemoteAudioTrack;
@@ -13,12 +18,28 @@ interface SpatialAudioSource {
     position: Vector2;
 }
 
+/**
+ * SpatialAudioController
+ *
+ * positionScale: number of meters per map unit. If your map is 1000x1000 units and you want 1000 units to be 100 meters, use positionScale=0.1.
+ * Tune refDistance, maxDistance, and rolloffFactor for your world size and desired attenuation.
+ *
+ * Example usage:
+ *   const controller = new SpatialAudioController({ positionScale: 0.1 });
+ */
 export class SpatialAudioController {
     private _audioContext: AudioContext | null = null;
     private listenerPosition: Vector2 = { x: 0, y: 0 };
     private sources: Map<string, SpatialAudioSource> = new Map();
     private masterGain: GainNode | null = null;
     private isInitialized = false;
+    private positionScale: number = 1; // Default: 1 map unit = 1 meter
+
+    constructor(options?: SpatialAudioControllerOptions) {
+        if (options?.positionScale && options.positionScale > 0) {
+            this.positionScale = options.positionScale;
+        }
+    }
 
     // Getter for audioContext to allow external access
     get audioContext(): AudioContext | null {
@@ -129,16 +150,26 @@ export class SpatialAudioController {
             pannerNode.coneOuterAngle = 360;
             pannerNode.coneInnerAngle = 360;
             pannerNode.coneOuterGain = 1;
-            pannerNode.refDistance = 10; // Reference distance in meters for voice chat
-            pannerNode.maxDistance = 100; // Maximum effective distance
+            // Set more typical defaults for voice chat
+            pannerNode.refDistance = 1; // 1 meter = full volume
+            pannerNode.maxDistance = 50; // 50 meters = max attenuation
             pannerNode.rolloffFactor = 2;
 
-            // Set initial position using relative coordinates (following LiveKit example)
+            // Set initial position using relative coordinates, scaled to meters
             const relativePosition = {
-                x: position.x - this.listenerPosition.x,
-                y: position.y - this.listenerPosition.y
+                x: (position.x - this.listenerPosition.x) * this.positionScale,
+                y: (position.y - this.listenerPosition.y) * this.positionScale
             };
             this.updatePannerPosition(pannerNode, relativePosition);
+            console.log('[SpatialAudio] Add source', participant.identity, {
+                position,
+                listener: this.listenerPosition,
+                relativePosition,
+                scale: this.positionScale,
+                refDistance: pannerNode.refDistance,
+                maxDistance: pannerNode.maxDistance,
+                rolloffFactor: pannerNode.rolloffFactor
+            });
 
             // Connect audio graph: source -> gain -> panner -> master -> destination
             sourceNode.connect(gainNode);
@@ -226,10 +257,16 @@ export class SpatialAudioController {
         // Update all source positions relative to new listener position
         this.sources.forEach((source) => {
             const relativePosition = {
-                x: source.position.x - this.listenerPosition.x,
-                y: source.position.y - this.listenerPosition.y
+                x: (source.position.x - this.listenerPosition.x) * this.positionScale,
+                y: (source.position.y - this.listenerPosition.y) * this.positionScale
             };
             this.updatePannerPosition(source.pannerNode, relativePosition);
+            console.log('[SpatialAudio] Update source', source.participant.identity, {
+                position: source.position,
+                listener: this.listenerPosition,
+                relativePosition,
+                scale: this.positionScale
+            });
         });
 
         console.log('Updated listener position to:', position, 'affecting', this.sources.size, 'spatial sources');
@@ -239,12 +276,18 @@ export class SpatialAudioController {
         const source = this.sources.get(participantIdentity);
         if (source) {
             source.position = position;
-            // Update using relative position (following LiveKit documentation)
+            // Update using relative position, scaled to meters
             const relativePosition = {
-                x: position.x - this.listenerPosition.x,
-                y: position.y - this.listenerPosition.y
+                x: (position.x - this.listenerPosition.x) * this.positionScale,
+                y: (position.y - this.listenerPosition.y) * this.positionScale
             };
             this.updatePannerPosition(source.pannerNode, relativePosition);
+            console.log('[SpatialAudio] Update source position', participantIdentity, {
+                position,
+                listener: this.listenerPosition,
+                relativePosition,
+                scale: this.positionScale
+            });
         }
     }
 
@@ -264,6 +307,12 @@ export class SpatialAudioController {
                 relativePosition.x, 0, relativePosition.y
             );
         }
+        // Log for debugging
+        console.log('[SpatialAudio] Panner position', {
+            x: relativePosition.x,
+            y: 0,
+            z: relativePosition.y
+        });
     }
 
     setMasterVolume(volume: number): void {
