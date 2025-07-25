@@ -4,7 +4,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { Room, RemoteAudioTrack, RemoteParticipant, RoomEvent, RemoteTrack, RemoteTrackPublication } from 'livekit-client';
 import { SpatialAudioController } from '@/components/SpatialAudioController';
 import { Vector2, UserPosition } from '@/types';
-import { haversineDistance, calculateVolumeFromDistance } from '@/core/utils';
+import { haversineDistance } from '@/core/utils';
 
 // Proximity-based voice chat configuration
 const VOICE_CHAT_RADIUS = 500; // Distance in meters where voice chat becomes active
