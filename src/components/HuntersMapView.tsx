@@ -67,14 +67,41 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const handleGenreChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newGenre = e.target.value;
         if (newGenre === genre) return;
+        
+        console.log('Switching from room', genre, 'to', newGenre);
+        
+        // Disconnect from current room
         if (livekitRoom) {
+            console.log('Disconnecting from current room...');
             await livekitRoom.disconnect();
             setLivekitRoom(null);
             setIsConnected(false);
+            setIsConnecting(false);
             setParticipants(new Map());
+            
+            // Clear map markers
+            markersRef.current.forEach((marker) => {
+                if (marker && marker.setMap) marker.setMap(null);
+            });
+            markersRef.current.clear();
         }
+        
+        // Update state and URL
         setGenre(newGenre);
-        window.location.replace(`/map?room=${newGenre}&username=${username}&avatar=${avatar}`);
+        setError(null); // Clear any previous errors
+        
+        // Update URL without reload
+        const newUrl = `/map?room=${newGenre}&username=${username}&avatar=${avatar}`;
+        window.history.pushState({}, '', newUrl);
+        console.log('Updated URL to:', newUrl);
+        
+        // Connect to new room
+        try {
+            await connectToLiveKitForRoom(newGenre);
+        } catch (error) {
+            console.error('Failed to connect to new room:', error);
+            setError(`Failed to switch to ${newGenre} room: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
     };
     // Room switch logic
     // (Removed duplicate handleGenreChange declaration)
@@ -580,8 +607,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         }
     }, [error]);
 
-    // Connect to LiveKit
-    const connectToLiveKit = useCallback(async () => {
+    // Connect to LiveKit (refactored to accept room parameter)
+    const connectToLiveKitForRoom = useCallback(async (roomName: string) => {
         // Prevent multiple connections
         if (livekitRoom || isConnected || isConnecting) {
             console.log('Already connected or connecting to LiveKit');
@@ -592,11 +619,11 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         setError(null);
 
         try {
-            console.log('Connecting to LiveKit room:', room);
+            console.log('Connecting to LiveKit room:', roomName);
             const response = await fetch('/api/token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ room, username }),
+                body: JSON.stringify({ room: roomName, username }),
             });
 
             if (!response.ok) {
@@ -618,7 +645,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             newRoom.on(RoomEvent.Connected, () => {
                 setIsConnected(true);
                 setIsConnecting(false);
-                console.log('Connected to room:', room, 'with', newRoom.remoteParticipants.size, 'existing participants');
+                console.log('Connected to room:', roomName, 'with', newRoom.remoteParticipants.size, 'existing participants');
 
                 // Remove all old markers from the map before clearing
                 markersRef.current.forEach((marker) => {
@@ -746,7 +773,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
             await newRoom.connect(wsUrl, token);
             setLivekitRoom(newRoom);
-            console.log('LiveKit room connected successfully');
+            console.log('LiveKit room connected successfully to:', roomName);
 
             await publishMyMetadataThrottled(newRoom);
 
@@ -755,7 +782,14 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             setError(`Failed to connect to audio service: ${err instanceof Error ? err.message : 'Unknown error'}`);
             setIsConnecting(false);
         }
-    }, [room, username, publishMyMetadataThrottled, updateParticipantFromMetadata, removeParticipant, updateTrackPositions, isConnected, livekitRoom, isConnecting, refreshAllMarkers]);    // Initialize everything
+    }, [username, publishMyMetadataThrottled, updateParticipantFromMetadata, removeParticipant, updateTrackPositions, isConnected, livekitRoom, isConnecting, refreshAllMarkers]);
+
+    // Original connectToLiveKit function (now calls connectToLiveKitForRoom)
+    const connectToLiveKit = useCallback(async () => {
+        return connectToLiveKitForRoom(room);
+    }, [connectToLiveKitForRoom, room]);
+
+    // Initialize everything
     useEffect(() => {
         let mounted = true;
 
