@@ -150,10 +150,10 @@ export class SpatialAudioController {
             pannerNode.coneOuterAngle = 360;
             pannerNode.coneInnerAngle = 360;
             pannerNode.coneOuterGain = 1;
-            // Set more typical defaults for voice chat
+            // Match panner attenuation to earshot logic
             pannerNode.refDistance = 1; // 1 meter = full volume
-            pannerNode.maxDistance = 50; // 50 meters = max attenuation
-            pannerNode.rolloffFactor = 2;
+            pannerNode.maxDistance = 500; // 500 meters = max attenuation
+            pannerNode.rolloffFactor = 1; // Gradual fade
 
             // Set initial position using Haversine-projected meters
             const { x, z } = latLngDeltaMeters(this.listenerPosition, position);
