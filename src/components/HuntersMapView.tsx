@@ -129,7 +129,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     } = useSpatialAudio(livekitRoom, participants, myPosition);
 
     // Throttled metadata publishing to prevent timeout errors
-    const publishMyMetadataThrottled = useCallback(async (roomInstance?: Room) => {
+    const publishMyMetadataThrottled = useCallback(async (roomInstance?: Room, force = false) => {
         const currentRoom = roomInstance || livekitRoom;
         if (!currentRoom) return;
 
@@ -165,12 +165,14 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             clearTimeout(metadataUpdateTimeoutRef.current);
         }
 
-        if (timeSinceLastUpdate >= minUpdateInterval) {
-            // Enough time has passed, update immediately
+        if (force || timeSinceLastUpdate >= minUpdateInterval) {
+            // Force update or enough time has passed, update immediately
+            console.log(force ? 'Force publishing metadata (room switch)' : 'Publishing metadata (normal)');
             await doUpdate();
         } else {
             // Schedule update for later
             const delay = minUpdateInterval - timeSinceLastUpdate;
+            console.log('Scheduling metadata update in', delay, 'ms');
             metadataUpdateTimeoutRef.current = setTimeout(doUpdate, delay);
         }
     }, [username, avatar, myPosition, isPublishingMusic, musicTitle, musicDescription, partyTitle, partyDescription, livekitRoom]);
@@ -775,7 +777,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             setLivekitRoom(newRoom);
             console.log('LiveKit room connected successfully to:', roomName);
 
-            await publishMyMetadataThrottled(newRoom);
+            // Force publish metadata immediately when switching rooms (bypass throttling)
+            await publishMyMetadataThrottled(newRoom, true);
 
         } catch (err) {
             console.error('Error connecting to LiveKit:', err);
