@@ -141,3 +141,32 @@ export function haversineDistance(pos1: Vector2, pos2: Vector2): number {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
 }
+
+/**
+ * Development-only logger to improve production performance
+ */
+export const logger = {
+    log: process.env.NODE_ENV === 'development' ? console.log : () => {},
+    warn: process.env.NODE_ENV === 'development' ? console.warn : () => {},
+    error: console.error, // Always log errors
+    info: process.env.NODE_ENV === 'development' ? console.info : () => {},
+    debug: process.env.NODE_ENV === 'development' ? console.debug : () => {}
+};
+
+/**
+ * Performance monitoring utility
+ */
+export const perf = {
+    mark: (name: string) => {
+        if (process.env.NODE_ENV === 'development' && performance.mark) {
+            performance.mark(name);
+        }
+    },
+    measure: (name: string, startMark: string, endMark?: string) => {
+        if (process.env.NODE_ENV === 'development' && performance.measure) {
+            performance.measure(name, startMark, endMark);
+            const measure = performance.getEntriesByName(name)[0];
+            logger.log(`⏱️ ${name}: ${measure.duration.toFixed(2)}ms`);
+        }
+    }
+};

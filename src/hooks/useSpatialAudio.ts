@@ -5,6 +5,7 @@ import { Room, RemoteAudioTrack, RemoteParticipant, RoomEvent, RemoteTrack, Remo
 import { SpatialAudioController } from '@/components/SpatialAudioController';
 import { Vector2, UserPosition } from '@/types';
 import { haversineDistance } from '@/core/utils';
+import { logger, perf } from '@/core/utils';
 
 // Proximity-based voice chat configuration
 const VOICE_CHAT_RADIUS = 500; // Distance in meters where voice chat becomes active
@@ -31,7 +32,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
 
                 // Double check room is still valid and connected
                 if (!room || room.state !== 'connected') {
-                    console.log('Room not connected, skipping spatial audio initialization');
+                    logger.log('Room not connected, skipping spatial audio initialization');
                     return;
                 }
 
@@ -39,17 +40,17 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                     controllerRef.current = new SpatialAudioController();
                     await controllerRef.current.initialize();
                     isInitializedRef.current = true;
-                    console.log('Spatial audio controller initialized successfully');
+                    logger.log('Spatial audio controller initialized successfully');
                 }
             } catch (error) {
-                console.error('Failed to initialize spatial audio:', error);
+                logger.error('Failed to initialize spatial audio:', error);
                 // Reset state on failure
                 isInitializedRef.current = false;
                 if (controllerRef.current) {
                     try {
                         controllerRef.current.destroy();
                     } catch (destroyError) {
-                        console.error('Error destroying spatial audio controller:', destroyError);
+                        logger.error('Error destroying spatial audio controller:', destroyError);
                     }
                     controllerRef.current = null;
                 }
@@ -62,7 +63,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         } else {
             // Wait for room to connect
             const handleConnected = () => {
-                console.log('Room connected, initializing spatial audio');
+                logger.log('Room connected, initializing spatial audio');
                 initializeController();
                 room.off('connected', handleConnected);
             };
@@ -100,7 +101,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                 audioEl.remove();
             });
 
-            console.log('Spatial audio cleanup completed');
+            logger.log('Spatial audio cleanup completed');
         };
 
         if (!room) {
@@ -110,16 +111,16 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
 
         // Handle room disconnection
         const handleDisconnected = () => {
-            console.log('Room disconnected, cleaning up spatial audio');
+            logger.log('Room disconnected, cleaning up spatial audio');
             cleanup();
         };
 
         const handleRoomReconnecting = () => {
-            console.log('Room reconnecting...');
+            logger.log('Room reconnecting...');
         };
 
         const handleRoomReconnected = () => {
-            console.log('Room reconnected, reinitializing spatial audio');
+            logger.log('Room reconnected, reinitializing spatial audio');
             // Reset initialization state to allow re-initialization
             isInitializedRef.current = false;
         };
@@ -172,7 +173,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                     if (isWithinVoiceRange && !controllerRef.current?.hasAudioSource(participant.identity)) {
                         // Add to spatial audio if close enough and not already added
                         if (publication.track instanceof RemoteAudioTrack && controllerRef.current) {
-                            console.log(`🎤 Adding voice track for ${participant.identity} (entered range: ${distance.toFixed(1)}m)`);
+                            logger.log(`🎤 Adding voice track for ${participant.identity} (entered range: ${distance.toFixed(1)}m)`);
                             controllerRef.current.addAudioSource(participant, publication.track, participantData.position, publication.trackName);
 
                             // Set volume based on distance (linear attenuation)
@@ -181,7 +182,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                         }
                     } else if (!isWithinVoiceRange && controllerRef.current?.hasAudioSource(participant.identity)) {
                         // Remove from spatial audio if too far away
-                        console.log(`🔇 Removing voice track for ${participant.identity} (left range: ${distance.toFixed(1)}m)`);
+                        logger.log(`🔇 Removing voice track for ${participant.identity} (left range: ${distance.toFixed(1)}m)`);
                         controllerRef.current.removeAudioSource(participant.identity);
                     } else if (isWithinVoiceRange && controllerRef.current?.hasAudioSource(participant.identity)) {
                         // Update volume based on current distance (linear attenuation)
@@ -204,12 +205,12 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
             const hasJoinedParty = joinedMusicTracks.current.has(participant.identity);
 
             if (hasJoinedParty) {
-                console.log('🎵 Music track published by joined party, subscribing:', publication.trackName, 'from:', participant.identity);
+                logger.log('🎵 Music track published by joined party, subscribing:', publication.trackName, 'from:', participant.identity);
 
                 // Subscribe to the track immediately since user has joined this party
                 publication.setSubscribed(true);
             } else {
-                console.log('Music track published but user has not joined party for:', participant.identity);
+                logger.log('Music track published but user has not joined party for:', participant.identity);
             }
         } else {
             // For voice tracks, handle proximity-based subscription
@@ -217,7 +218,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
             if (participantData) {
                 const distance = calculateDistance(myPosition, participantData.position);
                 if (distance <= VOICE_CHAT_RADIUS) {
-                    console.log('🎤 Voice track published within range, subscribing:', participant.identity);
+                    logger.log('🎤 Voice track published within range, subscribing:', participant.identity);
                     publication.setSubscribed(true);
                 }
             }
@@ -226,7 +227,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
 
     // Separate function to handle music track attachment
     const attachMusicTrack = useCallback((track: RemoteAudioTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
-        console.log('🎵 Attaching music track for joined party:', publication.trackName, 'from:', participant.identity);
+        logger.log('🎵 Attaching music track for joined party:', publication.trackName, 'from:', participant.identity);
 
         // Remove any existing audio elements for this participant to prevent duplicates
         const existingElements = document.querySelectorAll(`audio[data-participant="${participant.identity}"][data-track-type="music"]`);
@@ -252,19 +253,19 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         if (playPromise !== undefined) {
             playPromise
                 .then(() => {
-                    console.log('✅ Music track playing for joined party:', participant.identity);
+                    logger.log('✅ Music track playing for joined party:', participant.identity);
                 })
                 .catch((error) => {
-                    console.warn('Autoplay prevented for music track. User interaction required:', error);
+                    logger.warn('Autoplay prevented for music track. User interaction required:', error);
 
                     // Add single event listener to resume on next user interaction
                     const resumeAudio = () => {
                         audioElement.play()
                             .then(() => {
-                                console.log('✅ Music track resumed after user interaction');
+                                logger.log('✅ Music track resumed after user interaction');
                             })
                             .catch(resumeError => {
-                                console.error('Failed to resume music after user interaction:', resumeError);
+                                logger.error('Failed to resume music after user interaction:', resumeError);
                             });
                     };
 
@@ -289,37 +290,37 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                     const hasJoinedParty = joinedMusicTracks.current.has(participant.identity);
 
                     if (!hasJoinedParty) {
-                        console.log('🎵 Music track subscribed but user has not joined party, unsubscribing:', participant.identity);
+                        logger.log('🎵 Music track subscribed but user has not joined party, unsubscribing:', participant.identity);
                         // Immediately unsubscribe since user hasn't joined this party
                         publication.setSubscribed(false);
                         return;
                     }
 
-                    console.log('🎵 Music track subscribed for joined party, attaching and playing:', publication.trackName, 'from:', participant.identity);
+                    logger.log('🎵 Music track subscribed for joined party, attaching and playing:', publication.trackName, 'from:', participant.identity);
                     attachMusicTrack(track, publication, participant);
                 } else {
                     // Voice tracks: Use spatial audio processing with proximity check
                     const distance = calculateDistance(myPosition, participantData.position);
 
                     if (distance <= VOICE_CHAT_RADIUS) {
-                        console.log(`Adding spatial audio source for voice track (distance: ${distance.toFixed(1)}m):`, participant.identity, 'track:', publication.trackName);
+                        logger.log(`Adding spatial audio source for voice track (distance: ${distance.toFixed(1)}m):`, participant.identity, 'track:', publication.trackName);
                         controllerRef.current.addAudioSource(participant, track, participantData.position, publication.trackName);
 
                         // Calculate volume based on distance for proximity-based voice chat
                         const volumeMultiplier = Math.max(0, 1 - (distance / VOICE_CHAT_RADIUS));
                         controllerRef.current.setSourceVolume(participant.identity, volumeMultiplier);
 
-                        console.log(`Voice chat enabled for ${participant.identity} at distance ${distance.toFixed(1)}m (volume: ${(volumeMultiplier * 100).toFixed(0)}%)`);
+                        logger.log(`Voice chat enabled for ${participant.identity} at distance ${distance.toFixed(1)}m (volume: ${(volumeMultiplier * 100).toFixed(0)}%)`);
                     } else {
-                        console.log(`Participant ${participant.identity} too far for voice chat (distance: ${distance.toFixed(1)}m > ${VOICE_CHAT_RADIUS}m)`);
+                        logger.log(`Participant ${participant.identity} too far for voice chat (distance: ${distance.toFixed(1)}m > ${VOICE_CHAT_RADIUS}m)`);
                         // Don't add to spatial audio if too far
                     }
                 }
             } else {
-                console.log('Participant data not found or track not audio:', participant.identity);
+                logger.log('Participant data not found or track not audio:', participant.identity);
             }
         } catch (error) {
-            console.error('Error handling track subscription:', error);
+            logger.error('Error handling track subscription:', error);
         }
     }, [participants, myPosition, attachMusicTrack]);
 
@@ -332,7 +333,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
 
             if (isMusicTrack) {
                 // Clean up music track audio elements using proper detach method
-                console.log('Cleaning up music track audio element for:', participant.identity);
+                logger.log('Cleaning up music track audio element for:', participant.identity);
                 const audioElements = document.querySelectorAll(`audio[data-participant="${participant.identity}"][data-track-type="music"]`);
                 audioElements.forEach(element => {
                     const audioElement = element as HTMLAudioElement;
@@ -347,7 +348,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                 });
             } else {
                 // Remove spatial audio source for voice tracks
-                console.log('Removing spatial audio source for:', participant.identity);
+                logger.log('Removing spatial audio source for:', participant.identity);
                 controllerRef.current.removeAudioSource(participant.identity);
             }
 
@@ -363,7 +364,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                 }
             });
         } catch (error) {
-            console.error('Error handling track unsubscription:', error);
+            logger.error('Error handling track unsubscription:', error);
         }
     }, []);
 
@@ -396,10 +397,10 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         if (controllerRef.current?.audioContext && controllerRef.current.audioContext.state === 'suspended') {
             try {
                 await controllerRef.current.audioContext.resume();
-                console.log('✅ Audio context resumed after user interaction');
+                logger.log('✅ Audio context resumed after user interaction');
                 return true;
             } catch (error) {
-                console.error('Failed to resume audio context:', error);
+                logger.error('Failed to resume audio context:', error);
                 return false;
             }
         }
@@ -408,12 +409,12 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
 
     const subscribeToParticipant = useCallback(async (participantIdentity: string, maxRetries: number = 3) => {
         if (!room) {
-            console.error('Room not available for subscription');
+            logger.error('Room not available for subscription');
             return false;
         }
 
         if (!participantIdentity || participantIdentity === 'self') {
-            console.error('Invalid participant identity:', participantIdentity);
+            logger.error('Invalid participant identity:', participantIdentity);
             return false;
         }
 
@@ -422,11 +423,11 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
 
         // Before joining a new music party, leave any currently joined party (only one party at a time)
         if (joinedMusicTracks.current.size > 0) {
-            console.log('Leaving current music parties before joining new one (only one party allowed at a time)');
+            logger.log('Leaving current music parties before joining new one (only one party allowed at a time)');
             const currentParties = Array.from(joinedMusicTracks.current);
             for (const currentPartyId of currentParties) {
                 if (currentPartyId !== participantIdentity) {
-                    console.log('Auto-leaving music party:', currentPartyId);
+                    logger.log('Auto-leaving music party:', currentPartyId);
 
                     // Stop and remove audio elements for the current party
                     const audioElements = document.querySelectorAll(`audio[data-participant="${currentPartyId}"]`);
@@ -447,9 +448,9 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                             if (isMusicTrack && publication.isSubscribed) {
                                 try {
                                     await publication.setSubscribed(false);
-                                    console.log('Unsubscribed from music track for auto-leave:', publication.trackName);
+                                    logger.log('Unsubscribed from music track for auto-leave:', publication.trackName);
                                 } catch (error) {
-                                    console.error('Failed to unsubscribe from music track during auto-leave:', error);
+                                    logger.error('Failed to unsubscribe from music track during auto-leave:', error);
                                 }
                             }
                         }
@@ -461,7 +462,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         // Get fresh participant reference (in case it changed)
         const participant = room.remoteParticipants.get(participantIdentity);
         if (!participant) {
-            console.error('Participant not found after cleanup:', participantIdentity);
+            logger.error('Participant not found after cleanup:', participantIdentity);
             return false;
         }
 
@@ -470,21 +471,21 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
         try {
             participantMetadata = participant.metadata ? JSON.parse(participant.metadata) : null;
         } catch (error) {
-            console.error('Failed to parse participant metadata:', error);
+            logger.error('Failed to parse participant metadata:', error);
             return false;
         }
 
         if (!participantMetadata?.isPublishingMusic) {
-            console.warn('❌ Participant metadata indicates they are not publishing music:', participantIdentity);
+            logger.warn('❌ Participant metadata indicates they are not publishing music:', participantIdentity);
             return false;
         }
 
-        console.log(`🎵 Joining music party for: ${participantIdentity}`);
+        logger.log(`🎵 Joining music party for: ${participantIdentity}`);
 
         // CRITICAL: Add to joined set BEFORE any subscription attempts
         // This ensures handleTrackSubscribed will process music tracks when they arrive
         joinedMusicTracks.current.add(participantIdentity);
-        console.log('👥 Currently joined music parties:', Array.from(joinedMusicTracks.current));
+        logger.log('👥 Currently joined music parties:', Array.from(joinedMusicTracks.current));
 
         let attempts = 0;
 
@@ -494,12 +495,12 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
             try {
                 const participant = room.remoteParticipants.get(participantIdentity);
                 if (!participant) {
-                    console.error('Participant not found:', participantIdentity);
+                    logger.error('Participant not found:', participantIdentity);
                     joinedMusicTracks.current.delete(participantIdentity); // Cleanup on failure
                     return false;
                 }
 
-                console.log(`Attempting to subscribe to participant: ${participantIdentity} (attempt ${attempts})`);
+                logger.log(`Attempting to subscribe to participant: ${participantIdentity} (attempt ${attempts})`);
 
                 const audioTracks = participant.audioTrackPublications;
                 const musicTracks = Array.from(audioTracks.values()).filter(pub =>
@@ -507,23 +508,23 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                 );
 
                 if (musicTracks.length === 0) {
-                    console.warn('❌ No music tracks found from participant:', participantIdentity);
+                    logger.warn('❌ No music tracks found from participant:', participantIdentity);
                     joinedMusicTracks.current.delete(participantIdentity); // Cleanup on failure
                     return false;
                 }
 
-                console.log(`Found ${musicTracks.length} music tracks, subscribing...`);
+                logger.log(`Found ${musicTracks.length} music tracks, subscribing...`);
 
                 // Subscribe to all music tracks from this participant
                 for (const publication of musicTracks) {
                     if (!publication.isSubscribed) {
-                        console.log(`🎵 Subscribing to music track:`, publication.trackName);
+                        logger.log(`🎵 Subscribing to music track:`, publication.trackName);
                         await publication.setSubscribed(true);
                     }
 
                     // If track is already available, trigger immediate attachment
                     if (publication.track && publication.isSubscribed) {
-                        console.log(`🎵 Track immediately available, attaching:`, publication.trackName);
+                        logger.log(`🎵 Track immediately available, attaching:`, publication.trackName);
                         // Use setTimeout to ensure this runs after the current call stack
                         setTimeout(() => {
                             if (publication.track) {
@@ -533,19 +534,19 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                     }
                 }
 
-                console.log('✅ Successfully joined music party for:', participantIdentity);
+                logger.log('✅ Successfully joined music party for:', participantIdentity);
                 return true;
 
             } catch (error) {
-                console.error(`❌ Failed to subscribe to participant (attempt ${attempts}):`, error);
+                logger.error(`❌ Failed to subscribe to participant (attempt ${attempts}):`, error);
 
                 if (attempts < maxRetries) {
                     const delay = Math.pow(2, attempts) * 500; // Exponential backoff
-                    console.log(`Retrying subscription to ${participantIdentity} in ${delay}ms...`);
+                    logger.log(`Retrying subscription to ${participantIdentity} in ${delay}ms...`);
                     await new Promise(resolve => setTimeout(resolve, delay));
                     return attemptSubscription();
                 } else {
-                    console.error(`❌ Failed to subscribe after ${maxRetries} attempts`);
+                    logger.error(`❌ Failed to subscribe after ${maxRetries} attempts`);
                     joinedMusicTracks.current.delete(participantIdentity); // Cleanup on final failure
                     return false;
                 }
@@ -558,10 +559,10 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
     // Debug function to list active audio elements
     const getActiveAudioElements = useCallback(() => {
         const audioElements = document.querySelectorAll('audio[data-participant]');
-        console.log('Active audio elements:', audioElements.length);
+        logger.log('Active audio elements:', audioElements.length);
         audioElements.forEach(element => {
             const audioEl = element as HTMLAudioElement;
-            console.log('- Participant:', audioEl.getAttribute('data-participant'),
+            logger.log('- Participant:', audioEl.getAttribute('data-participant'),
                 'Track:', audioEl.getAttribute('data-track'),
                 'Playing:', !audioEl.paused,
                 'Volume:', audioEl.volume,
@@ -592,7 +593,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
             });
         });
 
-        console.log('🏥 Connection Health:', health);
+        logger.log('🏥 Connection Health:', health);
         return health;
     }, [room]);
 
@@ -609,21 +610,21 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
 
         const attemptSubscription = async (): Promise<boolean> => {
             try {
-                console.log(`${subscribe ? 'Subscribing to' : 'Unsubscribing from'} voice track for ${participantId} (attempt ${attempts + 1})`);
+                logger.log(`${subscribe ? 'Subscribing to' : 'Unsubscribing from'} voice track for ${participantId} (attempt ${attempts + 1})`);
                 await publication.setSubscribed(subscribe);
 
                 // Reset attempts on success
                 reconnectionAttempts.current.delete(retryKey);
                 return true;
             } catch (error) {
-                console.error(`Failed to ${subscribe ? 'subscribe' : 'unsubscribe'} voice track for ${participantId}:`, error);
+                logger.error(`Failed to ${subscribe ? 'subscribe' : 'unsubscribe'} voice track for ${participantId}:`, error);
                 attempts++;
                 reconnectionAttempts.current.set(retryKey, attempts);
 
                 if (attempts < maxRetries) {
                     // Exponential backoff: 1s, 2s, 4s
                     const delay = Math.pow(2, attempts) * 1000;
-                    console.log(`Retrying ${subscribe ? 'subscription' : 'unsubscription'} for ${participantId} in ${delay}ms`);
+                    logger.log(`Retrying ${subscribe ? 'subscription' : 'unsubscription'} for ${participantId} in ${delay}ms`);
 
                     const timeout = setTimeout(() => {
                         attemptSubscription();
@@ -633,7 +634,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                     subscriptionRetryTimeouts.current.set(retryKey, timeout);
                     return false;
                 } else {
-                    console.error(`Failed to ${subscribe ? 'subscribe' : 'unsubscribe'} after ${maxRetries} attempts for ${participantId}`);
+                    logger.error(`Failed to ${subscribe ? 'subscribe' : 'unsubscribe'} after ${maxRetries} attempts for ${participantId}`);
                     reconnectionAttempts.current.delete(retryKey);
                     return false;
                 }
@@ -646,18 +647,18 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
     // Function to leave a music party (disconnect from a participant's music tracks)
     const leaveMusicParty = useCallback(async (participantIdentity: string) => {
         if (!room) {
-            console.error('Room not available for leaving music party');
+            logger.error('Room not available for leaving music party');
             return false;
         }
 
         try {
             const participant = room.remoteParticipants.get(participantIdentity);
             if (!participant) {
-                console.error('Participant not found:', participantIdentity);
+                logger.error('Participant not found:', participantIdentity);
                 return false;
             }
 
-            console.log('Leaving music party from:', participantIdentity);
+            logger.log('Leaving music party from:', participantIdentity);
 
             // Remove from joined music tracks set
             joinedMusicTracks.current.delete(participantIdentity);
@@ -676,19 +677,19 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                 if (isMusicTrack && publication.isSubscribed) {
                     try {
                         await publication.setSubscribed(false);
-                        console.log('Unsubscribed from music track:', publication.trackName);
+                        logger.log('Unsubscribed from music track:', publication.trackName);
                     } catch (error) {
-                        console.error('Failed to unsubscribe from music track:', error);
+                        logger.error('Failed to unsubscribe from music track:', error);
                     }
                 }
             }
 
-            console.log('✅ Successfully left music party from:', participantIdentity);
-            console.log('👥 Currently joined music parties:', Array.from(joinedMusicTracks.current));
+            logger.log('✅ Successfully left music party from:', participantIdentity);
+            logger.log('👥 Currently joined music parties:', Array.from(joinedMusicTracks.current));
             return true;
 
         } catch (error) {
-            console.error('Error leaving music party:', error);
+            logger.error('Error leaving music party:', error);
             return false;
         }
     }, [room]);
@@ -717,8 +718,8 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
             audioEl.remove();
         });
 
-        console.log('Cleaned up participant:', participantIdentity);
-        console.log('👥 Remaining joined music parties:', Array.from(joinedMusicTracks.current));
+        logger.log('Cleaned up participant:', participantIdentity);
+        logger.log('👥 Remaining joined music parties:', Array.from(joinedMusicTracks.current));
     }, []);
 
     // Function to manage proximity-based voice subscriptions with retry logic

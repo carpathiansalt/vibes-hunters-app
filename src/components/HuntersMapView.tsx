@@ -9,6 +9,7 @@ import { BoomboxMusicDialog } from './BoomboxMusicDialog';
 import { MicrophoneButton } from './MicrophoneButton';
 import { EarshotRadius } from './EarshotRadius';
 import { useSpatialAudio } from '@/hooks/useSpatialAudio';
+import { logger, perf } from '@/core/utils';
 
 interface HuntersMapViewProps {
     room: string;
@@ -189,12 +190,12 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         await publishMyMetadataThrottled();
     }, [livekitRoom, publishMyMetadataThrottled]);
 
-    // Update map marker
+    // Update map marker with throttling to prevent excessive updates
     const updateMapMarker = useCallback((identity: string, user: UserPosition) => {
-        console.log('🗺️ updateMapMarker called for:', identity, 'position:', user.position);
+        logger.log('🗺️ updateMapMarker called for:', identity, 'position:', user.position);
 
         if (!mapRef.current || !window.google?.maps) {
-            console.log('❌ Map not ready, skipping marker update for:', identity);
+            logger.log('❌ Map not ready, skipping marker update for:', identity);
             return;
         }
 
@@ -218,7 +219,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         const iconUrl = user.isPublishingMusic ? '/boombox.png' : `/characters_001/${avatarFile}`;
         const markerSize = user.isPublishingMusic ? 60 : 50;
 
-        console.log('🔍 Creating/updating marker:', {
+        logger.log('🔍 Creating/updating marker:', {
             identity,
             hasExistingMarker: !!marker,
             iconUrl,
@@ -239,15 +240,15 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             // Clear existing listeners and add new one with current music state
             window.google.maps.event.clearListeners(marker, 'click');
             marker.addListener('click', () => {
-                console.log('Clicked on participant:', user.username, 'isPublishingMusic:', user.isPublishingMusic);
+                logger.log('Clicked on participant:', user.username, 'isPublishingMusic:', user.isPublishingMusic);
                 if (user.isPublishingMusic) {
                     setSelectedMusicUser(user);
                 } else {
-                    console.log('Clicked on non-music participant:', user.username);
+                    logger.log('Clicked on non-music participant:', user.username);
                 }
             });
 
-            console.log('✅ Updated existing marker for:', user.username, 'at:', user.position);
+            logger.log('✅ Updated existing marker for:', user.username, 'at:', user.position);
         } else {
             // Create new marker
             marker = new window.google.maps.Marker({
@@ -262,30 +263,35 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             });
 
             marker.addListener('click', () => {
-                console.log('Clicked on participant:', user.username, 'isPublishingMusic:', user.isPublishingMusic);
+                logger.log('Clicked on participant:', user.username, 'isPublishingMusic:', user.isPublishingMusic);
                 if (user.isPublishingMusic) {
                     setSelectedMusicUser(user);
                 } else {
-                    console.log('Clicked on non-music participant:', user.username);
+                    logger.log('Clicked on non-music participant:', user.username);
                 }
             });
 
             markersRef.current.set(identity, marker);
-            console.log('✅ Created new marker for:', user.username, 'at:', user.position, 'marker:', marker);
+            logger.log('✅ Created new marker for:', user.username, 'at:', user.position, 'marker:', marker);
         }
     }, []);
 
-    // Refresh all participant markers (useful after map initialization)
+    // Refresh all participant markers (optimized with performance monitoring)
     const refreshAllMarkers = useCallback(() => {
         if (!mapRef.current || !window.google?.maps) {
-            console.log('Map not ready, cannot refresh markers');
+            logger.log('Map not ready, cannot refresh markers');
             return;
         }
 
-        console.log('Refreshing all participant markers, total participants:', participants.size);
+        perf.mark('refreshAllMarkers-start');
+        logger.log('Refreshing all participant markers, total participants:', participants.size);
+        
         participants.forEach((user, identity) => {
             updateMapMarker(identity, user);
         });
+        
+        perf.mark('refreshAllMarkers-end');
+        perf.measure('refreshAllMarkers', 'refreshAllMarkers-start', 'refreshAllMarkers-end');
     }, [participants, updateMapMarker]);
 
     // Debug function to log current state

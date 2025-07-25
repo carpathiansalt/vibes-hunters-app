@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "setup": "node scripts/setup.js"
+    "setup": "node scripts/setup.js",
+    "analyze": "ANALYZE=true npm run build",
+    "perf": "next build && npx lighthouse http://localhost:3000 --output json --output html --output-path ./performance-report",
+    "size-check": "npm run build && npx bundlesize"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^1.16.10",
