@@ -322,6 +322,9 @@ export default function AdminMapView() {
         }
     }, [adminData, updateMapMarkers, selectedRoom]);
 
+    // Collapsible panel state
+    const [panelCollapsed, setPanelCollapsed] = useState(false);
+
     if (!isAuthenticated) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900 p-4">
@@ -356,8 +359,8 @@ export default function AdminMapView() {
                         </button>
                     </form>
                     <div className="mt-6 text-white/70 text-center text-sm">
-                        <span className="font-semibold">LiveKit Integration</span> <span className="font-mono">Real-time Monitoring</span>
-                        <br />Monitor rooms, participants, and music parties
+                        <span className="font-semibold">🚫 Unauthorized Access Prohibited</span>
+                        <br />All login attempts are logged and monitored.
                     </div>
                 </div>
             </div>
@@ -366,74 +369,106 @@ export default function AdminMapView() {
 
     return (
         <div className="relative w-full h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900 overflow-hidden">
-            {/* Admin Info Panel (glassmorphism overlay) */}
-            <div className="absolute top-4 left-4 z-20 bg-black/80 text-white rounded-3xl backdrop-blur-lg shadow-2xl border border-white/20 p-8 min-w-[320px] max-w-[400px]">
-                <div className="flex items-center mb-4">
-                    <span className="text-2xl mr-2">🎛️</span>
-                    <span className="font-bold text-2xl">Admin Dashboard</span>
-                </div>
-                <div className="mb-4">
-                    <span className="font-semibold">Rooms:</span> {adminData?.summary?.totalRooms ?? 0}<br />
-                    <span className="font-semibold">Users:</span> {adminData?.summary?.totalParticipants ?? 0}<br />
-                    <span className="font-semibold">Music:</span> {adminData?.summary?.totalMusicPublishers ?? 0}
-                </div>
-                {/* Room selector dropdown (like prejoin page) */}
-                <div className="mb-4">
-                    <label className="block text-white/90 font-medium mb-1">Select Room</label>
-                    <select
-                        className="w-full px-3 py-2 rounded-xl bg-white/20 text-white border border-white/30 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                        value={selectedRoom}
-                        onChange={e => setSelectedRoom(e.target.value)}
-                    >
-                        <option value="__all__">All Rooms</option>
-                        {adminData?.rooms?.map(room => (
-                            <option key={room.name} value={room.name}>{room.name} ({room.numParticipants})</option>
-                        ))}
-                    </select>
-                </div>
-                {/* Active Rooms and Participants */}
-                <div className="mb-4">
-                    <span className="font-semibold">Active Rooms</span>
-                    <ul className="ml-2 mt-2">
-                        {(selectedRoom && selectedRoom !== '__all__' ? adminData?.rooms?.filter(r => r.name === selectedRoom) : adminData?.rooms)?.map(room => (
-                            <li key={room.name} className="mb-2">
-                                <span className="mr-1">🏠</span> <span className="font-bold">{room.name}</span> <span className="text-xs text-white/60">({room.numParticipants} participant{room.numParticipants !== 1 ? 's' : ''})</span>
-                                <ul className="ml-4">
-                                    {room.participants.map(p => (
-                                        <li key={p.identity} className="flex items-center gap-2 text-sm mt-1">
-                                            {p.avatar ? (
-                                                <Image
-                                                    src={p.isPublishingMusic ? '/boombox.png' : `/characters_001/${p.avatar.endsWith('.png') ? p.avatar : p.avatar + '.png'}`}
-                                                    alt="avatar"
-                                                    width={24}
-                                                    height={24}
-                                                    className="w-6 h-6 rounded-full inline-block border-2 border-white/30 object-cover"
-                                                    style={{ objectFit: 'cover' }}
-                                                    unoptimized={p.isPublishingMusic}
-                                                />
-                                            ) : (
-                                                <span className="text-lg">🧑</span>
-                                            )}
-                                            <span className="font-semibold">{p.username ?? p.identity}</span>
-                                            {p.isPublishingMusic && <span className="ml-1 text-pink-400">🎶</span>}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-                <div className="flex gap-2 mt-2">
-                    <button onClick={handleRefresh} className="px-3 py-1 rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 flex items-center gap-1">
-                        <span>🔄</span> Refresh
-                    </button>
-                    <button onClick={handleLogout} className="px-3 py-1 rounded-lg bg-red-600 text-white font-semibold shadow hover:bg-red-700 flex items-center gap-1">
-                        <span>🚪</span> Logout
-                    </button>
-                </div>
-                <div className="mt-2 text-xs text-white/60">
-                    Updated: {lastUpdated ? lastUpdated.toLocaleTimeString() : 'N/A'}
-                </div>
+            {/* Admin Info Panel (glassmorphism overlay, collapsible) */}
+            <div
+                className={`absolute bottom-4 left-4 z-20 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 text-white rounded-2xl shadow-2xl border border-white/20 transition-all duration-300 ${panelCollapsed ? 'p-2 min-w-[48px] max-w-[60px] h-[56px] flex items-center justify-center' : 'p-0 min-w-[0px] max-w-[90vw]'} ${panelCollapsed ? 'overflow-hidden' : ''}`}
+                style={{
+                    maxHeight: panelCollapsed ? '60px' : '90vh',
+                    width: panelCollapsed ? '56px' : 'clamp(320px, 90vw, 380px)',
+                    boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
+                    borderRadius: '1.25rem',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    backdropFilter: 'blur(12px)',
+                }}
+            >
+                {/* Collapse/Expand Button */}
+                <button
+                    className={`absolute top-3 right-3 bg-white/10 text-white rounded-full p-2 shadow hover:bg-purple-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-400 ${panelCollapsed ? 'w-8 h-8 flex items-center justify-center' : ''}`}
+                    style={{ zIndex: 30 }}
+                    aria-label={panelCollapsed ? 'Expand panel' : 'Collapse panel'}
+                    onClick={() => setPanelCollapsed(c => !c)}
+                >
+                    {panelCollapsed ? <span className="text-xl">▶️</span> : <span className="text-xl">⬅️</span>}
+                </button>
+                {/* Panel Content */}
+                {!panelCollapsed && (
+                    <div className="flex flex-col items-center justify-center px-6 py-6 gap-4 w-full">
+                        <div className="flex items-center gap-3 mb-2 w-full justify-center">
+                            <span className="font-extrabold text-2xl tracking-tight">Admin Dashboard</span>
+                        </div>
+                        <div className="flex flex-row gap-6 justify-between w-full mb-2">
+                            <div className="flex flex-col items-center">
+                                <span className="font-semibold text-sm">Rooms</span>
+                                <span className="font-bold text-lg">{adminData?.summary?.totalRooms ?? 0}</span>
+                            </div>
+                            <div className="flex flex-col items-center">
+                                <span className="font-semibold text-sm">Users</span>
+                                <span className="font-bold text-lg">{adminData?.summary?.totalParticipants ?? 0}</span>
+                            </div>
+                            <div className="flex flex-col items-center">
+                                <span className="font-semibold text-sm">Music</span>
+                                <span className="font-bold text-lg">{adminData?.summary?.totalMusicPublishers ?? 0}</span>
+                            </div>
+                        </div>
+                        {/* Room selector dropdown (like prejoin page) */}
+                        <div className="w-full mb-2">
+                            <label className="block text-white/90 font-medium mb-1 text-center">Select Room</label>
+                            <select
+                                className="w-full px-3 py-2 rounded-xl bg-white/20 text-white border border-white/30 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                value={selectedRoom}
+                                onChange={e => setSelectedRoom(e.target.value)}
+                            >
+                                <option value="__all__">All Rooms</option>
+                                {adminData?.rooms?.map(room => (
+                                    <option key={room.name} value={room.name}>{room.name} ({room.numParticipants})</option>
+                                ))}
+                            </select>
+                        </div>
+                        {/* Active Rooms and Participants */}
+                        <div className="w-full mb-2">
+                            <span className="font-semibold">Active Rooms</span>
+                            <ul className="ml-2 mt-2">
+                                {(selectedRoom && selectedRoom !== '__all__' ? adminData?.rooms?.filter(r => r.name === selectedRoom) : adminData?.rooms)?.map(room => (
+                                    <li key={room.name} className="mb-2">
+                                        <span className="mr-1">🏠</span> <span className="font-bold">{room.name}</span> <span className="text-xs text-white/60">({room.numParticipants} participant{room.numParticipants !== 1 ? 's' : ''})</span>
+                                        <ul className="ml-4">
+                                            {room.participants.map(p => (
+                                                <li key={p.identity} className="flex items-center gap-2 text-sm mt-1">
+                                                    {p.avatar ? (
+                                                        <Image
+                                                            src={p.isPublishingMusic ? '/boombox.png' : `/characters_001/${p.avatar.endsWith('.png') ? p.avatar : p.avatar + '.png'}`}
+                                                            alt="avatar"
+                                                            width={24}
+                                                            height={24}
+                                                            className="w-6 h-6 rounded-full inline-block border-2 border-white/30 object-cover"
+                                                            style={{ objectFit: 'cover' }}
+                                                            unoptimized={p.isPublishingMusic}
+                                                        />
+                                                    ) : (
+                                                        <span className="text-lg">🧑</span>
+                                                    )}
+                                                    <span className="font-semibold">{p.username ?? p.identity}</span>
+                                                    {p.isPublishingMusic && <span className="ml-1 text-pink-400">🎶</span>}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                        <div className="flex flex-row gap-3 w-full justify-center mt-2">
+                            <button onClick={handleRefresh} className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 flex items-center gap-2 text-base">
+                                <span>🔄</span> Refresh
+                            </button>
+                            <button onClick={handleLogout} className="px-4 py-2 rounded-xl bg-red-600 text-white font-bold shadow hover:bg-red-700 flex items-center gap-2 text-base">
+                                <span>🚪</span> Logout
+                            </button>
+                        </div>
+                        <div className="mt-2 text-xs text-white/60 text-center w-full">
+                            Updated: {lastUpdated ? lastUpdated.toLocaleTimeString() : 'N/A'}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Map Container (full screen, absolutely positioned, like HuntersMapView) */}
