@@ -649,6 +649,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 setIsConnected(true);
                 setIsConnecting(false);
                 console.log('Connected to room:', roomName, 'with', newRoom.remoteParticipants.size, 'existing participants');
+                console.log('Local participant after connection:', newRoom.localParticipant?.identity, 'metadata:', newRoom.localParticipant?.metadata ? 'present' : 'missing');
 
                 // Remove all old markers from the map before clearing
                 markersRef.current.forEach((marker) => {
@@ -760,6 +761,11 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             await newRoom.connect(wsUrl, token);
             setLivekitRoom(newRoom);
             console.log('LiveKit room connected successfully to:', roomName);
+            console.log('Room state after setting:', { 
+                room: !!newRoom, 
+                localParticipant: !!newRoom.localParticipant, 
+                identity: newRoom.localParticipant?.identity 
+            });
 
             await publishMyMetadataThrottled(newRoom);
 
@@ -915,6 +921,18 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             setMusicSource(null);
         }
     }, [livekitRoom, musicSource]);
+
+    // Debug effect to track livekitRoom and localParticipant state
+    useEffect(() => {
+        console.log('LiveKit room state changed:', {
+            hasRoom: !!livekitRoom,
+            isConnected,
+            isConnecting,
+            hasLocalParticipant: !!livekitRoom?.localParticipant,
+            localParticipantIdentity: livekitRoom?.localParticipant?.identity,
+            roomState: livekitRoom?.state
+        });
+    }, [livekitRoom, isConnected, isConnecting]);
 
 
     return (
@@ -1110,10 +1128,13 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
             {/* Microphone Button for Spatial Voice Chat */}
             <div className="absolute bottom-30 right-4 z-30">
-                <MicrophoneButton
-                    room={livekitRoom}
-                    localParticipant={livekitRoom?.localParticipant || null}
-                />
+                {/* Show microphone button if we have a room OR if we're connecting (don't hide during room switch) */}
+                {(livekitRoom || isConnecting) && (
+                    <MicrophoneButton
+                        room={livekitRoom}
+                        localParticipant={livekitRoom?.localParticipant || null}
+                    />
+                )}
             </div>
 
             {/* Bottom Center Music Button */}
