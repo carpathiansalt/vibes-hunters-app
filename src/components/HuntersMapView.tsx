@@ -780,12 +780,55 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             // Force publish metadata immediately when switching rooms (bypass throttling)
             await publishMyMetadataThrottled(newRoom, true);
 
+            // Wait a moment for the metadata change event to fire and add local participant
+            setTimeout(async () => {
+                // Check if local participant was added to the map
+                const localParticipant = newRoom.localParticipant;
+                const currentParticipants = participants;
+                
+                if (!currentParticipants.has(localParticipant.identity)) {
+                    console.log('🔧 Local participant not in map after metadata publish, manually adding...');
+                    
+                    // Manually add local participant to the map
+                    if (localParticipant.metadata) {
+                        try {
+                            const metadata = JSON.parse(localParticipant.metadata);
+                            const localUserPosition = {
+                                userId: localParticipant.identity,
+                                username: metadata.username,
+                                avatar: metadata.avatar,
+                                position: metadata.position,
+                                isPublishingMusic: metadata.isPublishingMusic || false,
+                                musicTitle: metadata.musicTitle,
+                                partyTitle: metadata.partyTitle,
+                                partyDescription: metadata.partyDescription,
+                            };
+                            
+                            setParticipants(prev => {
+                                const updated = new Map(prev);
+                                updated.set(localParticipant.identity, localUserPosition);
+                                return updated;
+                            });
+                            
+                            updateMapMarker(localParticipant.identity, localUserPosition);
+                            console.log('✅ Manually added local participant to map');
+                        } catch (error) {
+                            console.error('Error parsing local participant metadata:', error);
+                        }
+                    } else {
+                        console.warn('❌ Local participant still has no metadata after publish');
+                    }
+                } else {
+                    console.log('✅ Local participant already in map');
+                }
+            }, 500); // 500ms delay to allow metadata events to process
+
         } catch (err) {
             console.error('Error connecting to LiveKit:', err);
             setError(`Failed to connect to audio service: ${err instanceof Error ? err.message : 'Unknown error'}`);
             setIsConnecting(false);
         }
-    }, [username, publishMyMetadataThrottled, updateParticipantFromMetadata, removeParticipant, updateTrackPositions, isConnected, livekitRoom, isConnecting, refreshAllMarkers]);
+    }, [username, publishMyMetadataThrottled, updateParticipantFromMetadata, removeParticipant, updateTrackPositions, isConnected, livekitRoom, isConnecting, refreshAllMarkers, participants]);
 
     // Original connectToLiveKit function (now calls connectToLiveKitForRoom)
     const connectToLiveKit = useCallback(async () => {
