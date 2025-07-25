@@ -155,11 +155,9 @@ export class SpatialAudioController {
             pannerNode.maxDistance = 50; // 50 meters = max attenuation
             pannerNode.rolloffFactor = 2;
 
-            // Set initial position using relative coordinates, scaled to meters
-            const relativePosition = {
-                x: (this.listenerPosition.x - position.x) * this.positionScale,
-                y: (position.y - this.listenerPosition.y) * this.positionScale
-            };
+            // Set initial position using Haversine-projected meters
+            const { x, z } = latLngDeltaMeters(this.listenerPosition, position);
+            const relativePosition = { x, y: 0, z };
             this.updatePannerPosition(pannerNode, relativePosition);
             console.log('[SpatialAudio] Add source', participant.identity, {
                 position,
@@ -256,10 +254,8 @@ export class SpatialAudioController {
 
         // Update all source positions relative to new listener position
         this.sources.forEach((source) => {
-            const relativePosition = {
-                x: (this.listenerPosition.x - source.position.x) * this.positionScale,
-                y: (source.position.y - this.listenerPosition.y) * this.positionScale
-            };
+            const { x, z } = latLngDeltaMeters(this.listenerPosition, source.position);
+            const relativePosition = { x, y: 0, z };
             this.updatePannerPosition(source.pannerNode, relativePosition);
             console.log('[SpatialAudio] Update source', source.participant.identity, {
                 position: source.position,
@@ -276,11 +272,8 @@ export class SpatialAudioController {
         const source = this.sources.get(participantIdentity);
         if (source) {
             source.position = position;
-            // Update using relative position, scaled to meters
-            const relativePosition = {
-                x: (this.listenerPosition.x - position.x) * this.positionScale,
-                y: (position.y - this.listenerPosition.y) * this.positionScale
-            };
+            const { x, z } = latLngDeltaMeters(this.listenerPosition, position);
+            const relativePosition = { x, y: 0, z };
             this.updatePannerPosition(source.pannerNode, relativePosition);
             console.log('[SpatialAudio] Update source position', participantIdentity, {
                 position,
@@ -291,32 +284,20 @@ export class SpatialAudioController {
         }
     }
 
-    private updatePannerPosition(pannerNode: PannerNode, relativePosition: Vector2): void {
+    private updatePannerPosition(pannerNode: PannerNode, relativePosition: { x: number; y: number; z: number }): void {
         if (!this._audioContext) return;
-
-        // TEMP: Force all positions to {x: 0, y: 0} for debugging
-        const debugPosition = TEST_MODE ? { x: 0, y: 0 } : relativePosition;
-
-        // Use relative positioning as per LiveKit documentation
-        // Map 2D coordinates: x -> x, y -> z (since PannerNode uses y as vertical)
+        // Use Haversine-projected meters for panner
         if (pannerNode.positionX) {
-            // Modern browsers - use setTargetAtTime for smooth transitions
-            pannerNode.positionX.setTargetAtTime(debugPosition.x, this._audioContext.currentTime, 0.02);
-            pannerNode.positionY.setTargetAtTime(0, this._audioContext.currentTime, 0.02); // Keep at ground level
-            pannerNode.positionZ.setTargetAtTime(debugPosition.y, this._audioContext.currentTime, 0.02);
+            pannerNode.positionX.setTargetAtTime(relativePosition.x, this._audioContext.currentTime, 0.02);
+            pannerNode.positionY.setTargetAtTime(0, this._audioContext.currentTime, 0.02);
+            pannerNode.positionZ.setTargetAtTime(relativePosition.z, this._audioContext.currentTime, 0.02);
         } else {
-            // Fallback for older browsers
             (pannerNode as PannerNode & { setPosition: (x: number, y: number, z: number) => void }).setPosition(
-                debugPosition.x, 0, debugPosition.y
+                relativePosition.x, 0, relativePosition.z
             );
         }
         // Log for debugging
-        console.log('[SpatialAudio] Panner position', {
-            x: debugPosition.x,
-            y: 0,
-            z: debugPosition.y,
-            original: relativePosition
-        });
+        console.log('[SpatialAudio] Panner position', relativePosition);
     }
 
     setMasterVolume(volume: number): void {
@@ -356,5 +337,27 @@ export class SpatialAudioController {
     }
 }
 
-// TEMP: Set to true to force all panner positions to {x: 0, y: 0} for debugging
-const TEST_MODE = true;
+// Utility: Haversine distance in meters between two lat/lng points
+function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const toRad = (value: number) => (value * Math.PI) / 180;
+    const R = 6371000; // Earth radius in meters
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const lat1Rad = toRad(lat1);
+    const lat2Rad = toRad(lat2);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+// Utility: Compute east-west (X) and north-south (Z) distances in meters between two lat/lng points
+function latLngDeltaMeters(listener: Vector2, source: Vector2): { x: number; z: number } {
+    // X: east-west (longitude), Z: north-south (latitude)
+    // For X, keep latitude fixed, vary longitude
+    // For Z, keep longitude fixed, vary latitude
+    const x = haversineMeters(listener.x, listener.y, listener.x, source.y) * (source.y > listener.y ? 1 : -1);
+    const z = haversineMeters(listener.x, listener.y, source.x, listener.y) * (source.x > listener.x ? -1 : 1);
+    return { x, z };
+}
