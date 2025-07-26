@@ -743,6 +743,25 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                     if (data.type === 'admin_track_muted') {
                         // If this user is publishing music, stop publishing and reset UI
                         if (isPublishingMusic && currentMusicTrackRef.current && currentMusicTrackRef.current.track && currentMusicTrackRef.current.track.sid === data.trackSid) {
+                            // Immediately stop MediaStream if it exists (for tab capture) - do this FIRST
+                            if (currentMusicTrackRef.current.mediaStream) {
+                                console.log('Immediately stopping MediaStream for admin track mute...');
+                                try {
+                                    const mediaStream = currentMusicTrackRef.current.mediaStream as MediaStream;
+                                    const tracks = mediaStream.getTracks();
+                                    console.log('Found tracks to stop immediately:', tracks.length);
+                                    tracks.forEach(track => {
+                                        console.log('Stopping track immediately:', track.kind, track.id, 'readyState:', track.readyState);
+                                        track.stop();
+                                    });
+                                    // Clear the MediaStream reference immediately
+                                    currentMusicTrackRef.current.mediaStream = undefined;
+                                } catch (error) {
+                                    console.error('Error stopping MediaStream immediately:', error);
+                                }
+                            }
+                            
+                            // Now stop the LiveKit publishing
                             stopMusicPublishing();
                             setIsPublishingMusic(false);
                             setIsMusicPaused(false);
@@ -939,11 +958,60 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
             // Stop the MediaStream if it exists (for tab capture)
             if (currentMusicTrackRef.current.mediaStream) {
-                currentMusicTrackRef.current.mediaStream.getTracks().forEach(track => track.stop());
+                console.log('Stopping MediaStream tracks for tab capture...');
+                try {
+                    const mediaStream = currentMusicTrackRef.current.mediaStream as MediaStream;
+                    const tracks = mediaStream.getTracks();
+                    console.log('Found tracks to stop:', tracks.length);
+                    
+                    // Stop all tracks aggressively
+                    tracks.forEach(track => {
+                        console.log('Stopping track:', track.kind, track.id, 'readyState:', track.readyState);
+                        track.stop();
+                    });
+                    
+                    // Also try to stop the MediaStream itself
+                    if (mediaStream.active) {
+                        console.log('MediaStream is still active, trying to stop it...');
+                        // Try to stop all tracks again
+                        mediaStream.getTracks().forEach(track => track.stop());
+                    }
+                    
+                    // Force garbage collection hint (this is just a hint, not guaranteed)
+                    console.log('Clearing MediaStream reference...');
+                    
+                    // Add a small delay to ensure tracks are stopped
+                    setTimeout(() => {
+                        if (currentMusicTrackRef.current?.mediaStream) {
+                            console.log('MediaStream still exists after delay, forcing cleanup...');
+                            try {
+                                const remainingTracks = (currentMusicTrackRef.current.mediaStream as MediaStream).getTracks();
+                                remainingTracks.forEach(track => track.stop());
+                            } catch (error) {
+                                console.error('Error in delayed MediaStream cleanup:', error);
+                            }
+                        }
+                    }, 100);
+                } catch (error) {
+                    console.error('Error stopping MediaStream tracks:', error);
+                }
+                // Clear the MediaStream reference
+                currentMusicTrackRef.current.mediaStream = undefined;
             }
 
             // Stop the track before unpublishing
             if (currentMusicTrackRef.current.track) {
+                // Stop the MediaStream first if it exists (for tab capture)
+                if (currentMusicTrackRef.current.mediaStream) {
+                    console.log('Stopping MediaStream before stopping track...');
+                    try {
+                        const mediaStream = currentMusicTrackRef.current.mediaStream as MediaStream;
+                        mediaStream.getTracks().forEach(track => track.stop());
+                    } catch (error) {
+                        console.error('Error stopping MediaStream before track stop:', error);
+                    }
+                }
+                
                 currentMusicTrackRef.current.track.stop();
 
                 // Unpublish the track
@@ -1368,6 +1436,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                     setMusicSource('file');
                                 } else if (track && !audioElement) {
                                     // Tab capture - store the MediaStream for later cleanup
+                                    console.log('Storing MediaStream for tab capture:', mediaStream);
                                     currentMusicTrackRef.current = { track, audioElement: null, mediaStream, musicTitle, musicDescription };
                                     setMusicSource('tab-capture');
                                 }
