@@ -173,14 +173,14 @@ export default function PreJoinPage() {
                                     />
                                 </div>
                                 <div id="avatar-description" className="sr-only">
-                                    Select an avatar to represent you in the music community
+                                    Select an avatar to represent you as a music hunter
                                 </div>
                             </fieldset>
 
                             {/* Username Input */}
                             <div>
                                 <label htmlFor="username-input" className="block font-semibold mb-2 sm:mb-3 text-gray-900 text-sm sm:text-base">
-                                    Username
+                                    Hunter Name
                                 </label>
                                 <input
                                     id="username-input"
@@ -192,15 +192,15 @@ export default function PreJoinPage() {
                                             ? 'border-red-400 focus:border-red-500 focus:ring-red-200' 
                                             : 'border-gray-300 focus:border-purple-500 focus:ring-purple-200'
                                     }`}
-                                    placeholder="Type your username..."
+                                    placeholder="Enter your hunter name..."
                                     onKeyPress={handleKeyPress}
                                     aria-describedby="username-help username-error"
                                     aria-invalid={!!errors.username}
                                     maxLength={20}
-                                    autoComplete="username"
+                                    autoComplete="off"
                                 />
                                 <div id="username-help" className="text-xs text-gray-500 mt-1">
-                                    2-20 characters, letters, numbers, hyphens, and underscores only
+                                    Choose your hunter name (2-20 characters, letters, numbers, hyphens, and underscores only)
                                 </div>
                                 {errors.username && (
                                     <div id="username-error" className="text-red-500 text-sm mt-1" role="alert">
@@ -229,7 +229,7 @@ export default function PreJoinPage() {
                                 )}
                             </button>
                             <div id="join-button-description" className="sr-only">
-                                Click to join the music room with your selected preferences
+                                Click to start hunting for music vibes with your selected preferences
                             </div>
                         </form>
                     </section>
