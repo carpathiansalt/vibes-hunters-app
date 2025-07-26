@@ -46,13 +46,13 @@ export default function PreJoinPage() {
         const newErrors: { username?: string } = {};
         
         if (!username.trim()) {
-            newErrors.username = 'Please enter a username';
+            newErrors.username = 'Please enter a hunter name';
         } else if (username.trim().length < 2) {
-            newErrors.username = 'Username must be at least 2 characters';
+            newErrors.username = 'Hunter name must be at least 2 characters';
         } else if (username.trim().length > 20) {
-            newErrors.username = 'Username must be 20 characters or less';
+            newErrors.username = 'Hunter name must be 20 characters or less';
         } else if (!/^[a-zA-Z0-9_-]+$/.test(username.trim())) {
-            newErrors.username = 'Username can only contain letters, numbers, hyphens, and underscores';
+            newErrors.username = 'Hunter name can only contain letters, numbers, hyphens, and underscores';
         }
 
         setErrors(newErrors);
@@ -98,186 +98,177 @@ export default function PreJoinPage() {
     }, [handleJoinRoom, isLoading]);
 
     return (
-        <main className="min-h-screen flex flex-col bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900 p-4">
-                {/* Header */}
-                <header className="text-center text-white mb-8 pt-8">
-                    <div className="mb-4">
-                        <div className="text-6xl mb-2" role="img" aria-label="Music note">🎵</div>
-                        <h1 className="text-4xl sm:text-5xl font-bold mb-2">Vibes Hunters</h1>
-                    </div>
-                    <p className="text-purple-200 text-lg sm:text-xl">Find your tribe through music</p>
-                </header>
-
-                {/* Main Content */}
-                <div className="flex-1 flex items-center justify-center px-4">
-                    <section className="bg-white rounded-3xl shadow-2xl p-4 sm:p-6 lg:p-8 w-full max-w-lg mx-auto" aria-labelledby="setup-heading">
-                        <h2 id="setup-heading" className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 sm:mb-6 text-center text-gray-800">
-                            Choose Your Vibe
-                        </h2>
-
-                        <form className="space-y-4 sm:space-y-6" onSubmit={(e) => { e.preventDefault(); handleJoinRoom(); }} noValidate>
-                            {/* Music Genre Selection */}
-                            <div>
-                                <label htmlFor="genre-select" className="block font-semibold mb-2 sm:mb-3 text-gray-900 text-sm sm:text-base">
-                                    Music Genre
-                                </label>
-                                <div className="relative">
-                                    <select
-                                        id="genre-select"
-                                        value={genre}
-                                        onChange={e => setGenre(e.target.value)}
-                                        className="w-full p-3 sm:p-4 rounded-2xl border-2 border-gray-300 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200 transition-all text-base sm:text-lg text-gray-900 bg-white placeholder-gray-400 appearance-none pr-14 sm:pr-16"
-                                        aria-describedby="genre-description"
-                                    >
-                                        {genres.map(g => (
-                                            <option key={g.name} value={g.name}>{g.name}</option>
-                                        ))}
-                                    </select>
-                                    <div id="genre-description" className="sr-only">
-                                        Select your preferred music genre to join others with similar taste
-                                    </div>
-                                    {/* Show selected genre image inside the select box (right side) */}
-                                    <div className="pointer-events-none absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 flex items-center">
-                                        {selectedGenre && (
-                                            <Image 
-                                                src={selectedGenre.image} 
-                                                alt={`${selectedGenre.name} genre icon`} 
-                                                width={48} 
-                                                height={48} 
-                                                className="rounded-lg object-contain shadow-md border border-purple-200 w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14"
-                                                priority={genre === 'Pop'} // Prioritize default selection
-                                            />
-                                        )}
-                                    </div>
-                                </div>
-                                {/* Enhanced accessibility for screen readers */}
-                                <div className="sr-only" aria-hidden="true">
-                                    Available genres with icons:
-                                    {genres.map(g => (
-                                        <span key={g.name}>
-                                            <Image src={g.image} alt={`${g.name} genre icon`} width={24} height={24} /> {g.name}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Avatar Selection */}
-                            <fieldset>
-                                <legend className="block font-semibold mb-2 sm:mb-3 text-gray-900 text-sm sm:text-base">Choose Your Avatar</legend>
-                                <div className="w-full overflow-hidden my-3 sm:my-4 px-2">
-                                    <AvatarCarousel 
-                                        avatars={avatars} 
-                                        avatar={avatar} 
-                                        setAvatar={setAvatar}
-                                        aria-describedby="avatar-description"
-                                    />
-                                </div>
-                                <div id="avatar-description" className="sr-only">
-                                    Select an avatar to represent you as a music hunter
-                                </div>
-                            </fieldset>
-
-                            {/* Username Input */}
-                            <div>
-                                <label htmlFor="username-input" className="block font-semibold mb-2 sm:mb-3 text-gray-900 text-sm sm:text-base">
-                                    Hunter Name
-                                </label>
-                                <input
-                                    id="username-input"
-                                    type="text"
-                                    value={username}
-                                    onChange={handleUsernameChange}
-                                    className={`w-full p-3 sm:p-4 rounded-2xl border-2 focus:outline-none focus:ring-2 transition-all text-base sm:text-lg text-gray-900 bg-white placeholder-gray-400 ${
-                                        errors.username 
-                                            ? 'border-red-400 focus:border-red-500 focus:ring-red-200' 
-                                            : 'border-gray-300 focus:border-purple-500 focus:ring-purple-200'
-                                    }`}
-                                    placeholder="Enter your hunter name..."
-                                    onKeyPress={handleKeyPress}
-                                    aria-describedby="username-help username-error"
-                                    aria-invalid={!!errors.username}
-                                    maxLength={20}
-                                    autoComplete="off"
-                                />
-                                <div id="username-help" className="text-xs text-gray-500 mt-1">
-                                    Choose your hunter name (2-20 characters, letters, numbers, hyphens, and underscores only)
-                                </div>
-                                {errors.username && (
-                                    <div id="username-error" className="text-red-500 text-sm mt-1" role="alert">
-                                        {errors.username}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Join Button */}
-                            <button
-                                type="submit"
-                                disabled={isLoading}
-                                className="w-full mt-6 sm:mt-8 py-3 sm:py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-lg sm:text-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                                aria-describedby="join-button-description"
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                        <span className="text-base sm:text-lg">Joining...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <span className="text-lg sm:text-xl">🎵</span>
-                                        <span className="text-base sm:text-lg">Join the Hunt</span>
-                                    </>
-                                )}
-                            </button>
-                            <div id="join-button-description" className="sr-only">
-                                Click to start hunting for music vibes with your selected preferences
-                            </div>
-                        </form>
-                    </section>
+        <main className="min-h-screen flex flex-col bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900">
+            {/* Header */}
+            <header className="text-center text-white pt-6 pb-4 px-4">
+                <div className="mb-3">
+                    <div className="text-4xl sm:text-5xl lg:text-6xl mb-2" role="img" aria-label="Music note">🎵</div>
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">Vibes Hunters</h1>
                 </div>
+                <p className="text-purple-200 text-sm sm:text-base lg:text-lg">Find your tribe through music</p>
+            </header>
 
-                {/* Footer */}
-                <footer className="text-center text-purple-200 text-sm mt-4 sm:mt-8 pb-4 sm:pb-8 space-y-3 sm:space-y-4 px-4" role="contentinfo">
-                    <p className="text-xs sm:text-sm">Connect with others who share your musical taste</p>
+            {/* Main Content */}
+            <div className="flex-1 flex items-center justify-center px-3 sm:px-4 lg:px-6 pb-4">
+                <section className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 lg:p-8 w-full max-w-sm sm:max-w-md lg:max-w-lg mx-auto" aria-labelledby="setup-heading">
+                    <h2 id="setup-heading" className="text-lg sm:text-xl lg:text-2xl font-bold mb-4 sm:mb-6 text-center text-gray-800">
+                        Choose Your Vibe
+                    </h2>
 
-                    {/* Features highlight */}
-                    <section className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 sm:p-6 max-w-sm sm:max-w-lg mx-auto border border-white/20" aria-labelledby="features-heading">
-                        <h3 id="features-heading" className="font-bold text-white mb-2 sm:mb-3 text-base sm:text-lg">🎵 Share Your Music</h3>
-                        <ul className="text-xs sm:text-sm space-y-1 sm:space-y-2 text-white text-left">
-                            <li>• Upload audio files from your device</li>
-                            <li>• Capture audio from any tab (desktop)</li>
-                            <li>• Works with Spotify, YouTube, Apple Music</li>
-                            <li>• Real-time spatial audio voice chat</li>
-                        </ul>
-                    </section>
+                    <form className="space-y-4 sm:space-y-5 lg:space-y-6" onSubmit={(e) => { e.preventDefault(); handleJoinRoom(); }} noValidate>
+                        {/* Music Genre Selection */}
+                        <div>
+                            <label htmlFor="genre-select" className="block font-semibold mb-2 sm:mb-3 text-gray-900 text-sm sm:text-base">
+                                Music Genre
+                            </label>
+                            <div className="relative">
+                                <select
+                                    id="genre-select"
+                                    value={genre}
+                                    onChange={e => setGenre(e.target.value)}
+                                    className="w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 border-gray-300 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200 transition-all text-sm sm:text-base lg:text-lg text-gray-900 bg-white placeholder-gray-400 appearance-none pr-16 sm:pr-20"
+                                    aria-describedby="genre-description"
+                                >
+                                    {genres.map(g => (
+                                        <option key={g.name} value={g.name}>{g.name}</option>
+                                    ))}
+                                </select>
+                                <div id="genre-description" className="sr-only">
+                                    Select your preferred music genre to join others with similar taste
+                                </div>
+                                {/* Show selected genre image inside the select box (right side) */}
+                                <div className="pointer-events-none absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 flex items-center">
+                                    {selectedGenre && (
+                                        <Image 
+                                            src={selectedGenre.image} 
+                                            alt={`${selectedGenre.name} genre icon`} 
+                                            width={40} 
+                                            height={40} 
+                                            className="rounded-lg object-contain shadow-md border border-purple-200 w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12"
+                                            priority={genre === 'Pop'}
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        </div>
 
-                    {/* Legal Links */}
-                    <nav className="flex flex-wrap justify-center gap-3 sm:gap-4 text-xs" aria-label="Legal and information links">
-                        <Link href="/legal/about" className="hover:text-white transition-colors underline focus:outline-none focus:ring-2 focus:ring-purple-300 rounded px-1">
-                            About
-                        </Link>
-                        <Link href="/legal/privacy" className="hover:text-white transition-colors underline focus:outline-none focus:ring-2 focus:ring-purple-300 rounded px-1">
-                            Privacy Policy
-                        </Link>
-                        <Link href="/legal/terms" className="hover:text-white transition-colors underline focus:outline-none focus:ring-2 focus:ring-purple-300 rounded px-1">
-                            Terms of Service
-                        </Link>
-                        <Link href="/legal/faq" className="hover:text-white transition-colors underline focus:outline-none focus:ring-2 focus:ring-purple-300 rounded px-1">
-                            FAQ
-                        </Link>
-                    </nav>
+                        {/* Avatar Selection */}
+                        <fieldset>
+                            <legend className="block font-semibold mb-2 sm:mb-3 text-gray-900 text-sm sm:text-base">Choose Your Avatar</legend>
+                            <div className="w-full">
+                                <AvatarCarousel 
+                                    avatars={avatars} 
+                                    avatar={avatar} 
+                                    setAvatar={setAvatar}
+                                    aria-describedby="avatar-description"
+                                />
+                            </div>
+                            <div id="avatar-description" className="sr-only">
+                                Select an avatar to represent you as a music hunter
+                            </div>
+                        </fieldset>
 
-                    {/* Contact Info */}
-                    <address className="text-xs not-italic space-y-1">
-                        <p>Questions or feedback? Contact us at:</p>
-                        <a
-                            href="mailto:info@vibes-hunters.com"
-                            className="text-purple-300 hover:text-white transition-colors underline font-medium focus:outline-none focus:ring-2 focus:ring-purple-300 rounded px-1"
+                        {/* Hunter Name Input */}
+                        <div>
+                            <label htmlFor="username-input" className="block font-semibold mb-2 sm:mb-3 text-gray-900 text-sm sm:text-base">
+                                Hunter Name
+                            </label>
+                            <input
+                                id="username-input"
+                                type="text"
+                                value={username}
+                                onChange={handleUsernameChange}
+                                className={`w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 focus:outline-none focus:ring-2 transition-all text-sm sm:text-base lg:text-lg text-gray-900 bg-white placeholder-gray-400 ${
+                                    errors.username 
+                                        ? 'border-red-400 focus:border-red-500 focus:ring-red-200' 
+                                        : 'border-gray-300 focus:border-purple-500 focus:ring-purple-200'
+                                }`}
+                                placeholder="Enter your hunter name..."
+                                onKeyPress={handleKeyPress}
+                                aria-describedby="username-help username-error"
+                                aria-invalid={!!errors.username}
+                                maxLength={20}
+                                autoComplete="off"
+                            />
+                            <div id="username-help" className="text-xs text-gray-500 mt-1">
+                                Choose your hunter name (2-20 characters, letters, numbers, hyphens, and underscores only)
+                            </div>
+                            {errors.username && (
+                                <div id="username-error" className="text-red-500 text-sm mt-1" role="alert">
+                                    {errors.username}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Join Button */}
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full mt-4 sm:mt-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-base sm:text-lg lg:text-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                            aria-describedby="join-button-description"
                         >
-                            info@vibes-hunters.com
-                        </a>
-                    </address>
-                </footer>
-            </main>
+                            {isLoading ? (
+                                <>
+                                    <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-white"></div>
+                                    <span className="text-sm sm:text-base lg:text-lg">Joining...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="text-base sm:text-lg lg:text-xl">🎵</span>
+                                    <span className="text-sm sm:text-base lg:text-lg">Join the Hunt</span>
+                                </>
+                            )}
+                        </button>
+                        <div id="join-button-description" className="sr-only">
+                            Click to start hunting for music vibes with your selected preferences
+                        </div>
+                    </form>
+                </section>
+            </div>
+
+            {/* Footer */}
+            <footer className="text-center text-purple-200 text-xs sm:text-sm px-4 pb-4 sm:pb-6 space-y-3 sm:space-y-4" role="contentinfo">
+                <p className="text-xs sm:text-sm">Connect with others who share your musical taste</p>
+
+                {/* Features highlight */}
+                <section className="bg-white/20 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 max-w-xs sm:max-w-sm mx-auto border border-white/20" aria-labelledby="features-heading">
+                    <h3 id="features-heading" className="font-bold text-white mb-2 sm:mb-3 text-sm sm:text-base">🎵 Share Your Music</h3>
+                    <ul className="text-xs sm:text-sm space-y-1 sm:space-y-2 text-white text-left">
+                        <li>• Upload audio files from your device</li>
+                        <li>• Capture audio from any tab (desktop)</li>
+                        <li>• Works with Spotify, YouTube, Apple Music</li>
+                        <li>• Real-time spatial audio voice chat</li>
+                    </ul>
+                </section>
+
+                {/* Legal Links */}
+                <nav className="flex flex-wrap justify-center gap-2 sm:gap-3 text-xs" aria-label="Legal and information links">
+                    <Link href="/legal/about" className="hover:text-white transition-colors underline focus:outline-none focus:ring-2 focus:ring-purple-300 rounded px-1">
+                        About
+                    </Link>
+                    <Link href="/legal/privacy" className="hover:text-white transition-colors underline focus:outline-none focus:ring-2 focus:ring-purple-300 rounded px-1">
+                        Privacy Policy
+                    </Link>
+                    <Link href="/legal/terms" className="hover:text-white transition-colors underline focus:outline-none focus:ring-2 focus:ring-purple-300 rounded px-1">
+                        Terms of Service
+                    </Link>
+                    <Link href="/legal/faq" className="hover:text-white transition-colors underline focus:outline-none focus:ring-2 focus:ring-purple-300 rounded px-1">
+                        FAQ
+                    </Link>
+                </nav>
+
+                {/* Contact Info */}
+                <address className="text-xs not-italic space-y-1">
+                    <p>Questions or feedback? Contact us at:</p>
+                    <a
+                        href="mailto:info@vibes-hunters.com"
+                        className="text-purple-300 hover:text-white transition-colors underline font-medium focus:outline-none focus:ring-2 focus:ring-purple-300 rounded px-1"
+                    >
+                        info@vibes-hunters.com
+                    </a>
+                </address>
+            </footer>
+        </main>
     );
 }
 
@@ -291,7 +282,7 @@ interface AvatarCarouselProps {
 
 function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDescribedBy }: AvatarCarouselProps) {
     const [start, setStart] = React.useState(0);
-    const [visibleCount, setVisibleCount] = React.useState(3); // Default to 3 for mobile
+    const [visibleCount, setVisibleCount] = React.useState(3);
 
     // Memoized visible avatars to prevent unnecessary recalculations
     const visibleAvatars = React.useMemo(() => {
@@ -349,33 +340,33 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
     }, [setAvatar]);
 
     return (
-        <div className="flex items-center justify-center gap-1 sm:gap-2 w-full py-2 sm:py-3 px-1" role="group" aria-label="Avatar selection carousel">
+        <div className="flex items-center justify-center gap-1 sm:gap-2 w-full" role="group" aria-label="Avatar selection carousel">
             <button
                 type="button"
                 onClick={handlePrev}
                 disabled={!canGoPrev}
-                className="flex-shrink-0 p-1.5 sm:p-2 rounded bg-gray-200 text-gray-600 disabled:opacity-50 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors text-sm sm:text-base min-w-[40px] min-h-[40px] flex items-center justify-center"
+                className="flex-shrink-0 p-1.5 sm:p-2 rounded-lg bg-gray-200 text-gray-600 disabled:opacity-50 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors text-sm sm:text-base min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center"
                 aria-label="Previous avatars"
                 tabIndex={canGoPrev ? 0 : -1}
             >
                 ←
             </button>
             
-            <div className="flex gap-1 sm:gap-2 overflow-hidden flex-1 justify-center py-1" role="radiogroup" aria-describedby={ariaDescribedBy}>
+            <div className="flex gap-1 sm:gap-2 overflow-hidden flex-1 justify-center" role="radiogroup" aria-describedby={ariaDescribedBy}>
                 {visibleAvatars.map((a, index) => (
                     <button
                         type="button"
                         key={a}
                         onClick={() => setAvatar(a)}
                         onKeyDown={(e) => handleKeyDown(e, a)}
-                        className={`relative rounded-xl sm:rounded-2xl border-2 sm:border-3 p-1.5 sm:p-2 transition-all focus:outline-none focus:ring-2 focus:ring-purple-400 flex-shrink-0 ${
+                        className={`relative rounded-lg sm:rounded-xl border-2 p-1 sm:p-1.5 transition-all focus:outline-none focus:ring-2 focus:ring-purple-400 flex-shrink-0 ${
                             avatar === a
                                 ? 'border-purple-500 bg-purple-50 scale-105'
                                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                         }`}
                         style={{ 
-                            width: 'clamp(44px, 10vw, 56px)', 
-                            height: 'clamp(44px, 10vw, 56px)' 
+                            width: 'clamp(40px, 8vw, 48px)', 
+                            height: 'clamp(40px, 8vw, 48px)' 
                         }}
                         role="radio"
                         aria-checked={avatar === a}
@@ -385,21 +376,21 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
                         <Image
                             src={`/characters_001/${a}.png`}
                             alt={`Avatar ${a}`}
-                            width={56}
-                            height={56}
-                            className="w-full h-full rounded-lg sm:rounded-xl object-cover"
+                            width={48}
+                            height={48}
+                            className="w-full h-full rounded object-cover"
                             style={{ 
                                 width: '100%', 
                                 height: '100%',
-                                minWidth: '40px',
-                                minHeight: '40px'
+                                minWidth: '32px',
+                                minHeight: '32px'
                             }}
-                            priority={index < 3} // Prioritize first few visible avatars
+                            priority={index < 3}
                             loading={index < 3 ? 'eager' : 'lazy'}
                         />
                         {avatar === a && (
-                            <div className="absolute -top-1 -right-1 w-4 h-4 sm:w-6 sm:h-6 bg-purple-500 rounded-full flex items-center justify-center" aria-hidden="true">
-                                <svg className="w-2 h-2 sm:w-3 sm:h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-purple-500 rounded-full flex items-center justify-center" aria-hidden="true">
+                                <svg className="w-1.5 h-1.5 sm:w-2 sm:h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                 </svg>
                             </div>
@@ -412,7 +403,7 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
                 type="button"
                 onClick={handleNext}
                 disabled={!canGoNext}
-                className="flex-shrink-0 p-1.5 sm:p-2 rounded bg-gray-200 text-gray-600 disabled:opacity-50 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors text-sm sm:text-base min-w-[40px] min-h-[40px] flex items-center justify-center"
+                className="flex-shrink-0 p-1.5 sm:p-2 rounded-lg bg-gray-200 text-gray-600 disabled:opacity-50 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors text-sm sm:text-base min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center"
                 aria-label="Next avatars"
                 tabIndex={canGoNext ? 0 : -1}
             >
