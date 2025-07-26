@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import { Room, RoomEvent, RemoteParticipant, LocalAudioTrack, DisconnectReason } from 'livekit-client';
 import { Loader } from '@googlemaps/js-api-loader';
@@ -16,7 +16,19 @@ interface HuntersMapViewProps {
     avatar: string;
 }
 
+// Music state enum for better type safety
+type MusicState = 'idle' | 'publishing' | 'paused' | 'listening';
+
+// Consolidated music state interface
+interface MusicStateData {
+    state: MusicState;
+    source?: 'file' | 'tab-capture';
+    listeningTo?: string;
+    isPaused?: boolean;
+}
+
 export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) {
+    // Core state
     const [myPosition, setMyPosition] = useState<Vector2>({ x: 51.5074, y: -0.1278 });
     const [participants, setParticipants] = useState<Map<string, UserPosition>>(new Map());
     const [isConnected, setIsConnected] = useState(false);
@@ -24,75 +36,67 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [error, setError] = useState<string | null>(null);
     const [livekitRoom, setLivekitRoom] = useState<Room | null>(null);
     const [selectedMusicUser, setSelectedMusicUser] = useState<UserPosition | null>(null);
-    const [isPublishingMusic, setIsPublishingMusic] = useState(false);
-    const [isMusicPaused, setIsMusicPaused] = useState(false);
-    const [musicSource, setMusicSource] = useState<'file' | 'tab-capture' | null>(null); // Track the source of music
 
-    // Party (event/venue) info
+    // Consolidated music state
+    const [musicState, setMusicState] = useState<MusicStateData>({ state: 'idle' });
+
+    // Party info
     const [partyTitle, setPartyTitle] = useState<string>('');
     const [partyDescription, setPartyDescription] = useState<string>('');
-    // Music (track) info
-    const [musicTitle] = useState<string>('');
-    const [musicDescription] = useState<string>('');
-    const [listeningToMusic, setListeningToMusic] = useState<string | null>(null); // Track which participant's music we're listening to (only one at a time)
+    // Music info - using party info as music info for now
+    const musicTitle = partyTitle;
+    const musicDescription = partyDescription;
+
+    // Location tracking
     const [isTrackingLocation, setIsTrackingLocation] = useState(false);
     const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
     const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
 
+    // UI state
     const [showVoiceRange, setShowVoiceRange] = useState(false);
     const [roomInfoExpanded, setRoomInfoExpanded] = useState(false);
-    // All available genres (from public/music_gendre)
-    const genres = [
-        { name: 'Ambient', image: '/music_gendre/ambient.png' },
-        { name: 'Blues', image: '/music_gendre/blues.png' },
-        { name: 'Classical', image: '/music_gendre/classical.png' },
-        { name: 'Disco', image: '/music_gendre/disco.png' },
-        { name: 'Folk', image: '/music_gendre/folk.png' },
-        { name: 'Funk', image: '/music_gendre/funk.png' },
-        { name: 'Hip-hop', image: '/music_gendre/hip-hop.png' },
-        { name: 'Jazz', image: '/music_gendre/jazz.png' },
-        { name: 'Pop', image: '/music_gendre/pop.png' },
-        { name: 'Punk', image: '/music_gendre/punk.png' },
-        { name: 'Reggae', image: '/music_gendre/raggae.png' },
-        { name: 'Rock', image: '/music_gendre/rock.png' },
-        { name: 'Soul', image: '/music_gendre/soul.png' },
-        { name: 'Techno', image: '/music_gendre/techno.png' },
-    ];
+    const [isLoading, setIsLoading] = useState(false);
+
+    // Genres data
+    const genres = useMemo(() => [
+        { name: 'Ambient', image: '/music_gendre/ambient.png', color: 'from-emerald-500 to-teal-600' },
+        { name: 'Blues', image: '/music_gendre/blues.png', color: 'from-blue-600 to-indigo-700' },
+        { name: 'Classical', image: '/music_gendre/classical.png', color: 'from-amber-500 to-orange-600' },
+        { name: 'Disco', image: '/music_gendre/disco.png', color: 'from-pink-500 to-purple-600' },
+        { name: 'Folk', image: '/music_gendre/folk.png', color: 'from-green-500 to-emerald-600' },
+        { name: 'Funk', image: '/music_gendre/funk.png', color: 'from-purple-500 to-pink-600' },
+        { name: 'Hip-hop', image: '/music_gendre/hip-hop.png', color: 'from-red-500 to-pink-600' },
+        { name: 'Jazz', image: '/music_gendre/jazz.png', color: 'from-yellow-500 to-orange-600' },
+        { name: 'Pop', image: '/music_gendre/pop.png', color: 'from-purple-500 to-pink-600' },
+        { name: 'Punk', image: '/music_gendre/punk.png', color: 'from-red-600 to-orange-700' },
+        { name: 'Reggae', image: '/music_gendre/raggae.png', color: 'from-green-600 to-yellow-600' },
+        { name: 'Rock', image: '/music_gendre/rock.png', color: 'from-gray-600 to-black' },
+        { name: 'Soul', image: '/music_gendre/soul.png', color: 'from-blue-500 to-purple-600' },
+        { name: 'Techno', image: '/music_gendre/techno.png', color: 'from-cyan-500 to-blue-600' },
+    ], []);
+
     const [genreIndex] = useState(() => {
         const idx = genres.findIndex(g => g.name === room);
         return idx >= 0 ? idx : genres.findIndex(g => g.name === 'pop');
     });
     const [genre, setGenre] = useState(genres[genreIndex]?.name || 'pop');
-    // Room switch logic using dropdown UI (like prejoin)
-    const handleGenreChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const newGenre = e.target.value;
-        if (newGenre === genre) return;
-        if (livekitRoom) {
-            await livekitRoom.disconnect();
-            setLivekitRoom(null);
-            setIsConnected(false);
-            setParticipants(new Map());
-        }
-        setGenre(newGenre);
-        window.location.replace(`/map?room=${newGenre}&username=${username}&avatar=${avatar}`);
-    };
-    // Room switch logic
-    // (Removed duplicate handleGenreChange declaration)
 
+    // Computed values
+    const isPublishingMusic = musicState.state === 'publishing';
+    const isListeningToMusic = musicState.state === 'listening';
+    const isMusicPaused = musicState.state === 'paused';
+
+    // Refs
     const mapContainerRef = useRef<HTMLDivElement>(null);
-    // ...existing code...
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mapRef = useRef<any>(null);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const markersRef = useRef<Map<string, any>>(new Map());
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const voiceRangeCircleRef = useRef<any>(null);
+    const mapRef = useRef<google.maps.Map | null>(null);
+    const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
+    const voiceRangeCircleRef = useRef<google.maps.Circle | null>(null);
     const watchIdRef = useRef<number | null>(null);
     const lastMetadataUpdateRef = useRef<number>(0);
     const metadataUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const currentMusicTrackRef = useRef<{ track: LocalAudioTrack; audioElement: HTMLAudioElement | null; musicTitle?: string; musicDescription?: string } | null>(null);
 
-    // Initialize spatial audio
+    // Spatial audio hook
     const {
         subscribeToParticipant,
         leaveMusicParty,
@@ -114,11 +118,11 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             username,
             avatar,
             position: myPosition,
-            isPublishingMusic,
-            musicTitle,
-            musicDescription,
-            partyTitle,
-            partyDescription,
+            isPublishingMusic: isPublishingMusic,
+            musicTitle: partyTitle, // Assuming musicTitle is derived from partyTitle for now
+            musicDescription: partyDescription, // Assuming musicDescription is derived from partyDescription for now
+            partyTitle: partyTitle,
+            partyDescription: partyDescription,
         };
 
         const doUpdate = async () => {
@@ -146,7 +150,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             const delay = minUpdateInterval - timeSinceLastUpdate;
             metadataUpdateTimeoutRef.current = setTimeout(doUpdate, delay);
         }
-    }, [username, avatar, myPosition, isPublishingMusic, musicTitle, musicDescription, partyTitle, partyDescription, livekitRoom]);
+    }, [username, avatar, myPosition, isPublishingMusic, partyTitle, partyDescription, livekitRoom]);
 
     // Update my position in room
     const updateMyPositionInRoom = useCallback(async (position: Vector2) => {
@@ -267,6 +271,57 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         console.log('===============================');
     }, [participants, livekitRoom]);
 
+    // Enhanced music state management
+    const updateMusicState = useCallback((newState: Partial<MusicStateData>) => {
+        setMusicState(prev => ({ ...prev, ...newState }));
+    }, []);
+
+    // Enhanced stop music function
+    const stopMusicPublishing = useCallback(async () => {
+        if (!livekitRoom || !currentMusicTrackRef.current) {
+            console.log('No room or track to stop');
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            console.log('Stopping music publishing...');
+
+            // Handle audio element cleanup for file uploads
+            if (currentMusicTrackRef.current.audioElement && musicState.source === 'file') {
+                currentMusicTrackRef.current.audioElement.pause();
+                currentMusicTrackRef.current.audioElement.currentTime = 0;
+            }
+
+            // Stop the track before unpublishing
+            if (currentMusicTrackRef.current.track) {
+                currentMusicTrackRef.current.track.stop();
+                await livekitRoom.localParticipant.unpublishTrack(currentMusicTrackRef.current.track);
+            }
+
+            // Clean up audio element for file uploads
+            if (currentMusicTrackRef.current.audioElement && musicState.source === 'file') {
+                if (currentMusicTrackRef.current.audioElement.src && currentMusicTrackRef.current.audioElement.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(currentMusicTrackRef.current.audioElement.src);
+                }
+                currentMusicTrackRef.current.audioElement.src = '';
+            }
+
+            // Clean up references
+            currentMusicTrackRef.current = null;
+            updateMusicState({ state: 'idle', source: undefined, isPaused: false });
+            console.log('Music publishing stopped successfully');
+
+        } catch (error) {
+            console.error('Error stopping music:', error);
+            setError('Failed to stop music');
+            // Still update state even if there's an error
+            updateMusicState({ state: 'idle', source: undefined, isPaused: false });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [livekitRoom, musicState.source, updateMusicState]);
+
     // Remove participant
     const removeParticipant = useCallback((identity: string) => {
         setParticipants(prev => {
@@ -276,8 +331,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         });
 
         // If we were listening to this participant's music, stop listening
-        if (listeningToMusic === identity) {
-            setListeningToMusic(null);
+        if (musicState.listeningTo === identity) {
+            updateMusicState({ state: 'idle', listeningTo: undefined });
             console.log('Stopped listening to music from disconnected participant:', identity);
         }
 
@@ -290,7 +345,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             markersRef.current.delete(identity);
         }
         console.log('Removed participant:', identity);
-    }, [listeningToMusic, cleanupParticipant]);
+    }, [musicState.listeningTo, cleanupParticipant, updateMusicState]);
 
     // Update participant from metadata
     const updateParticipantFromMetadata = useCallback((participant: RemoteParticipant) => {
@@ -743,27 +798,24 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                     if (data.type === 'admin_track_muted') {
                         // If this user is publishing music, stop publishing and reset UI
                         if (isPublishingMusic && currentMusicTrackRef.current && currentMusicTrackRef.current.track && currentMusicTrackRef.current.track.sid === data.trackSid) {
-                            stopMusicPublishing();
-                            setIsPublishingMusic(false);
-                            setIsMusicPaused(false);
+                            await stopMusicPublishing();
+                            updateMusicState({ state: 'idle', source: undefined, isPaused: false });
                             setSelectedMusicUser(null);
                             alert(`Admin Notice: ${data.message}\n(Track SID: ${data.trackSid})`);
                         }
                     } else if (data.type === 'admin_track_unpublished') {
                         // Check if this user is listening to the participant whose track was unpublished
-                        if (listeningToMusic && data.publisherIdentity && listeningToMusic === data.publisherIdentity) {
+                        if (musicState.listeningTo && data.publisherIdentity && musicState.listeningTo === data.publisherIdentity) {
                             // Stop listening to this participant's music using the spatial audio hook
                             const success = await leaveMusicParty(data.publisherIdentity);
                             if (success) {
-                                setListeningToMusic(null);
-                                setIsMusicPaused(false);
+                                updateMusicState({ state: 'idle', listeningTo: undefined });
                                 setSelectedMusicUser(null);
                                 alert(`Admin Notice: ${data.message}\n(Music you were listening to was unpublished by admin)`);
                             } else {
                                 console.error('Failed to leave music party after admin unpublish');
                                 // Still reset UI state even if leaveMusicParty fails
-                                setListeningToMusic(null);
-                                setIsMusicPaused(false);
+                                updateMusicState({ state: 'idle', listeningTo: undefined });
                                 setSelectedMusicUser(null);
                                 alert(`Admin Notice: ${data.message}\n(Music you were listening to was unpublished by admin)`);
                             }
@@ -806,8 +858,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 }
                 
                 // Clear any listening state
-                setListeningToMusic(null);
-                setMusicSource(null);
+                updateMusicState({ state: 'idle', listeningTo: undefined });
                 
                 // Redirect to prejoin page after a short delay
                 setTimeout(() => {
@@ -833,7 +884,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             setIsConnecting(false);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [room, username, publishMyMetadataThrottled, updateParticipantFromMetadata, removeParticipant, updateTrackPositions, isConnected, livekitRoom, isConnecting, refreshAllMarkers, isPublishingMusic, currentMusicTrackRef, listeningToMusic]);    // Initialize everything
+    }, [room, username, publishMyMetadataThrottled, updateParticipantFromMetadata, removeParticipant, updateTrackPositions, isConnected, livekitRoom, isConnecting, refreshAllMarkers, isPublishingMusic, currentMusicTrackRef, musicState.listeningTo, updateMusicState, stopMusicPublishing]);    // Initialize everything
     useEffect(() => {
         let mounted = true;
 
@@ -875,8 +926,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 stopMusicPublishing();
             }
             // Clear listening state
-            setListeningToMusic(null);
-            setMusicSource(null);
+            updateMusicState({ state: 'idle', listeningTo: undefined });
             if (livekitRoom) {
                 console.log('Disconnecting from LiveKit room');
                 livekitRoom.disconnect();
@@ -919,61 +969,203 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         }
     }, [participants.size, refreshAllMarkers]); // Trigger when participant count changes
 
-    // Helper function to check if user is listening to any music
-    const isListeningToAnyMusic = listeningToMusic !== null;
-
-    // Stop music publishing
-    const stopMusicPublishing = useCallback(async () => {
-        if (!livekitRoom || !currentMusicTrackRef.current) {
-            console.log('No room or track to stop');
-            return;
+    // Enhanced music button styling
+    const getMusicButtonStyle = useCallback(() => {
+        const baseClasses = 'w-16 h-16 rounded-full shadow-2xl transition-all duration-300 flex items-center justify-center text-white text-2xl';
+        
+        if (isLoading) {
+            return `${baseClasses} bg-gray-500 cursor-not-allowed`;
         }
+        
+        if (isPublishingMusic) {
+            if (musicState.source === 'file') {
+                return isMusicPaused 
+                    ? `${baseClasses} bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700`
+                    : `${baseClasses} bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700`;
+            } else {
+                return `${baseClasses} bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700`;
+            }
+        } else if (isListeningToMusic) {
+            return `${baseClasses} bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700`;
+        } else {
+            return `${baseClasses} bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700`;
+        }
+    }, [isPublishingMusic, isListeningToMusic, isMusicPaused, musicState.source, isLoading]);
 
+    // Enhanced music button icon
+    const getMusicButtonIcon = useCallback(() => {
+        if (isLoading) return '⏳';
+        if (isPublishingMusic) {
+            if (musicState.source === 'file') {
+                return isMusicPaused ? '▶️' : '⏸️';
+            } else {
+                return '📺';
+            }
+        } else if (isListeningToMusic) {
+            return '🎧';
+        } else {
+            return '🎵';
+        }
+    }, [isPublishingMusic, isListeningToMusic, isMusicPaused, musicState.source, isLoading]);
+
+    // Enhanced music button title
+    const getMusicButtonTitle = useCallback(() => {
+        if (isLoading) return 'Loading...';
+        if (isPublishingMusic) {
+            if (musicState.source === 'file') {
+                return isMusicPaused ? 'Resume Music' : 'Pause Music';
+            } else {
+                return 'Tab Audio Capture (Control in source tab)';
+            }
+        } else if (isListeningToMusic) {
+            return 'Disconnect from Music';
+        } else {
+            return 'Start Music Party';
+        }
+    }, [isPublishingMusic, isListeningToMusic, isMusicPaused, musicState.source, isLoading]);
+
+    // Enhanced GPS accuracy indicator
+    const getGpsAccuracyColor = useCallback((accuracy: number) => {
+        if (accuracy <= 10) return 'text-green-400';
+        if (accuracy <= 50) return 'text-yellow-400';
+        return 'text-red-400';
+    }, []);
+
+    // Enhanced participant list with better UX
+    const renderParticipantList = useCallback(() => {
+        const participantArray = Array.from(participants.values());
+        const sortedParticipants = participantArray.sort((a, b) => {
+            // Sort by distance to user
+            const distanceA = Math.sqrt(
+                Math.pow((a.position.x - myPosition.x) * 111000, 2) +
+                Math.pow((a.position.y - myPosition.y) * 111000, 2)
+            );
+            const distanceB = Math.sqrt(
+                Math.pow((b.position.x - myPosition.x) * 111000, 2) +
+                Math.pow((b.position.y - myPosition.y) * 111000, 2)
+            );
+            return distanceA - distanceB;
+        });
+
+        return sortedParticipants.slice(0, 5).map((participant) => {
+            const distance = Math.round(Math.sqrt(
+                Math.pow((participant.position.x - myPosition.x) * 111000, 2) +
+                Math.pow((participant.position.y - myPosition.y) * 111000, 2)
+            ));
+            
+            return (
+                <div
+                    key={participant.userId}
+                    className="text-gray-400 truncate flex items-center justify-between hover:text-white hover:bg-gray-700 px-2 py-1 rounded cursor-pointer transition-colors"
+                    onClick={() => {
+                        centerMapOnUser(participant.position);
+                        console.log('Centered map on participant:', participant.username);
+                    }}
+                    title={`Click to center map on ${participant.username} (${distance}m away)`}
+                >
+                    <span className="flex items-center gap-1">
+                        {participant.isPublishingMusic ? '🎵' : '👤'} 
+                        <span className="truncate">{participant.username}</span>
+                    </span>
+                    <div className="text-xs text-gray-500 flex items-center gap-1">
+                        <span>{distance}m</span>
+                        {participant.isPublishingMusic && (
+                            <span className="text-pink-400">●</span>
+                        )}
+                    </div>
+                </div>
+            );
+        });
+    }, [participants, myPosition]);
+
+    // Enhanced genre change handler with loading state
+    const handleGenreChange = useCallback(async (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newGenre = e.target.value;
+        if (newGenre === genre) return;
+
+        setIsLoading(true);
         try {
-            console.log('Stopping music publishing...');
-
-            // Handle audio element cleanup for file uploads
-            if (currentMusicTrackRef.current.audioElement && musicSource === 'file') {
-                currentMusicTrackRef.current.audioElement.pause();
-                currentMusicTrackRef.current.audioElement.currentTime = 0;
+            if (livekitRoom) {
+                await livekitRoom.disconnect();
+                setLivekitRoom(null);
+                setIsConnected(false);
+                setParticipants(new Map());
             }
-
-            // Stop the track before unpublishing
-            if (currentMusicTrackRef.current.track) {
-                currentMusicTrackRef.current.track.stop();
-
-                // Unpublish the track
-                await livekitRoom.localParticipant.unpublishTrack(currentMusicTrackRef.current.track);
-            }
-
-            // Clean up audio element for file uploads
-            if (currentMusicTrackRef.current.audioElement && musicSource === 'file') {
-                // Revoke the object URL to free memory
-                if (currentMusicTrackRef.current.audioElement.src && currentMusicTrackRef.current.audioElement.src.startsWith('blob:')) {
-                    URL.revokeObjectURL(currentMusicTrackRef.current.audioElement.src);
-                }
-                currentMusicTrackRef.current.audioElement.src = '';
-            }
-
-            // Clean up references
-            currentMusicTrackRef.current = null;
-            setMusicSource(null);
-
-            // Update state
-            setIsPublishingMusic(false);
-            setIsMusicPaused(false);
-            console.log('Music publishing stopped successfully');
-
+            setGenre(newGenre);
+            window.location.replace(`/map?room=${newGenre}&username=${username}&avatar=${avatar}`);
         } catch (error) {
-            console.error('Error stopping music:', error);
-            // Still update state even if there's an error to prevent UI stuck state
-            setIsPublishingMusic(false);
-            setIsMusicPaused(false);
-            currentMusicTrackRef.current = null;
-            setMusicSource(null);
+            console.error('Error changing genre:', error);
+            setError('Failed to change genre. Please try again.');
+        } finally {
+            setIsLoading(false);
         }
-    }, [livekitRoom, musicSource]);
+    }, [genre, livekitRoom, username, avatar]);
 
+    // Enhanced music button click handler
+    const handleMusicButtonClick = useCallback(async () => {
+        if (isLoading) return;
+
+        if (isPublishingMusic) {
+            if (musicState.source === 'file') {
+                if (isMusicPaused) {
+                    // Resume music
+                    if (currentMusicTrackRef.current?.audioElement) {
+                        try {
+                            await currentMusicTrackRef.current.audioElement.play();
+                            updateMusicState({ state: 'publishing', isPaused: false });
+                        } catch (error) {
+                            console.error('Error resuming music:', error);
+                            setError('Failed to resume music');
+                        }
+                    }
+                } else {
+                    // Pause music
+                    if (currentMusicTrackRef.current?.audioElement) {
+                        currentMusicTrackRef.current.audioElement.pause();
+                        updateMusicState({ state: 'paused', isPaused: true });
+                    }
+                }
+            } else if (musicState.source === 'tab-capture') {
+                // Show better UX for tab capture
+                const notification = document.createElement('div');
+                notification.className = 'fixed top-4 right-4 bg-orange-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+                notification.textContent = 'Tab audio capture cannot be paused. Control playback in the source tab.';
+                document.body.appendChild(notification);
+                setTimeout(() => notification.remove(), 4000);
+            }
+        } else if (isListeningToMusic) {
+            // Enhanced leave music party UX
+            const notification = document.createElement('div');
+            notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+            notification.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <span>Leave music party?</span>
+                    <button class="bg-white text-blue-500 px-2 py-1 rounded text-sm font-medium" onclick="this.parentElement.parentElement.remove(); window.leaveMusicParty()">Yes</button>
+                    <button class="bg-white/20 text-white px-2 py-1 rounded text-sm" onclick="this.parentElement.parentElement.remove()">No</button>
+                </div>
+            `;
+            document.body.appendChild(notification);
+            
+            // Add global function for the notification
+            (window as unknown as Record<string, unknown>).leaveMusicParty = async () => {
+                if (musicState.listeningTo) {
+                    await leaveMusicParty(musicState.listeningTo);
+                    updateMusicState({ state: 'idle', listeningTo: undefined });
+                }
+                notification.remove();
+                delete (window as unknown as Record<string, unknown>).leaveMusicParty;
+            };
+        } else {
+            // Start music party
+            setSelectedMusicUser({
+                userId: 'self',
+                username,
+                avatar,
+                position: myPosition,
+                isPublishingMusic: false
+            });
+        }
+    }, [isPublishingMusic, isListeningToMusic, isMusicPaused, musicState, isLoading, myPosition, username, avatar, leaveMusicParty, updateMusicState]);
 
     return (
         <div className="fixed inset-0 w-full h-full bg-gray-900" style={{ zIndex: 0 }}>
@@ -1041,34 +1233,14 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                         '🟡 Requesting...'
                             }</div>
                             {gpsAccuracy && (
-                                <div>Accuracy: <span className="text-cyan-300">{Math.round(gpsAccuracy)}m</span></div>
+                                <div>Accuracy: <span className={`${getGpsAccuracyColor(gpsAccuracy)}`}>{Math.round(gpsAccuracy)}m</span></div>
                             )}
                             <div className="border-t border-gray-600 pt-1 mt-2">
                                 <div>Hunters Online: <span className="text-purple-300">{participants.size}</span></div>
                                 {participants.size > 0 && (
                                     <div className="mt-1 text-xs">
                                         <div className="text-gray-300">Active Hunters:</div>
-                                        {Array.from(participants.values()).slice(0, 5).map((participant) => (
-                                            <div
-                                                key={participant.userId}
-                                                className="text-gray-400 truncate flex items-center justify-between hover:text-white hover:bg-gray-700 px-1 rounded cursor-pointer transition-colors"
-                                                onClick={() => {
-                                                    centerMapOnUser(participant.position);
-                                                    console.log('Centered map on participant:', participant.username);
-                                                }}
-                                                title={`Click to center map on ${participant.username}`}
-                                            >
-                                                <span>
-                                                    {participant.isPublishingMusic ? '🎵' : '👤'} {participant.username}
-                                                </span>
-                                                <div className="text-xs text-gray-500">
-                                                    {Math.round(Math.sqrt(
-                                                        Math.pow((participant.position.x - myPosition.x) * 111000, 2) +
-                                                        Math.pow((participant.position.y - myPosition.y) * 111000, 2)
-                                                    ))}m
-                                                </div>
-                                            </div>
-                                        ))}
+                                        {renderParticipantList()}
                                         {participants.size > 5 && (
                                             <div className="text-gray-500">...and {participants.size - 5} more</div>
                                         )}
@@ -1177,87 +1349,17 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             {/* Bottom Center Music Button */}
             <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-30">
                 <button
-                    onClick={async () => {
-                        if (isPublishingMusic) {
-                            if (musicSource === 'file') {
-                                // File upload - can pause/resume
-                                if (isMusicPaused) {
-                                    // If paused, resume the music
-                                    if (currentMusicTrackRef.current?.audioElement) {
-                                        try {
-                                            await currentMusicTrackRef.current.audioElement.play();
-                                            setIsMusicPaused(false);
-                                            console.log('Music resumed');
-                                        } catch (error) {
-                                            console.error('Error resuming music:', error);
-                                        }
-                                    }
-                                } else {
-                                    // If playing, pause the music
-                                    if (currentMusicTrackRef.current?.audioElement) {
-                                        currentMusicTrackRef.current.audioElement.pause();
-                                        setIsMusicPaused(true);
-                                        console.log('Music paused');
-                                    }
-                                }
-                            } else if (musicSource === 'tab-capture') {
-                                // Tab capture - can't pause, only stop
-                                alert('Tab audio capture cannot be paused. Use the stop button to end the music party or control playback in the source tab.');
-                            }
-                        } else if (isListeningToAnyMusic) {
-                            // If listening to someone else's music, show option to disconnect
-                            const confirmLeave = confirm(`You are listening to a music party. Leave it?`);
-                            if (confirmLeave && listeningToMusic) {
-                                await leaveMusicParty(listeningToMusic);
-                                setListeningToMusic(null);
-                                console.log('Left music party');
-                            }
-                        } else {
-                            // If not publishing or listening, show dialog to start
-                            setSelectedMusicUser({
-                                userId: 'self',
-                                username,
-                                avatar,
-                                position: myPosition,
-                                isPublishingMusic
-                            });
-                        }
-                    }}
-                    className={`w-16 h-16 rounded-full shadow-2xl transition-all duration-300 ${isPublishingMusic
-                        ? musicSource === 'file'
-                            ? isMusicPaused
-                                ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700'
-                                : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
-                            : 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700' // Tab capture
-                        : isListeningToAnyMusic
-                            ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700'
-                            : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
-                        } flex items-center justify-center text-white text-2xl`}
-                    title={
-                        isPublishingMusic
-                            ? musicSource === 'file'
-                                ? isMusicPaused ? "Resume Music" : "Pause Music"
-                                : "Tab Audio Capture (Control in source tab)"
-                            : isListeningToAnyMusic
-                                ? "Disconnect from Music"
-                                : "Start Music Party"
-                    }
+                    onClick={handleMusicButtonClick}
+                    className={getMusicButtonStyle()}
+                    title={getMusicButtonTitle()}
                 >
-                    {isPublishingMusic
-                        ? musicSource === 'file'
-                            ? isMusicPaused ? '▶️' : '⏸️'
-                            : '📺' // Tab capture icon
-                        : isListeningToAnyMusic ? '🎧' : '🎵'
-                    }
+                    {getMusicButtonIcon()}
                 </button>
 
                 {/* Stop Button - Only show when music is playing or paused */}
                 {isPublishingMusic && (
                     <button
-                        onClick={async () => {
-                            await stopMusicPublishing();
-                            setIsMusicPaused(false);
-                        }}
+                        onClick={stopMusicPublishing}
                         className="absolute -top-12 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-full shadow-lg transition-all duration-300 flex items-center justify-center text-white text-lg"
                         title="Stop Music Party"
                     >
@@ -1266,14 +1368,14 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 )}
 
                 {/* Music Status Indicator */}
-                {isListeningToAnyMusic && (
+                {isListeningToMusic && (
                     <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-2 py-1 rounded-lg text-xs font-medium">
                         Listening to music party
                     </div>
                 )}
 
                 {/* Music Source Indicator for Publishing */}
-                {isPublishingMusic && musicSource === 'tab-capture' && (
+                {isPublishingMusic && musicState.source === 'tab-capture' && (
                     <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-orange-600 text-white px-2 py-1 rounded-lg text-xs font-medium">
                         Tab Audio Capture
                     </div>
@@ -1291,7 +1393,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                 if (selectedMusicUser.userId !== 'self') {
                                     console.log('Managing music party for:', selectedMusicUser.username, 'userId:', selectedMusicUser.userId);
 
-                                    const isCurrentlyListening = listeningToMusic === selectedMusicUser.userId;
+                                    const isCurrentlyListening = musicState.listeningTo === selectedMusicUser.userId;
 
                                     try {
                                         // Enable audio context first (important for mobile)
@@ -1301,7 +1403,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                             // Leave the current music party
                                             const success = await leaveMusicParty(selectedMusicUser.userId);
                                             if (success) {
-                                                setListeningToMusic(null);
+                                                updateMusicState({ state: 'idle', listeningTo: undefined });
                                                 console.log('Successfully left music party:', selectedMusicUser.username);
                                                 alert(`Left ${selectedMusicUser.username}'s music party! 🎵`);
                                             } else {
@@ -1326,16 +1428,16 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                             }
 
                                             // If already listening to another music party, leave it first
-                                            if (listeningToMusic && listeningToMusic !== selectedMusicUser.userId) {
+                                            if (musicState.listeningTo && musicState.listeningTo !== selectedMusicUser.userId) {
                                                 console.log('Leaving current music party before joining new one');
-                                                await leaveMusicParty(listeningToMusic);
-                                                setListeningToMusic(null);
+                                                await leaveMusicParty(musicState.listeningTo);
+                                                updateMusicState({ state: 'idle', listeningTo: undefined });
                                             }
 
                                             // Join the new music party
                                             const success = await subscribeToParticipant(selectedMusicUser.userId);
                                             if (success) {
-                                                setListeningToMusic(selectedMusicUser.userId);
+                                                updateMusicState({ state: 'listening', listeningTo: selectedMusicUser.userId });
                                                 console.log('Successfully joined music party:', selectedMusicUser.username);
                                                 alert(`Joined ${selectedMusicUser.username}'s music party! 🎵`);
                                                 // Close the dialog after successful join
@@ -1361,14 +1463,13 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                             onPublishStart={(filename, track, audioElement) => {
                                 if (track && audioElement) {
                                     currentMusicTrackRef.current = { track, audioElement, musicTitle, musicDescription };
-                                    setMusicSource('file');
+                                    updateMusicState({ state: 'publishing', source: 'file' });
                                 } else if (track && !audioElement) {
                                     // Tab capture - no audio element to control
                                     currentMusicTrackRef.current = { track, audioElement: null, musicTitle, musicDescription };
-                                    setMusicSource('tab-capture');
+                                    updateMusicState({ state: 'publishing', source: 'tab-capture' });
                                 }
-                                setIsPublishingMusic(true);
-                                setIsMusicPaused(false);
+                                updateMusicState({ state: 'publishing', isPaused: false });
                                 console.log(`Started publishing: ${filename}, source: ${audioElement ? 'file' : 'tab-capture'}, musicTitle: ${musicTitle}, musicDescription: ${musicDescription}`);
                                 // Don't close the dialog automatically - let the user close it manually
                                 // The music will continue playing even after dialog closes
@@ -1377,7 +1478,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                 // This will be called from the dialog, but we also have our own stop function
                                 stopMusicPublishing();
                             }}
-                            isListening={listeningToMusic === selectedMusicUser.userId}
+                            isListening={musicState.listeningTo === selectedMusicUser.userId}
                             isSelf={selectedMusicUser.userId === 'self'}
                         />
                         {/* Close button for desktop accessibility */}
