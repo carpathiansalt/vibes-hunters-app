@@ -93,7 +93,7 @@ export default function AdminMapView() {
     }, [isAuthenticated, password]);
 
     // Admin control function
-    const performAdminAction = useCallback(async (action: string, roomName: string, participantIdentity: string, trackSid?: string, metadata?: any) => {
+    const performAdminAction = useCallback(async (action: string, roomName: string, participantIdentity: string, trackSid?: string, metadata?: Record<string, unknown>) => {
         setControlLoading(`${action}_${participantIdentity}`);
         setControlMessage(null);
 

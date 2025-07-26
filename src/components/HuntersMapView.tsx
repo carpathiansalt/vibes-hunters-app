@@ -808,6 +808,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             setError(`Failed to connect to audio service: ${err instanceof Error ? err.message : 'Unknown error'}`);
             setIsConnecting(false);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [room, username, publishMyMetadataThrottled, updateParticipantFromMetadata, removeParticipant, updateTrackPositions, isConnected, livekitRoom, isConnecting, refreshAllMarkers]);    // Initialize everything
     useEffect(() => {
         let mounted = true;
