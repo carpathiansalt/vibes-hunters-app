@@ -90,7 +90,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const watchIdRef = useRef<number | null>(null);
     const lastMetadataUpdateRef = useRef<number>(0);
     const metadataUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const currentMusicTrackRef = useRef<{ track: LocalAudioTrack; audioElement: HTMLAudioElement | null; mediaStream?: MediaStream; musicTitle?: string; musicDescription?: string } | null>(null);
+    const currentMusicTrackRef = useRef<{ track: LocalAudioTrack; audioElement: HTMLAudioElement | null; musicTitle?: string; musicDescription?: string } | null>(null);
 
     // Initialize spatial audio
     const {
@@ -737,56 +737,38 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             });
 
             // Listen for admin track mute/unpublish notifications
-            newRoom.on(RoomEvent.DataReceived, (payload: Uint8Array) => {
+            newRoom.on(RoomEvent.DataReceived, async (payload: Uint8Array) => {
                 try {
                     const data = JSON.parse(new TextDecoder().decode(payload));
                     if (data.type === 'admin_track_muted') {
                         // If this user is publishing music, stop publishing and reset UI
                         if (isPublishingMusic && currentMusicTrackRef.current && currentMusicTrackRef.current.track && currentMusicTrackRef.current.track.sid === data.trackSid) {
-                            // Immediately stop MediaStream if it exists (for tab capture) - do this FIRST
-                            if (currentMusicTrackRef.current.mediaStream) {
-                                console.log('Immediately stopping MediaStream for admin track mute...');
-                                try {
-                                    const mediaStream = currentMusicTrackRef.current.mediaStream as MediaStream;
-                                    const tracks = mediaStream.getTracks();
-                                    console.log('Found tracks to stop immediately:', tracks.length);
-                                    tracks.forEach(track => {
-                                        console.log('Stopping track immediately:', track.kind, track.id, 'readyState:', track.readyState);
-                                        track.stop();
-                                    });
-                                    // Clear the MediaStream reference immediately
-                                    currentMusicTrackRef.current.mediaStream = undefined;
-                                } catch (error) {
-                                    console.error('Error stopping MediaStream immediately:', error);
-                                }
-                            }
-                            
-                            // Now stop the LiveKit publishing
                             stopMusicPublishing();
                             setIsPublishingMusic(false);
                             setIsMusicPaused(false);
-                            setListeningToMusic(null);
                             setSelectedMusicUser(null);
-                            setMusicSource(null);
                             alert(`Admin Notice: ${data.message}\n(Track SID: ${data.trackSid})`);
                         }
                     } else if (data.type === 'admin_track_unpublished') {
-                        // If this user is listening to the unpublished track, stop playback and reset UI
-                        if (listeningToMusic && currentMusicTrackRef.current && currentMusicTrackRef.current.track && currentMusicTrackRef.current.track.sid === data.trackSid) {
-                            stopMusicPublishing(); // Also works for listeners, as it resets music state
-                            setIsPublishingMusic(false);
-                            setIsMusicPaused(false);
-                            setListeningToMusic(null);
-                            setSelectedMusicUser(null);
-                            setMusicSource(null);
-                            alert(`Admin Notice: ${data.message}\n(Music you were listening to was unpublished by admin)`);
+                        // Check if this user is listening to the participant whose track was unpublished
+                        if (listeningToMusic && data.publisherIdentity && listeningToMusic === data.publisherIdentity) {
+                            // Stop listening to this participant's music using the spatial audio hook
+                            const success = await leaveMusicParty(data.publisherIdentity);
+                            if (success) {
+                                setListeningToMusic(null);
+                                setIsMusicPaused(false);
+                                setSelectedMusicUser(null);
+                                alert(`Admin Notice: ${data.message}\n(Music you were listening to was unpublished by admin)`);
+                            } else {
+                                console.error('Failed to leave music party after admin unpublish');
+                                // Still reset UI state even if leaveMusicParty fails
+                                setListeningToMusic(null);
+                                setIsMusicPaused(false);
+                                setSelectedMusicUser(null);
+                                alert(`Admin Notice: ${data.message}\n(Music you were listening to was unpublished by admin)`);
+                            }
                         } else {
-                            // Show a notification to all users and reset UI if needed
-                            setIsPublishingMusic(false);
-                            setIsMusicPaused(false);
-                            setListeningToMusic(null);
-                            setSelectedMusicUser(null);
-                            setMusicSource(null);
+                            // Show a notification to all users
                             alert(`Admin Notice: ${data.message}`);
                         }
                     }
@@ -950,75 +932,21 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         try {
             console.log('Stopping music publishing...');
 
-            // Always pause the audio element regardless of source to stop local playback
-            if (currentMusicTrackRef.current.audioElement) {
+            // Handle audio element cleanup for file uploads
+            if (currentMusicTrackRef.current.audioElement && musicSource === 'file') {
                 currentMusicTrackRef.current.audioElement.pause();
                 currentMusicTrackRef.current.audioElement.currentTime = 0;
             }
 
-            // Stop the MediaStream if it exists (for tab capture)
-            if (currentMusicTrackRef.current.mediaStream) {
-                console.log('Stopping MediaStream tracks for tab capture...');
-                try {
-                    const mediaStream = currentMusicTrackRef.current.mediaStream as MediaStream;
-                    const tracks = mediaStream.getTracks();
-                    console.log('Found tracks to stop:', tracks.length);
-                    
-                    // Stop all tracks aggressively
-                    tracks.forEach(track => {
-                        console.log('Stopping track:', track.kind, track.id, 'readyState:', track.readyState);
-                        track.stop();
-                    });
-                    
-                    // Also try to stop the MediaStream itself
-                    if (mediaStream.active) {
-                        console.log('MediaStream is still active, trying to stop it...');
-                        // Try to stop all tracks again
-                        mediaStream.getTracks().forEach(track => track.stop());
-                    }
-                    
-                    // Force garbage collection hint (this is just a hint, not guaranteed)
-                    console.log('Clearing MediaStream reference...');
-                    
-                    // Add a small delay to ensure tracks are stopped
-                    setTimeout(() => {
-                        if (currentMusicTrackRef.current?.mediaStream) {
-                            console.log('MediaStream still exists after delay, forcing cleanup...');
-                            try {
-                                const remainingTracks = (currentMusicTrackRef.current.mediaStream as MediaStream).getTracks();
-                                remainingTracks.forEach(track => track.stop());
-                            } catch (error) {
-                                console.error('Error in delayed MediaStream cleanup:', error);
-                            }
-                        }
-                    }, 100);
-                } catch (error) {
-                    console.error('Error stopping MediaStream tracks:', error);
-                }
-                // Clear the MediaStream reference
-                currentMusicTrackRef.current.mediaStream = undefined;
-            }
-
             // Stop the track before unpublishing
             if (currentMusicTrackRef.current.track) {
-                // Stop the MediaStream first if it exists (for tab capture)
-                if (currentMusicTrackRef.current.mediaStream) {
-                    console.log('Stopping MediaStream before stopping track...');
-                    try {
-                        const mediaStream = currentMusicTrackRef.current.mediaStream as MediaStream;
-                        mediaStream.getTracks().forEach(track => track.stop());
-                    } catch (error) {
-                        console.error('Error stopping MediaStream before track stop:', error);
-                    }
-                }
-                
                 currentMusicTrackRef.current.track.stop();
 
                 // Unpublish the track
                 await livekitRoom.localParticipant.unpublishTrack(currentMusicTrackRef.current.track);
             }
 
-            // Clean up audio element for file uploads (revoke blob URLs)
+            // Clean up audio element for file uploads
             if (currentMusicTrackRef.current.audioElement && musicSource === 'file') {
                 // Revoke the object URL to free memory
                 if (currentMusicTrackRef.current.audioElement.src && currentMusicTrackRef.current.audioElement.src.startsWith('blob:')) {
@@ -1430,14 +1358,13 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                             setPartyTitle={setPartyTitle}
                             partyDescription={partyDescription}
                             setPartyDescription={setPartyDescription}
-                            onPublishStart={(filename, track, audioElement, mediaStream) => {
+                            onPublishStart={(filename, track, audioElement) => {
                                 if (track && audioElement) {
-                                    currentMusicTrackRef.current = { track, audioElement, mediaStream: undefined, musicTitle, musicDescription };
+                                    currentMusicTrackRef.current = { track, audioElement, musicTitle, musicDescription };
                                     setMusicSource('file');
                                 } else if (track && !audioElement) {
-                                    // Tab capture - store the MediaStream for later cleanup
-                                    console.log('Storing MediaStream for tab capture:', mediaStream);
-                                    currentMusicTrackRef.current = { track, audioElement: null, mediaStream, musicTitle, musicDescription };
+                                    // Tab capture - no audio element to control
+                                    currentMusicTrackRef.current = { track, audioElement: null, musicTitle, musicDescription };
                                     setMusicSource('tab-capture');
                                 }
                                 setIsPublishingMusic(true);
