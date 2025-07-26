@@ -142,9 +142,9 @@ export default function PreJoinPage() {
                                             <Image 
                                                 src={selectedGenre.image} 
                                                 alt={`${selectedGenre.name} genre icon`} 
-                                                width={40} 
-                                                height={40} 
-                                                className="rounded-lg object-contain shadow-md border border-purple-200 w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12"
+                                                width={48} 
+                                                height={48} 
+                                                className="rounded-lg object-contain shadow-md border border-purple-200 w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14"
                                                 priority={genre === 'Pop'} // Prioritize default selection
                                             />
                                         )}
@@ -164,7 +164,7 @@ export default function PreJoinPage() {
                             {/* Avatar Selection */}
                             <fieldset>
                                 <legend className="block font-semibold mb-2 sm:mb-3 text-gray-900 text-sm sm:text-base">Choose Your Avatar</legend>
-                                <div className="w-full overflow-hidden">
+                                <div className="w-full overflow-hidden my-2 sm:my-3">
                                     <AvatarCarousel 
                                         avatars={avatars} 
                                         avatar={avatar} 
@@ -349,19 +349,19 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
     }, [setAvatar]);
 
     return (
-        <div className="flex items-center justify-center gap-1 sm:gap-2 w-full" role="group" aria-label="Avatar selection carousel">
+        <div className="flex items-center justify-center gap-1 sm:gap-2 w-full py-1 sm:py-2" role="group" aria-label="Avatar selection carousel">
             <button
                 type="button"
                 onClick={handlePrev}
                 disabled={!canGoPrev}
-                className="flex-shrink-0 p-1 sm:p-2 rounded bg-gray-200 text-gray-600 disabled:opacity-50 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors text-sm sm:text-base"
+                className="flex-shrink-0 p-2 sm:p-3 rounded bg-gray-200 text-gray-600 disabled:opacity-50 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors text-sm sm:text-base min-w-[44px] min-h-[44px] flex items-center justify-center"
                 aria-label="Previous avatars"
                 tabIndex={canGoPrev ? 0 : -1}
             >
                 ←
             </button>
             
-            <div className="flex gap-1 sm:gap-2 overflow-hidden flex-1 justify-center" role="radiogroup" aria-describedby={ariaDescribedBy}>
+            <div className="flex gap-1 sm:gap-2 overflow-hidden flex-1 justify-center py-1" role="radiogroup" aria-describedby={ariaDescribedBy}>
                 {visibleAvatars.map((a, index) => (
                     <button
                         type="button"
@@ -412,7 +412,7 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
                 type="button"
                 onClick={handleNext}
                 disabled={!canGoNext}
-                className="flex-shrink-0 p-1 sm:p-2 rounded bg-gray-200 text-gray-600 disabled:opacity-50 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors text-sm sm:text-base"
+                className="flex-shrink-0 p-2 sm:p-3 rounded bg-gray-200 text-gray-600 disabled:opacity-50 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors text-sm sm:text-base min-w-[44px] min-h-[44px] flex items-center justify-center"
                 aria-label="Next avatars"
                 tabIndex={canGoNext ? 0 : -1}
             >
