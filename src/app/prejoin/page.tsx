@@ -164,7 +164,7 @@ export default function PreJoinPage() {
                             {/* Avatar Selection */}
                             <fieldset>
                                 <legend className="block font-semibold mb-2 sm:mb-3 text-gray-900 text-sm sm:text-base">Choose Your Avatar</legend>
-                                <div className="w-full overflow-hidden my-3 sm:my-4">
+                                <div className="w-full overflow-hidden my-3 sm:my-4 px-2">
                                     <AvatarCarousel 
                                         avatars={avatars} 
                                         avatar={avatar} 
@@ -349,19 +349,19 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
     }, [setAvatar]);
 
     return (
-        <div className="flex items-center justify-center gap-2 sm:gap-3 w-full py-2 sm:py-3" role="group" aria-label="Avatar selection carousel">
+        <div className="flex items-center justify-center gap-1 sm:gap-2 w-full py-2 sm:py-3 px-1" role="group" aria-label="Avatar selection carousel">
             <button
                 type="button"
                 onClick={handlePrev}
                 disabled={!canGoPrev}
-                className="flex-shrink-0 p-2 sm:p-3 rounded bg-gray-200 text-gray-600 disabled:opacity-50 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors text-sm sm:text-base min-w-[44px] min-h-[44px] flex items-center justify-center"
+                className="flex-shrink-0 p-1.5 sm:p-2 rounded bg-gray-200 text-gray-600 disabled:opacity-50 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors text-sm sm:text-base min-w-[40px] min-h-[40px] flex items-center justify-center"
                 aria-label="Previous avatars"
                 tabIndex={canGoPrev ? 0 : -1}
             >
                 ←
             </button>
             
-            <div className="flex gap-2 sm:gap-3 overflow-hidden flex-1 justify-center py-1" role="radiogroup" aria-describedby={ariaDescribedBy}>
+            <div className="flex gap-1 sm:gap-2 overflow-hidden flex-1 justify-center py-1" role="radiogroup" aria-describedby={ariaDescribedBy}>
                 {visibleAvatars.map((a, index) => (
                     <button
                         type="button"
@@ -374,8 +374,8 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
                                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                         }`}
                         style={{ 
-                            width: 'clamp(48px, 12vw, 64px)', 
-                            height: 'clamp(48px, 12vw, 64px)' 
+                            width: 'clamp(44px, 10vw, 56px)', 
+                            height: 'clamp(44px, 10vw, 56px)' 
                         }}
                         role="radio"
                         aria-checked={avatar === a}
@@ -412,7 +412,7 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
                 type="button"
                 onClick={handleNext}
                 disabled={!canGoNext}
-                className="flex-shrink-0 p-2 sm:p-3 rounded bg-gray-200 text-gray-600 disabled:opacity-50 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors text-sm sm:text-base min-w-[44px] min-h-[44px] flex items-center justify-center"
+                className="flex-shrink-0 p-1.5 sm:p-2 rounded bg-gray-200 text-gray-600 disabled:opacity-50 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors text-sm sm:text-base min-w-[40px] min-h-[40px] flex items-center justify-center"
                 aria-label="Next avatars"
                 tabIndex={canGoNext ? 0 : -1}
             >
