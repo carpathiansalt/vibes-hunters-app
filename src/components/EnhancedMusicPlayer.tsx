@@ -7,7 +7,7 @@ export type MusicSource = 'file' | 'tab-capture';
 
 interface EnhancedMusicPlayerProps {
     room: Room | null;
-    onPublishStart: (filename: string, track?: LocalAudioTrack, audioElement?: HTMLAudioElement) => void;
+    onPublishStart: (filename: string, track?: LocalAudioTrack, audioElement?: HTMLAudioElement, mediaStream?: MediaStream) => void;
     onPublishStop: () => void;
     onClose?: () => void;
     volume?: number;
@@ -125,7 +125,7 @@ export function EnhancedMusicPlayer({
                 name: `music-${file.name}`,
                 dtx: false,
             });
-            onPublishStart(file.name, localAudioTrack, audioElement);
+            onPublishStart(file.name, localAudioTrack, audioElement, undefined);
             onClose?.();
         } catch (error) {
             console.error('Error publishing music:', error);
@@ -212,7 +212,7 @@ export function EnhancedMusicPlayer({
                 name: 'music-tab-capture',
                 dtx: false,
             });
-            onPublishStart('Tab Audio Capture', localAudioTrack, undefined);
+            onPublishStart('Tab Audio Capture', localAudioTrack, undefined, mediaStream);
             onClose?.();
         } catch (error) {
             console.error('Tab capture error:', error);

@@ -20,7 +20,7 @@ type BoomboxMusicDialogProps = {
     onClose: () => void;
     onJoin: () => void;
     room?: Room | null;
-    onPublishStart?: (filename: string, track?: LocalAudioTrack, audioElement?: HTMLAudioElement) => void;
+    onPublishStart?: (filename: string, track?: LocalAudioTrack, audioElement?: HTMLAudioElement, mediaStream?: MediaStream) => void;
     onPublishStop?: () => void;
     isSelf?: boolean; // New prop to distinguish self vs others
     isListening?: boolean; // Whether the user is currently listening to this participant's music
@@ -103,8 +103,8 @@ export function BoomboxMusicDialog(props: BoomboxMusicDialogProps) {
                                 <div className="p-4 bg-gray-50 rounded-xl">
                                     <EnhancedMusicPlayer
                                         room={room}
-                                        onPublishStart={(filename, track, audioElement) => {
-                                            onPublishStart?.(filename, track, audioElement);
+                                        onPublishStart={(filename, track, audioElement, mediaStream) => {
+                                            onPublishStart?.(filename, track, audioElement, mediaStream);
                                             // Always close dialog after starting a party
                                             onClose?.();
                                         }}

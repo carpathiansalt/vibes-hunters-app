@@ -90,7 +90,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const watchIdRef = useRef<number | null>(null);
     const lastMetadataUpdateRef = useRef<number>(0);
     const metadataUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const currentMusicTrackRef = useRef<{ track: LocalAudioTrack; audioElement: HTMLAudioElement | null; musicTitle?: string; musicDescription?: string } | null>(null);
+    const currentMusicTrackRef = useRef<{ track: LocalAudioTrack; audioElement: HTMLAudioElement | null; mediaStream?: MediaStream; musicTitle?: string; musicDescription?: string } | null>(null);
 
     // Initialize spatial audio
     const {
@@ -937,6 +937,11 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 currentMusicTrackRef.current.audioElement.currentTime = 0;
             }
 
+            // Stop the MediaStream if it exists (for tab capture)
+            if (currentMusicTrackRef.current.mediaStream) {
+                currentMusicTrackRef.current.mediaStream.getTracks().forEach(track => track.stop());
+            }
+
             // Stop the track before unpublishing
             if (currentMusicTrackRef.current.track) {
                 currentMusicTrackRef.current.track.stop();
@@ -1357,13 +1362,13 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                             setPartyTitle={setPartyTitle}
                             partyDescription={partyDescription}
                             setPartyDescription={setPartyDescription}
-                            onPublishStart={(filename, track, audioElement) => {
+                            onPublishStart={(filename, track, audioElement, mediaStream) => {
                                 if (track && audioElement) {
-                                    currentMusicTrackRef.current = { track, audioElement, musicTitle, musicDescription };
+                                    currentMusicTrackRef.current = { track, audioElement, mediaStream: undefined, musicTitle, musicDescription };
                                     setMusicSource('file');
                                 } else if (track && !audioElement) {
-                                    // Tab capture - no audio element to control
-                                    currentMusicTrackRef.current = { track, audioElement: null, musicTitle, musicDescription };
+                                    // Tab capture - store the MediaStream for later cleanup
+                                    currentMusicTrackRef.current = { track, audioElement: null, mediaStream, musicTitle, musicDescription };
                                     setMusicSource('tab-capture');
                                 }
                                 setIsPublishingMusic(true);
