@@ -225,13 +225,7 @@ export function MapControls({
                                     🔧 Debug & Refresh
                                 </button>
                             )}
-                            <button
-                                onClick={() => setShowVoiceRange(!showVoiceRange)}
-                                className="mt-2 bg-blue-600 hover:bg-blue-500 px-2 py-1 rounded text-xs font-medium transition-colors w-full flex items-center justify-between"
-                            >
-                                <span>🎤 Voice Range</span>
-                                <span className="text-xs">{showVoiceRange ? '✓' : '○'}</span>
-                            </button>
+
 
                             {/* Legal Links */}
                             <div className="mt-4 pt-2 border-t border-gray-600">
