@@ -132,30 +132,35 @@ export function MapControls({
 
     return (
         <>
-            {/* Genre Selector */}
-            <div className="fixed top-4 left-0 z-30 flex flex-row items-start justify-left px-4 pointer-events-none">
-                <div className="w-full max-w-sm pointer-events-auto flex flex-col items-center">
-                    <div className="bg-white/90 rounded-3xl shadow-xl border border-purple-200 px-0 py-0 flex flex-col items-center gap-2" style={{ minWidth: '200px' }}>
-                        <div className="relative w-full flex items-center justify-center">
+            {/* Genre Selector - Image Only */}
+            <div className="fixed top-4 left-4 z-30 pointer-events-none">
+                <div className="pointer-events-auto">
+                    <div className="bg-white/90 rounded-2xl shadow-xl border-2 border-purple-300 p-2">
+                        <div className="relative">
                             <select
                                 value={genre}
                                 onChange={handleGenreChange}
-                                className="w-full p-3 rounded-2xl border-2 border-purple-400 focus:border-purple-500 focus:outline-none transition-colors text-lg text-gray-900 bg-white placeholder-gray-400 appearance-none pr-16 text-center font-semibold"
-                                style={{ paddingRight: '64px', maxWidth: '100%' }}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                aria-label={`Select music genre. Current: ${genre}`}
                             >
                                 {genres.map(g => (
                                     <option key={g.name} value={g.name}>{g.name}</option>
                                 ))}
                             </select>
-                            {/* Genre image visually prominent, right aligned */}
-                            <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-                                {(() => {
-                                    const selected = genres.find(g => g.name === genre);
-                                    return selected ? (
-                                        <Image src={selected.image} alt={selected.name} width={48} height={48} className="rounded-xl object-contain shadow-lg border-2 border-purple-300 bg-white" />
-                                    ) : null;
-                                })()}
-                            </div>
+                            {/* Genre image only - no text */}
+                            {(() => {
+                                const selected = genres.find(g => g.name === genre);
+                                return selected ? (
+                                    <Image 
+                                        src={selected.image} 
+                                        alt={`${selected.name} genre`} 
+                                        width={40} 
+                                        height={40} 
+                                        className="rounded-xl object-contain shadow-md border border-purple-200 w-10 h-10 sm:w-12 sm:h-12" 
+                                        title={`Current genre: ${selected.name}. Click to change.`}
+                                    />
+                                ) : null;
+                            })()}
                         </div>
                     </div>
                 </div>
