@@ -232,8 +232,36 @@ async function handleAdminControl(req: NextApiRequest, res: NextApiResponse, roo
         switch (action) {
             case 'disconnect':
                 console.log(`🚪 Admin disconnecting participant ${participantIdentity} from room ${roomName}`);
-                await roomService.removeParticipant(roomName, participantIdentity);
-                result = { success: true, message: `Disconnected ${participantIdentity} from ${roomName}` };
+                
+                // First, try to send a data message to notify the participant
+                try {
+                    await roomService.sendData(
+                        Buffer.from(JSON.stringify({
+                            type: 'admin_disconnect',
+                            message: 'You have been disconnected by an administrator for policy violation or other administrative reasons.',
+                            reason: 'admin_action',
+                            timestamp: new Date().toISOString()
+                        })),
+                        {
+                            room: roomName,
+                            topic: 'admin_notification'
+                        }
+                    );
+                    console.log(`📢 Sent disconnect notification to ${participantIdentity} in room ${roomName}`);
+                } catch (dataError) {
+                    console.warn(`⚠️ Failed to send disconnect notification to ${participantIdentity}:`, dataError);
+                    // Continue with disconnect even if notification fails
+                }
+                
+                // Then disconnect the participant
+                try {
+                    await roomService.removeParticipant(roomName, participantIdentity);
+                    console.log(`✅ Successfully disconnected ${participantIdentity} from room ${roomName}`);
+                    result = { success: true, message: `Disconnected ${participantIdentity} from ${roomName}` };
+                } catch (disconnectError) {
+                    console.error(`❌ Failed to disconnect ${participantIdentity} from room ${roomName}:`, disconnectError);
+                    throw new Error(`Failed to disconnect participant: ${disconnectError instanceof Error ? disconnectError.message : 'Unknown error'}`);
+                }
                 break;
 
             case 'mute_audio':

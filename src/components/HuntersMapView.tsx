@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Image from 'next/image';
-import { Room, RoomEvent, RemoteParticipant, LocalAudioTrack } from 'livekit-client';
+import { Room, RoomEvent, RemoteParticipant, LocalAudioTrack, DisconnectReason } from 'livekit-client';
 import { Loader } from '@googlemaps/js-api-loader';
 import { Vector2, ParticipantMetadata, UserPosition } from '@/types';
 import { BoomboxMusicDialog } from './BoomboxMusicDialog';
@@ -734,6 +734,67 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
             newRoom.on(RoomEvent.TrackUnsubscribed, () => {
                 updateTrackPositions();
+            });
+
+            // Handle data messages (e.g., admin notifications)
+            newRoom.on(RoomEvent.DataReceived, (payload: Uint8Array, participant, topic) => {
+                try {
+                    const data = JSON.parse(new TextDecoder().decode(payload));
+                    console.log('📨 Received data message:', data, 'from:', participant?.identity, 'topic:', topic);
+                    
+                    // Handle admin disconnect notification
+                    if (data.type === 'admin_disconnect') {
+                        console.log('🚨 Admin disconnect notification received');
+                        alert(`🚨 Admin Action: ${data.message}\n\nYou will be redirected to the prejoin page shortly.`);
+                        // The actual disconnect will be handled by the Disconnected event
+                    }
+                } catch (error) {
+                    console.warn('Failed to parse data message:', error);
+                }
+            });
+
+            // Handle when the local participant is disconnected (e.g., by admin)
+            newRoom.on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
+                console.log('🔴 Local participant disconnected from room:', reason);
+                setIsConnected(false);
+                setIsConnecting(false);
+                
+                // Determine disconnect reason for better user feedback
+                let disconnectMessage = 'You have been disconnected from the room.';
+                if (reason === DisconnectReason.SERVER_SHUTDOWN) {
+                    disconnectMessage = 'The server has been shut down. You will be redirected to the prejoin page.';
+                } else if (reason === DisconnectReason.CLIENT_INITIATED) {
+                    disconnectMessage = 'You have been disconnected from the room. You will be redirected to the prejoin page.';
+                } else if (reason === DisconnectReason.DUPLICATE_IDENTITY) {
+                    disconnectMessage = 'Another user with the same identity joined the room. You will be redirected to the prejoin page.';
+                } else if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+                    disconnectMessage = 'You have been removed from the room by an administrator. You will be redirected to the prejoin page.';
+                } else {
+                    disconnectMessage = 'You have been disconnected from the room. You will be redirected to the prejoin page.';
+                }
+                
+                // Show alert to user about being disconnected
+                alert(disconnectMessage);
+                
+                // Clean up any ongoing music publishing
+                if (currentMusicTrackRef.current) {
+                    stopMusicPublishing();
+                }
+                
+                // Clear any listening state
+                setListeningToMusic(null);
+                setMusicSource(null);
+                
+                // Redirect to prejoin page after a short delay
+                setTimeout(() => {
+                    try {
+                        window.location.href = '/prejoin';
+                    } catch (error) {
+                        console.error('Failed to redirect to prejoin page:', error);
+                        // Fallback: try to reload the page
+                        window.location.reload();
+                    }
+                }, 2000);
             });
 
             await newRoom.connect(wsUrl, token);
