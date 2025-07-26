@@ -240,21 +240,27 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             marker.addListener('click', () => {
                 console.log('Clicked on participant:', user.username, 'isPublishingMusic:', user.isPublishingMusic);
                 
-                // Show earshot circle for this user
-                setSelectedUserForEarshot(user);
-                
-                // Show hunter name in a temporary notification
-                const notification = document.createElement('div');
-                notification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-                notification.textContent = `🎤 ${user.username}'s voice range (500m)`;
-                document.body.appendChild(notification);
-                
-                // Remove notification after 3 seconds
-                setTimeout(() => {
-                    if (notification.parentNode) {
-                        notification.remove();
-                    }
-                }, 3000);
+                // Toggle earshot circle for this user
+                if (selectedUserForEarshot && selectedUserForEarshot.userId === user.userId) {
+                    // If clicking the same user, hide the circle
+                    setSelectedUserForEarshot(null);
+                } else {
+                    // If clicking a different user, show their circle
+                    setSelectedUserForEarshot(user);
+                    
+                    // Show hunter name in a temporary notification
+                    const notification = document.createElement('div');
+                    notification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+                    notification.textContent = `🎤 ${user.username}'s voice range (500m)`;
+                    document.body.appendChild(notification);
+                    
+                    // Remove notification after 3 seconds
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.remove();
+                        }
+                    }, 3000);
+                }
                 
                 if (user.isPublishingMusic) {
                     setSelectedMusicUser(user);
@@ -280,21 +286,27 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             marker.addListener('click', () => {
                 console.log('Clicked on participant:', user.username, 'isPublishingMusic:', user.isPublishingMusic);
                 
-                // Show earshot circle for this user
-                setSelectedUserForEarshot(user);
-                
-                // Show hunter name in a temporary notification
-                const notification = document.createElement('div');
-                notification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-                notification.textContent = `🎤 ${user.username}'s voice range (500m)`;
-                document.body.appendChild(notification);
-                
-                // Remove notification after 3 seconds
-                setTimeout(() => {
-                    if (notification.parentNode) {
-                        notification.remove();
-                    }
-                }, 3000);
+                // Toggle earshot circle for this user
+                if (selectedUserForEarshot && selectedUserForEarshot.userId === user.userId) {
+                    // If clicking the same user, hide the circle
+                    setSelectedUserForEarshot(null);
+                } else {
+                    // If clicking a different user, show their circle
+                    setSelectedUserForEarshot(user);
+                    
+                    // Show hunter name in a temporary notification
+                    const notification = document.createElement('div');
+                    notification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+                    notification.textContent = `🎤 ${user.username}'s voice range (500m)`;
+                    document.body.appendChild(notification);
+                    
+                    // Remove notification after 3 seconds
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.remove();
+                        }
+                    }, 3000);
+                }
                 
                 if (user.isPublishingMusic) {
                     setSelectedMusicUser(user);
@@ -770,27 +782,64 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                     newParticipants.set(localParticipant.identity, localUserPosition);
                 }
 
-                // Add remote participants
+                // Add remote participants with improved metadata checking
                 newRoom.remoteParticipants.forEach((participant) => {
                     console.log('Processing existing participant:', participant.identity, 'metadata:', participant.metadata ? 'present' : 'missing');
+                    
+                    // Check if participant has valid metadata
                     if (participant.metadata) {
                         try {
                             const metadata = JSON.parse(participant.metadata);
-                            const userPosition = {
-                                userId: participant.identity,
-                                username: metadata.username,
-                                avatar: metadata.avatar,
-                                position: metadata.position,
-                                isPublishingMusic: metadata.isPublishingMusic || false,
-                                musicTitle: metadata.musicTitle,
-                            };
-                            newParticipants.set(participant.identity, userPosition);
+                            if (metadata.position && typeof metadata.position.x === 'number' && typeof metadata.position.y === 'number') {
+                                const userPosition = {
+                                    userId: participant.identity,
+                                    username: metadata.username,
+                                    avatar: metadata.avatar,
+                                    position: metadata.position,
+                                    isPublishingMusic: metadata.isPublishingMusic || false,
+                                    musicTitle: metadata.musicTitle,
+                                };
+                                newParticipants.set(participant.identity, userPosition);
+                                console.log('✅ Added existing participant with metadata:', participant.identity);
+                            } else {
+                                console.log('⚠️ Participant has metadata but invalid position:', participant.identity);
+                            }
                         } catch (error) {
                             console.error('Error parsing participant metadata for', participant.identity, ':', error);
                         }
                     } else {
-                        // Skip participants without metadata - they will be added when metadata arrives
-                        console.log('Participant has no metadata yet, skipping:', participant.identity);
+                        // For participants without metadata, set up a retry mechanism
+                        console.log('⏳ Participant has no metadata yet, will retry:', participant.identity);
+                        const checkMetadata = () => {
+                            if (participant.metadata) {
+                                try {
+                                    const metadata = JSON.parse(participant.metadata);
+                                    if (metadata.position && typeof metadata.position.x === 'number' && typeof metadata.position.y === 'number') {
+                                        const userPosition = {
+                                            userId: participant.identity,
+                                            username: metadata.username,
+                                            avatar: metadata.avatar,
+                                            position: metadata.position,
+                                            isPublishingMusic: metadata.isPublishingMusic || false,
+                                            musicTitle: metadata.musicTitle,
+                                        };
+                                        setParticipants(prev => {
+                                            const updated = new Map(prev);
+                                            updated.set(participant.identity, userPosition);
+                                            return updated;
+                                        });
+                                        updateMapMarker(participant.identity, userPosition);
+                                        console.log('✅ Added participant after metadata retry:', participant.identity);
+                                    }
+                                } catch (error) {
+                                    console.error('Error parsing participant metadata on retry for', participant.identity, ':', error);
+                                }
+                            } else {
+                                // Retry after a short delay
+                                setTimeout(checkMetadata, 1000);
+                            }
+                        };
+                        setTimeout(checkMetadata, 1000);
                     }
                 });
                 setParticipants(newParticipants);
