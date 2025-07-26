@@ -60,165 +60,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
         // Initialize RoomServiceClient using LiveKit Server SDK
         const roomService = new RoomServiceClient(livekitUrl, apiKey, apiSecret);
+        console.log('🔗 Connecting to LiveKit server:', livekitUrl);
 
-        // Handle different HTTP methods for participant control
+        // Handle different HTTP methods for admin controls
         if (req.method === 'POST') {
-            const { action, room, identity, trackSid, muted } = req.body;
-
-            switch (action) {
-                case 'muteTrack':
-                    if (!room || !identity || !trackSid || typeof muted !== 'boolean') {
-                        return res.status(400).json({ error: 'Missing required parameters: room, identity, trackSid, muted' });
-                    }
-                    
-                    console.log(`🔇 ${muted ? 'Muting' : 'Unmuting'} track ${trackSid} for participant ${identity} in room ${room}`);
-                    await roomService.mutePublishedTrack(room, identity, trackSid, muted);
-                    return res.status(200).json({ success: true, message: `Track ${muted ? 'muted' : 'unmuted'} successfully` });
-
-                case 'kickParticipant':
-                    if (!room || !identity) {
-                        return res.status(400).json({ error: 'Missing required parameters: room, identity' });
-                    }
-                    
-                    console.log(`👢 Kicking participant ${identity} from room ${room}`);
-                    await roomService.removeParticipant(room, identity);
-                    return res.status(200).json({ success: true, message: 'Participant removed successfully' });
-
-                case 'updateParticipant':
-                    if (!room || !identity) {
-                        return res.status(400).json({ error: 'Missing required parameters: room, identity' });
-                    }
-                    
-                    const { metadata, permissions } = req.body;
-                    console.log(`✏️ Updating participant ${identity} in room ${room}`);
-                    await roomService.updateParticipant(room, identity, metadata, permissions);
-                    return res.status(200).json({ success: true, message: 'Participant updated successfully' });
-
-                case 'updateSubscriptions':
-                    if (!room || !identity || !req.body.trackSids || typeof req.body.subscribe !== 'boolean') {
-                        return res.status(400).json({ error: 'Missing required parameters: room, identity, trackSids, subscribe' });
-                    }
-                    
-                    console.log(`🔄 ${req.body.subscribe ? 'Subscribing' : 'Unsubscribing'} participant ${identity} to tracks in room ${room}`);
-                    await roomService.updateSubscriptions(room, identity, req.body.trackSids, req.body.subscribe);
-                    return res.status(200).json({ success: true, message: 'Subscriptions updated successfully' });
-
-                default:
-                    return res.status(400).json({ error: 'Invalid action. Supported actions: muteTrack, kickParticipant, updateParticipant, updateSubscriptions' });
-            }
-        }
-
-        // Handle GET requests (existing functionality)
-        if (req.method !== 'GET') {
+            return handleAdminControl(req, res, roomService);
+        } else if (req.method === 'GET') {
+            return handleGetData(req, res, roomService);
+        } else {
             console.warn('[LiveKit API] Method not allowed:', req.method);
             return res.status(405).json({ error: 'Method not allowed', code: 405 });
         }
-
-        console.log('🔗 Connecting to LiveKit server:', livekitUrl);
-
-        // List all rooms using the official SDK
-        const rooms = await roomService.listRooms();
-        console.log('🏠 Found rooms:', rooms.length);
-
-        // Get detailed information for each room
-        const roomDetails: RoomInfo[] = await Promise.all(
-            rooms.map(async (room) => {
-                try {
-                    // List participants for each room
-                    const participantsList = await roomService.listParticipants(room.name);
-                    console.log(`👥 Room ${room.name} has ${participantsList.length} participants`);
-
-                    // Parse participant metadata and format data
-                    const participants: ParticipantInfo[] = participantsList.map((participant) => {
-                        let parsedMetadata: Record<string, unknown> = {};
-                        let position: { x: number; y: number } | undefined;
-
-                        // Parse participant metadata
-                        if (participant.metadata) {
-                            try {
-                                parsedMetadata = JSON.parse(participant.metadata);
-
-                                // Extract position data
-                                if (parsedMetadata.position &&
-                                    typeof parsedMetadata.position === 'object' &&
-                                    parsedMetadata.position !== null &&
-                                    'x' in parsedMetadata.position &&
-                                    'y' in parsedMetadata.position &&
-                                    typeof parsedMetadata.position.x === 'number' &&
-                                    typeof parsedMetadata.position.y === 'number') {
-                                    position = { x: parsedMetadata.position.x, y: parsedMetadata.position.y };
-                                }
-                            } catch (err) {
-                                console.warn(`Failed to parse metadata for participant ${participant.identity}:`, err);
-                            }
-                        }
-
-                        // Parse track information
-                        const tracks = participant.tracks?.map(track => ({
-                            sid: track.sid,
-                            name: track.name || 'unnamed',
-                            type: track.type.toString(),
-                            muted: track.muted
-                        })) || [];
-
-                        return {
-                            identity: participant.identity,
-                            state: participant.state.toString(),
-                            username: typeof parsedMetadata.username === 'string' ? parsedMetadata.username : undefined,
-                            avatar: typeof parsedMetadata.avatar === 'string' ? parsedMetadata.avatar : undefined,
-                            position,
-                            isPublishingMusic: Boolean(parsedMetadata.isPublishingMusic),
-                            musicTitle: typeof parsedMetadata.musicTitle === 'string' ? parsedMetadata.musicTitle : undefined,
-                            partyTitle: typeof parsedMetadata.partyTitle === 'string' ? parsedMetadata.partyTitle : undefined,
-                            partyDescription: typeof parsedMetadata.partyDescription === 'string' ? parsedMetadata.partyDescription : undefined,
-                            joinedAt: participant.joinedAt ? new Date(Number(participant.joinedAt) * 1000).toISOString() : undefined,
-                            tracks: tracks.length > 0 ? tracks : undefined
-                        };
-                    });
-
-                    return {
-                        name: room.name,
-                        participants,
-                        numParticipants: room.numParticipants,
-                        creationTime: room.creationTime ? new Date(Number(room.creationTime) * 1000).toISOString() : undefined,
-                        emptyTimeout: room.emptyTimeout,
-                        maxParticipants: room.maxParticipants
-                    };
-                } catch (participantError) {
-                    console.error(`Error fetching participants for room ${room.name}:`, participantError);
-
-                    // Return room info with empty participants list if participant fetch fails
-                    return {
-                        name: room.name,
-                        participants: [],
-                        numParticipants: room.numParticipants,
-                        creationTime: room.creationTime ? new Date(Number(room.creationTime) * 1000).toISOString() : undefined,
-                        emptyTimeout: room.emptyTimeout,
-                        maxParticipants: room.maxParticipants
-                    };
-                }
-            })
-        );
-
-        // Calculate summary statistics
-        const totalParticipants = roomDetails.reduce((total, room) => total + room.participants.length, 0);
-        const totalMusicPublishers = roomDetails.reduce((total, room) =>
-            total + room.participants.filter(p => p.isPublishingMusic).length, 0);
-
-        console.log(`📊 Admin Summary: ${roomDetails.length} rooms, ${totalParticipants} participants, ${totalMusicPublishers} music publishers`);
-
-        // Return structured response
-        const response = {
-            rooms: roomDetails,
-            summary: {
-                totalRooms: roomDetails.length,
-                totalParticipants,
-                totalMusicPublishers,
-                timestamp: new Date().toISOString()
-            }
-        };
-
-        res.status(200).json(response);
 
     } catch (error: unknown) {
         console.error('❌ LiveKit Admin API Error:', error);
@@ -252,6 +104,228 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({
             error: 'Unknown error occurred',
             details: 'An unexpected error occurred while fetching LiveKit data.'
+        });
+    }
+}
+
+// Handle GET requests for data fetching
+async function handleGetData(req: NextApiRequest, res: NextApiResponse, roomService: RoomServiceClient) {
+    // List all rooms using the official SDK
+    const rooms = await roomService.listRooms();
+    console.log('🏠 Found rooms:', rooms.length);
+
+    // Get detailed information for each room
+    const roomDetails: RoomInfo[] = await Promise.all(
+        rooms.map(async (room) => {
+            try {
+                // List participants for each room
+                const participantsList = await roomService.listParticipants(room.name);
+                console.log(`👥 Room ${room.name} has ${participantsList.length} participants`);
+
+                // Parse participant metadata and format data
+                const participants: ParticipantInfo[] = participantsList.map((participant) => {
+                    let parsedMetadata: Record<string, unknown> = {};
+                    let position: { x: number; y: number } | undefined;
+
+                    // Parse participant metadata
+                    if (participant.metadata) {
+                        try {
+                            parsedMetadata = JSON.parse(participant.metadata);
+
+                            // Extract position data
+                            if (parsedMetadata.position &&
+                                typeof parsedMetadata.position === 'object' &&
+                                parsedMetadata.position !== null &&
+                                'x' in parsedMetadata.position &&
+                                'y' in parsedMetadata.position &&
+                                typeof parsedMetadata.position.x === 'number' &&
+                                typeof parsedMetadata.position.y === 'number') {
+                                position = { x: parsedMetadata.position.x, y: parsedMetadata.position.y };
+                            }
+                        } catch (err) {
+                            console.warn(`Failed to parse metadata for participant ${participant.identity}:`, err);
+                        }
+                    }
+
+                    // Parse track information
+                    const tracks = participant.tracks?.map(track => ({
+                        sid: track.sid,
+                        name: track.name || 'unnamed',
+                        type: track.type.toString(),
+                        muted: track.muted
+                    })) || [];
+
+                    return {
+                        identity: participant.identity,
+                        state: participant.state.toString(),
+                        username: typeof parsedMetadata.username === 'string' ? parsedMetadata.username : undefined,
+                        avatar: typeof parsedMetadata.avatar === 'string' ? parsedMetadata.avatar : undefined,
+                        position,
+                        isPublishingMusic: Boolean(parsedMetadata.isPublishingMusic),
+                        musicTitle: typeof parsedMetadata.musicTitle === 'string' ? parsedMetadata.musicTitle : undefined,
+                        partyTitle: typeof parsedMetadata.partyTitle === 'string' ? parsedMetadata.partyTitle : undefined,
+                        partyDescription: typeof parsedMetadata.partyDescription === 'string' ? parsedMetadata.partyDescription : undefined,
+                        joinedAt: participant.joinedAt ? new Date(Number(participant.joinedAt) * 1000).toISOString() : undefined,
+                        tracks: tracks.length > 0 ? tracks : undefined
+                    };
+                });
+
+                return {
+                    name: room.name,
+                    participants,
+                    numParticipants: room.numParticipants,
+                    creationTime: room.creationTime ? new Date(Number(room.creationTime) * 1000).toISOString() : undefined,
+                    emptyTimeout: room.emptyTimeout,
+                    maxParticipants: room.maxParticipants
+                };
+            } catch (participantError) {
+                console.error(`Error fetching participants for room ${room.name}:`, participantError);
+
+                // Return room info with empty participants list if participant fetch fails
+                return {
+                    name: room.name,
+                    participants: [],
+                    numParticipants: room.numParticipants,
+                    creationTime: room.creationTime ? new Date(Number(room.creationTime) * 1000).toISOString() : undefined,
+                    emptyTimeout: room.emptyTimeout,
+                    maxParticipants: room.maxParticipants
+                };
+            }
+        })
+    );
+
+    // Calculate summary
+    const totalParticipants = roomDetails.reduce((total, room) => total + room.participants.length, 0);
+    const totalMusicPublishers = roomDetails.reduce((total, room) =>
+        total + room.participants.filter(p => p.isPublishingMusic).length, 0);
+
+    console.log(`📊 Admin Summary: ${roomDetails.length} rooms, ${totalParticipants} participants, ${totalMusicPublishers} music publishers`);
+
+    // Return structured response
+    const response = {
+        rooms: roomDetails,
+        summary: {
+            totalRooms: roomDetails.length,
+            totalParticipants,
+            totalMusicPublishers,
+            timestamp: new Date().toISOString()
+        }
+    };
+
+    res.status(200).json(response);
+}
+
+// Handle POST requests for admin controls
+async function handleAdminControl(req: NextApiRequest, res: NextApiResponse, roomService: RoomServiceClient) {
+    const { action, roomName, participantIdentity, trackSid } = req.body;
+
+    if (!action || !roomName || !participantIdentity) {
+        return res.status(400).json({
+            error: 'Missing required parameters',
+            details: 'action, roomName, and participantIdentity are required'
+        });
+    }
+
+    try {
+        let result;
+        
+        switch (action) {
+            case 'disconnect':
+                console.log(`🚪 Admin disconnecting participant ${participantIdentity} from room ${roomName}`);
+                await roomService.removeParticipant(roomName, participantIdentity);
+                result = { success: true, message: `Disconnected ${participantIdentity} from ${roomName}` };
+                break;
+
+            case 'mute_audio':
+                console.log(`🔇 Admin muting audio for participant ${participantIdentity} in room ${roomName}`);
+                await roomService.muteParticipant(roomName, participantIdentity, 'audio', true);
+                result = { success: true, message: `Muted audio for ${participantIdentity}` };
+                break;
+
+            case 'unmute_audio':
+                console.log(`🔊 Admin unmuting audio for participant ${participantIdentity} in room ${roomName}`);
+                await roomService.muteParticipant(roomName, participantIdentity, 'audio', false);
+                result = { success: true, message: `Unmuted audio for ${participantIdentity}` };
+                break;
+
+            case 'mute_video':
+                console.log(`📹 Admin muting video for participant ${participantIdentity} in room ${roomName}`);
+                await roomService.muteParticipant(roomName, participantIdentity, 'video', true);
+                result = { success: true, message: `Muted video for ${participantIdentity}` };
+                break;
+
+            case 'unmute_video':
+                console.log(`📹 Admin unmuting video for participant ${participantIdentity} in room ${roomName}`);
+                await roomService.muteParticipant(roomName, participantIdentity, 'video', false);
+                result = { success: true, message: `Unmuted video for ${participantIdentity}` };
+                break;
+
+            case 'mute_track':
+                if (!trackSid) {
+                    return res.status(400).json({
+                        error: 'Missing trackSid',
+                        details: 'trackSid is required for mute_track action'
+                    });
+                }
+                console.log(`🔇 Admin muting track ${trackSid} for participant ${participantIdentity} in room ${roomName}`);
+                await roomService.muteTrack(roomName, participantIdentity, trackSid, true);
+                result = { success: true, message: `Muted track ${trackSid} for ${participantIdentity}` };
+                break;
+
+            case 'unmute_track':
+                if (!trackSid) {
+                    return res.status(400).json({
+                        error: 'Missing trackSid',
+                        details: 'trackSid is required for unmute_track action'
+                    });
+                }
+                console.log(`🔊 Admin unmuting track ${trackSid} for participant ${participantIdentity} in room ${roomName}`);
+                await roomService.muteTrack(roomName, participantIdentity, trackSid, false);
+                result = { success: true, message: `Unmuted track ${trackSid} for ${participantIdentity}` };
+                break;
+
+            case 'update_metadata':
+                const { metadata } = req.body;
+                if (!metadata) {
+                    return res.status(400).json({
+                        error: 'Missing metadata',
+                        details: 'metadata is required for update_metadata action'
+                    });
+                }
+                console.log(`📝 Admin updating metadata for participant ${participantIdentity} in room ${roomName}`);
+                await roomService.updateParticipant(roomName, participantIdentity, { metadata: JSON.stringify(metadata) });
+                result = { success: true, message: `Updated metadata for ${participantIdentity}` };
+                break;
+
+            default:
+                return res.status(400).json({
+                    error: 'Invalid action',
+                    details: `Unknown action: ${action}. Supported actions: disconnect, mute_audio, unmute_audio, mute_video, unmute_video, mute_track, unmute_track, update_metadata`
+                });
+        }
+
+        console.log(`✅ Admin action completed: ${action} for ${participantIdentity} in ${roomName}`);
+        res.status(200).json(result);
+
+    } catch (error: unknown) {
+        console.error(`❌ Admin action failed: ${action} for ${participantIdentity} in ${roomName}:`, error);
+        
+        if (error instanceof Error) {
+            return res.status(500).json({
+                error: 'Admin action failed',
+                details: error.message,
+                action,
+                participantIdentity,
+                roomName
+            });
+        }
+
+        return res.status(500).json({
+            error: 'Unknown error occurred during admin action',
+            details: 'An unexpected error occurred while performing the admin action.',
+            action,
+            participantIdentity,
+            roomName
         });
     }
 }

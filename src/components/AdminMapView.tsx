@@ -48,65 +48,13 @@ export default function AdminMapView() {
     const [error, setError] = useState('');
     const [adminData, setAdminData] = useState<AdminData | null>(null);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-    const [actionLoading, setActionLoading] = useState<string | null>(null);
+    const [controlLoading, setControlLoading] = useState<string | null>(null);
+    const [controlMessage, setControlMessage] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
     // Map refs
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<google.maps.Map | null>(null);
     const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
-
-    // Participant control functions
-    const performParticipantAction = useCallback(async (action: string, room: string, identity: string, additionalData?: any) => {
-        if (!isAuthenticated) return;
-
-        const actionKey = `${action}-${room}-${identity}`;
-        setActionLoading(actionKey);
-        
-        try {
-            const requestBody = {
-                action,
-                room,
-                identity,
-                ...additionalData
-            };
-
-            const response = await fetch('/api/admin/livekit', {
-                method: 'POST',
-                headers: {
-                    'x-admin-password': password,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(requestBody),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Action failed');
-            }
-
-            const result = await response.json();
-            console.log(`✅ ${action} successful:`, result.message);
-            
-            // Refresh data after successful action
-            setTimeout(() => fetchAdminData(), 500);
-            
-        } catch (err) {
-            console.error(`❌ ${action} failed:`, err);
-            setError(`Failed to ${action}: ${err instanceof Error ? err.message : 'Unknown error'}`);
-        } finally {
-            setActionLoading(null);
-        }
-    }, [isAuthenticated, password]);
-
-    const muteTrack = useCallback((room: string, identity: string, trackSid: string, muted: boolean) => {
-        performParticipantAction('muteTrack', room, identity, { trackSid, muted });
-    }, [performParticipantAction]);
-
-    const kickParticipant = useCallback((room: string, identity: string) => {
-        if (confirm(`Are you sure you want to kick ${identity} from room ${room}?`)) {
-            performParticipantAction('kickParticipant', room, identity);
-        }
-    }, [performParticipantAction]);
 
     const fetchAdminData = useCallback(async () => {
         if (!isAuthenticated) return;
@@ -143,6 +91,52 @@ export default function AdminMapView() {
             setError('Failed to fetch admin data');
         }
     }, [isAuthenticated, password]);
+
+    // Admin control function
+    const performAdminAction = useCallback(async (action: string, roomName: string, participantIdentity: string, trackSid?: string, metadata?: any) => {
+        setControlLoading(`${action}_${participantIdentity}`);
+        setControlMessage(null);
+
+        try {
+            const response = await fetch('/api/admin/livekit', {
+                method: 'POST',
+                headers: {
+                    'x-admin-password': password,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action,
+                    roomName,
+                    participantIdentity,
+                    trackSid,
+                    metadata
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Action failed');
+            }
+
+            setControlMessage({ type: 'success', message: result.message });
+            
+            // Refresh data after successful action
+            setTimeout(() => {
+                fetchAdminData();
+                setControlMessage(null);
+            }, 2000);
+
+        } catch (err) {
+            console.error('Admin action failed:', err);
+            setControlMessage({ 
+                type: 'error', 
+                message: err instanceof Error ? err.message : 'Action failed' 
+            });
+        } finally {
+            setControlLoading(null);
+        }
+    }, [password, fetchAdminData]);
 
     // Check if already authenticated on mount
     useEffect(() => {
@@ -334,23 +328,11 @@ export default function AdminMapView() {
                         title: `${participant.username || participant.identity} (${room.name})${participant.isPublishingMusic ? ' 🎵' : ''}`,
                         zIndex: participant.isPublishingMusic ? 999 : 500,
                     });
-                    // Info window with enhanced participant controls
-                    const tracksInfo = participant.tracks?.map(track => `
-                        <div class="flex items-center justify-between gap-2 mt-1">
-                            <span class="text-xs">${track.type}: ${track.name}</span>
-                            <button 
-                                onclick="window.adminMuteTrack('${room.name}', '${participant.identity}', '${track.sid}', ${!track.muted})"
-                                class="text-xs px-2 py-1 rounded ${track.muted ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}"
-                            >
-                                ${track.muted ? 'Unmute' : 'Mute'}
-                            </button>
-                        </div>
-                    `).join('') || '';
-
+                    // Info window
                     const infoWindow = new window.google.maps.InfoWindow({
                         content: `
-                            <div class="p-3 min-w-[200px]">
-                                <div class="font-semibold text-gray-800 mb-2">${participant.username || participant.identity}</div>
+                            <div class="p-2">
+                                <div class="font-semibold text-gray-800">${participant.username || participant.identity}</div>
                                 <div class="text-sm text-gray-600">Room: ${room.name}</div>
                                 <div class="text-sm text-gray-600">State: ${participant.state}</div>
                                 ${participant.isPublishingMusic ? `
@@ -359,20 +341,6 @@ export default function AdminMapView() {
                                 ` : ''}
                                 <div class="text-xs text-gray-500 mt-1">
                                     Position: (${participant.position.x.toFixed(4)}, ${participant.position.y.toFixed(4)})
-                                </div>
-                                ${participant.tracks?.length ? `
-                                    <div class="mt-2 border-t pt-2">
-                                        <div class="text-xs font-semibold text-gray-700 mb-1">Tracks:</div>
-                                        ${tracksInfo}
-                                    </div>
-                                ` : ''}
-                                <div class="mt-3 pt-2 border-t flex gap-2">
-                                    <button 
-                                        onclick="window.adminKickParticipant('${room.name}', '${participant.identity}')"
-                                        class="text-xs px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                                    >
-                                        Kick
-                                    </button>
                                 </div>
                             </div>
                         `
@@ -409,21 +377,6 @@ export default function AdminMapView() {
             updateMapMarkers();
         }
     }, [adminData, updateMapMarkers, selectedRoom]);
-
-    // Expose admin functions to window for InfoWindow buttons
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            (window as any).adminMuteTrack = muteTrack;
-            (window as any).adminKickParticipant = kickParticipant;
-        }
-        
-        return () => {
-            if (typeof window !== 'undefined') {
-                delete (window as any).adminMuteTrack;
-                delete (window as any).adminKickParticipant;
-            }
-        };
-    }, [muteTrack, kickParticipant]);
 
     // Collapsible panel state
     const [panelCollapsed, setPanelCollapsed] = useState(false);
@@ -472,32 +425,38 @@ export default function AdminMapView() {
 
     return (
         <div className="relative w-full h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900 overflow-hidden">
-            {/* Top-Center Info Box */}
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30 bg-gradient-to-r from-purple-800/90 to-blue-800/90 backdrop-blur-lg text-white rounded-2xl shadow-2xl border border-white/20 px-6 py-3">
-                <div className="flex items-center gap-6 text-center">
-                    <div className="flex items-center gap-2">
-                        <span className="text-2xl">👥</span>
-                        <div>
-                            <div className="text-2xl font-bold">{adminData?.summary?.totalParticipants ?? 0}</div>
-                            <div className="text-xs text-white/80">Total Users</div>
-                        </div>
+            {/* Top Center Info Box */}
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30 bg-gradient-to-r from-gray-900/90 via-purple-900/90 to-blue-900/90 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 px-6 py-4">
+                <div className="flex items-center gap-6 text-white">
+                    <div className="flex flex-col items-center">
+                        <span className="text-xs text-white/70">Total Rooms</span>
+                        <span className="text-2xl font-bold">{adminData?.summary?.totalRooms ?? 0}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className="text-2xl">🏠</span>
-                        <div>
-                            <div className="text-2xl font-bold">{adminData?.summary?.totalRooms ?? 0}</div>
-                            <div className="text-xs text-white/80">Active Rooms</div>
-                        </div>
+                    <div className="flex flex-col items-center">
+                        <span className="text-xs text-white/70">Total Users</span>
+                        <span className="text-2xl font-bold">{adminData?.summary?.totalParticipants ?? 0}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className="text-2xl">🎵</span>
-                        <div>
-                            <div className="text-2xl font-bold">{adminData?.summary?.totalMusicPublishers ?? 0}</div>
-                            <div className="text-xs text-white/80">Music Publishers</div>
-                        </div>
+                    <div className="flex flex-col items-center">
+                        <span className="text-xs text-white/70">Music Publishers</span>
+                        <span className="text-2xl font-bold">{adminData?.summary?.totalMusicPublishers ?? 0}</span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                        <span className="text-xs text-white/70">Last Updated</span>
+                        <span className="text-sm font-medium">{lastUpdated ? lastUpdated.toLocaleTimeString() : 'N/A'}</span>
                     </div>
                 </div>
             </div>
+
+            {/* Control Message */}
+            {controlMessage && (
+                <div className={`absolute top-20 left-1/2 transform -translate-x-1/2 z-30 px-4 py-2 rounded-lg shadow-lg ${
+                    controlMessage.type === 'success' 
+                        ? 'bg-green-600/90 text-white' 
+                        : 'bg-red-600/90 text-white'
+                }`}>
+                    <span className="text-sm font-medium">{controlMessage.message}</span>
+                </div>
+            )}
 
             {/* Admin Info Panel (glassmorphism overlay, collapsible) */}
             <div
@@ -541,22 +500,22 @@ export default function AdminMapView() {
                                 ))}
                             </select>
                         </div>
-                        
+
                         {/* Active Rooms and Participants with Controls */}
-                        <div className="w-full mb-2 max-h-64 overflow-y-auto">
-                            <span className="font-semibold">Active Rooms & Controls</span>
-                            <ul className="ml-2 mt-2">
+                        <div className="w-full mb-2 max-h-96 overflow-y-auto">
+                            <span className="font-semibold">Active Rooms & Participants</span>
+                            <ul className="ml-2 mt-2 space-y-3">
                                 {(selectedRoom && selectedRoom !== '__all__' ? adminData?.rooms?.filter(r => r.name === selectedRoom) : adminData?.rooms)?.map(room => (
                                     <li key={room.name} className="mb-3">
-                                        <div className="flex items-center justify-between">
-                                            <span className="mr-1">🏠</span> 
-                                            <span className="font-bold">{room.name}</span> 
-                                            <span className="text-xs text-white/60">({room.numParticipants})</span>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="text-lg">🏠</span>
+                                            <span className="font-bold">{room.name}</span>
+                                            <span className="text-xs text-white/60">({room.numParticipants} participant{room.numParticipants !== 1 ? 's' : ''})</span>
                                         </div>
-                                        <ul className="ml-4 mt-1">
+                                        <ul className="ml-4 space-y-2">
                                             {room.participants.map(p => (
-                                                <li key={p.identity} className="bg-white/10 rounded-lg p-2 mb-2">
-                                                    <div className="flex items-center gap-2 text-sm mb-2">
+                                                <li key={p.identity} className="bg-white/10 rounded-lg p-2">
+                                                    <div className="flex items-center gap-2 mb-2">
                                                         {p.avatar ? (
                                                             <Image
                                                                 src={p.isPublishingMusic ? '/boombox.png' : `/characters_001/${p.avatar.endsWith('.png') ? p.avatar : p.avatar + '.png'}`}
@@ -570,38 +529,72 @@ export default function AdminMapView() {
                                                         ) : (
                                                             <span className="text-lg">🧑</span>
                                                         )}
-                                                        <span className="font-semibold">{p.username ?? p.identity}</span>
+                                                        <span className="font-semibold text-sm">{p.username ?? p.identity}</span>
                                                         {p.isPublishingMusic && <span className="ml-1 text-pink-400">🎶</span>}
+                                                        <span className={`text-xs px-2 py-1 rounded ${
+                                                            p.state === 'active' ? 'bg-green-600/50' : 'bg-yellow-600/50'
+                                                        }`}>
+                                                            {p.state}
+                                                        </span>
                                                     </div>
                                                     
-                                                    {/* Track Controls */}
-                                                    {p.tracks && p.tracks.length > 0 && (
-                                                        <div className="mb-2">
-                                                            <div className="text-xs text-white/80 mb-1">Tracks:</div>
-                                                            {p.tracks.map(track => (
-                                                                <div key={track.sid} className="flex items-center justify-between text-xs bg-white/5 rounded p-1 mb-1">
-                                                                    <span>{track.type}: {track.name}</span>
-                                                                    <button
-                                                                        onClick={() => muteTrack(room.name, p.identity, track.sid, !track.muted)}
-                                                                        disabled={actionLoading === `muteTrack-${room.name}-${p.identity}`}
-                                                                        className={`px-2 py-1 rounded text-xs ${track.muted ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'} text-white disabled:opacity-50`}
-                                                                    >
-                                                                        {track.muted ? 'Unmute' : 'Mute'}
-                                                                    </button>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                    
                                                     {/* Participant Controls */}
-                                                    <div className="flex gap-1">
+                                                    <div className="flex flex-wrap gap-1 mt-2">
                                                         <button
-                                                            onClick={() => kickParticipant(room.name, p.identity)}
-                                                            disabled={actionLoading === `kickParticipant-${room.name}-${p.identity}`}
-                                                            className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs disabled:opacity-50"
+                                                            onClick={() => performAdminAction('disconnect', room.name, p.identity)}
+                                                            disabled={controlLoading === `disconnect_${p.identity}`}
+                                                            className="px-2 py-1 text-xs bg-red-600/50 hover:bg-red-600/70 text-white rounded disabled:opacity-50 transition-colors"
+                                                            title="Disconnect participant"
                                                         >
-                                                            {actionLoading === `kickParticipant-${room.name}-${p.identity}` ? '...' : 'Kick'}
+                                                            {controlLoading === `disconnect_${p.identity}` ? '⏳' : '🚪'}
                                                         </button>
+                                                        
+                                                        <button
+                                                            onClick={() => performAdminAction('mute_audio', room.name, p.identity)}
+                                                            disabled={controlLoading === `mute_audio_${p.identity}`}
+                                                            className="px-2 py-1 text-xs bg-orange-600/50 hover:bg-orange-600/70 text-white rounded disabled:opacity-50 transition-colors"
+                                                            title="Mute audio"
+                                                        >
+                                                            {controlLoading === `mute_audio_${p.identity}` ? '⏳' : '🔇'}
+                                                        </button>
+                                                        
+                                                        <button
+                                                            onClick={() => performAdminAction('unmute_audio', room.name, p.identity)}
+                                                            disabled={controlLoading === `unmute_audio_${p.identity}`}
+                                                            className="px-2 py-1 text-xs bg-green-600/50 hover:bg-green-600/70 text-white rounded disabled:opacity-50 transition-colors"
+                                                            title="Unmute audio"
+                                                        >
+                                                            {controlLoading === `unmute_audio_${p.identity}` ? '⏳' : '🔊'}
+                                                        </button>
+
+                                                        {/* Track-specific controls */}
+                                                        {p.tracks && p.tracks.length > 0 && (
+                                                            <div className="w-full mt-2">
+                                                                <span className="text-xs text-white/70">Tracks:</span>
+                                                                <div className="flex flex-wrap gap-1 mt-1">
+                                                                    {p.tracks.map(track => (
+                                                                        <button
+                                                                            key={track.sid}
+                                                                            onClick={() => performAdminAction(
+                                                                                track.muted ? 'unmute_track' : 'mute_track',
+                                                                                room.name,
+                                                                                p.identity,
+                                                                                track.sid
+                                                                            )}
+                                                                            disabled={controlLoading === `${track.muted ? 'unmute_track' : 'mute_track'}_${p.identity}`}
+                                                                            className={`px-2 py-1 text-xs rounded text-white transition-colors ${
+                                                                                track.muted 
+                                                                                    ? 'bg-red-600/50 hover:bg-red-600/70' 
+                                                                                    : 'bg-green-600/50 hover:bg-green-600/70'
+                                                                            } disabled:opacity-50`}
+                                                                            title={`${track.name} (${track.type}) - ${track.muted ? 'Muted' : 'Unmuted'}`}
+                                                                        >
+                                                                            {controlLoading === `${track.muted ? 'unmute_track' : 'mute_track'}_${p.identity}` ? '⏳' : (track.muted ? '🔇' : '🔊')}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </li>
                                             ))}
@@ -610,7 +603,7 @@ export default function AdminMapView() {
                                 ))}
                             </ul>
                         </div>
-                        
+
                         <div className="flex flex-row gap-3 w-full justify-center mt-2">
                             <button onClick={handleRefresh} className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 flex items-center gap-2 text-base">
                                 <span>🔄</span> Refresh
@@ -619,14 +612,6 @@ export default function AdminMapView() {
                                 <span>🚪</span> Logout
                             </button>
                         </div>
-                        <div className="mt-2 text-xs text-white/60 text-center w-full">
-                            Updated: {lastUpdated ? lastUpdated.toLocaleTimeString() : 'N/A'}
-                        </div>
-                        {error && (
-                            <div className="mt-2 text-xs text-red-400 text-center w-full">
-                                ⚠️ {error}
-                            </div>
-                        )}
                     </div>
                 )}
             </div>
