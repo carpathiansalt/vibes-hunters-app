@@ -895,6 +895,15 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             newRoom.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
                 console.log('🔴 Participant disconnected:', participant.identity);
                 removeParticipant(participant.identity);
+                
+                // Check if this was the last participant (excluding local participant)
+                const remainingParticipants = newRoom.remoteParticipants.size;
+                if (remainingParticipants === 0) {
+                    console.log('🏠 Last participant disconnected, room is now empty');
+                    // Optionally trigger cleanup for this room
+                    // Note: This would require admin credentials, so we'll just log it
+                    console.log('💡 Room cleanup suggestion: Room is now empty and can be cleaned up');
+                }
             });
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any

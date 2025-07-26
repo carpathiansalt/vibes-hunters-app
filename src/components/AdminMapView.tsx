@@ -222,6 +222,48 @@ export default function AdminMapView() {
         fetchAdminData();
     };
 
+    const handleCleanup = async () => {
+        setControlLoading('cleanup');
+        setControlMessage(null);
+
+        try {
+            const response = await fetch('/api/admin/cleanup', {
+                method: 'POST',
+                headers: {
+                    'x-admin-password': password,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.status === 401) {
+                setIsAuthenticated(false);
+                sessionStorage.removeItem('admin-authenticated');
+                setError('Authentication expired');
+                return;
+            }
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                setControlMessage({ type: 'error', message: errorData.error || 'Cleanup failed' });
+                return;
+            }
+
+            const data = await response.json();
+            setControlMessage({ type: 'success', message: data.message });
+            
+            // Refresh data after cleanup
+            setTimeout(() => {
+                fetchAdminData();
+            }, 1000);
+
+        } catch (err) {
+            console.error('Failed to cleanup rooms:', err);
+            setControlMessage({ type: 'error', message: 'Failed to cleanup rooms' });
+        } finally {
+            setControlLoading(null);
+        }
+    };
+
     // Initialize Google Maps
     const initializeMap = useCallback(async () => {
         if (!mapContainerRef.current || mapRef.current) {
@@ -603,6 +645,15 @@ export default function AdminMapView() {
                         <div className="flex flex-row gap-3 w-full justify-center mt-2">
                             <button onClick={handleRefresh} className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 flex items-center gap-2 text-base">
                                 <span>🔄</span> Refresh
+                            </button>
+                            <button 
+                                onClick={handleCleanup} 
+                                disabled={controlLoading === 'cleanup'}
+                                className="px-4 py-2 rounded-xl bg-orange-600 text-white font-bold shadow hover:bg-orange-700 flex items-center gap-2 text-base disabled:opacity-50"
+                                title="Clean up empty rooms"
+                            >
+                                <span>{controlLoading === 'cleanup' ? '⏳' : '🧹'}</span> 
+                                {controlLoading === 'cleanup' ? 'Cleaning...' : 'Cleanup'}
                             </button>
                             <button onClick={handleLogout} className="px-4 py-2 rounded-xl bg-red-600 text-white font-bold shadow hover:bg-red-700 flex items-center gap-2 text-base">
                                 <span>🚪</span> Logout

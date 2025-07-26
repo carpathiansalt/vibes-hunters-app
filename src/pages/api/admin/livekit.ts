@@ -219,10 +219,20 @@ async function handleGetData(req: NextApiRequest, res: NextApiResponse, roomServ
 async function handleAdminControl(req: NextApiRequest, res: NextApiResponse, roomService: RoomServiceClient) {
     const { action, roomName, participantIdentity, trackSid } = req.body;
 
-    if (!action || !roomName || !participantIdentity) {
+    if (!action || !roomName) {
         return res.status(400).json({
             error: 'Missing required parameters',
-            details: 'action, roomName, and participantIdentity are required'
+            details: 'action and roomName are required'
+        });
+    }
+
+    // Check if participantIdentity is required for this action
+    const actionsRequiringParticipant = ['disconnect', 'mute_audio', 'unmute_audio', 'mute_video', 'unmute_video', 'mute_track', 'unmute_track', 'force_mute_track', 'update_metadata'];
+    
+    if (actionsRequiringParticipant.includes(action) && !participantIdentity) {
+        return res.status(400).json({
+            error: 'Missing required parameters',
+            details: `participantIdentity is required for action: ${action}`
         });
     }
 
@@ -376,10 +386,61 @@ async function handleAdminControl(req: NextApiRequest, res: NextApiResponse, roo
                 result = { success: true, message: `Updated metadata for ${participantIdentity}` };
                 break;
 
+            case 'delete_room':
+                console.log(`🗑️ Admin deleting empty room ${roomName}`);
+                try {
+                    await roomService.deleteRoom(roomName);
+                    console.log(`✅ Successfully deleted room ${roomName}`);
+                    result = { success: true, message: `Deleted room ${roomName}` };
+                } catch (deleteError) {
+                    console.error(`❌ Failed to delete room ${roomName}:`, deleteError);
+                    throw new Error(`Failed to delete room: ${deleteError instanceof Error ? deleteError.message : 'Unknown error'}`);
+                }
+                break;
+
+            case 'cleanup_empty_rooms':
+                console.log(`🧹 Admin cleaning up empty rooms`);
+                try {
+                    // Get all rooms
+                    const allRooms = await roomService.listRooms();
+                    const emptyRooms = allRooms.filter(room => room.numParticipants === 0);
+                    
+                    if (emptyRooms.length === 0) {
+                        result = { success: true, message: 'No empty rooms to clean up' };
+                    } else {
+                        // Delete all empty rooms
+                        const deletePromises = emptyRooms.map(room => 
+                            roomService.deleteRoom(room.name).catch(error => {
+                                console.warn(`⚠️ Failed to delete room ${room.name}:`, error);
+                                return { room: room.name, error: error instanceof Error ? error.message : 'Unknown error' };
+                            })
+                        );
+                        
+                        const deleteResults = await Promise.allSettled(deletePromises);
+                        const successfulDeletes = deleteResults.filter(result => result.status === 'fulfilled').length;
+                        const failedDeletes = deleteResults.filter(result => result.status === 'rejected').length;
+                        
+                        console.log(`✅ Cleaned up ${successfulDeletes} empty rooms, ${failedDeletes} failed`);
+                        result = { 
+                            success: true, 
+                            message: `Cleaned up ${successfulDeletes} empty rooms`,
+                            details: {
+                                totalEmptyRooms: emptyRooms.length,
+                                successfulDeletes,
+                                failedDeletes
+                            }
+                        };
+                    }
+                } catch (cleanupError) {
+                    console.error(`❌ Failed to cleanup empty rooms:`, cleanupError);
+                    throw new Error(`Failed to cleanup empty rooms: ${cleanupError instanceof Error ? cleanupError.message : 'Unknown error'}`);
+                }
+                break;
+
             default:
                 return res.status(400).json({
                     error: 'Invalid action',
-                    details: `Unknown action: ${action}. Supported actions: disconnect, mute_audio, unmute_audio, mute_video, unmute_video, mute_track, unmute_track, force_mute_track, update_metadata`
+                    details: `Unknown action: ${action}. Supported actions: disconnect, mute_audio, unmute_audio, mute_video, unmute_video, mute_track, unmute_track, force_mute_track, update_metadata, delete_room, cleanup_empty_rooms`
                 });
         }
 
