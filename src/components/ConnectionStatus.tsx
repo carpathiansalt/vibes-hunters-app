@@ -6,14 +6,12 @@ import { Room, RoomEvent } from 'livekit-client';
 interface ConnectionStatusProps {
     status: 'connected' | 'connecting' | 'disconnected' | 'reconnecting';
     latency?: number;
-    participants?: number;
     className?: string;
 }
 
 export function ConnectionStatus({ 
     status, 
     latency, 
-    participants, 
     className = '' 
 }: ConnectionStatusProps) {
     const [isVisible, setIsVisible] = useState(false);
@@ -68,29 +66,56 @@ export function ConnectionStatus({
 
     const config = getStatusConfig();
 
-    return (
-        <div className={`fixed top-4 right-4 z-40 transform transition-all duration-300 ${
-            isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
-        } ${className}`}>
-            <div className={`flex items-center space-x-3 px-4 py-2 rounded-full border backdrop-blur-sm shadow-lg ${config.color}`}>
-                <div className={`text-sm ${config.pulse}`}>
-                    {config.icon}
-                </div>
-                <div className="flex flex-col">
-                    <span className="text-xs font-medium capitalize">
-                        {config.text}
-                    </span>
-                    {latency && status === 'connected' && (
-                        <span className="text-xs opacity-75">
-                            {latency}ms
-                        </span>
-                    )}
-                </div>
-                {participants !== undefined && status === 'connected' && (
-                    <div className="flex items-center space-x-1 text-xs opacity-75">
-                        <span>👥</span>
-                        <span>{participants}</span>
+    const getWiFiIcon = () => {
+        switch (status) {
+            case 'connected':
+                return (
+                    <div className="relative">
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 3C7.95 3 4.21 4.34 1.2 6.6L3 9C5.5 7.12 8.62 6 12 6C15.38 6 18.5 7.12 21 9L22.8 6.6C19.79 4.34 16.05 3 12 3ZM12 9C9.3 9 6.81 9.89 4.8 11.4L6.6 13.8C8.1 12.67 9.97 12 12 12C14.03 12 15.9 12.67 17.4 13.8L19.2 11.4C17.19 9.89 14.7 9 12 9ZM12 15C10.65 15 9.4 15.45 8.4 16.2L12 21L15.6 16.2C14.6 15.45 13.35 15 12 15Z"/>
+                        </svg>
                     </div>
+                );
+            case 'connecting':
+                return (
+                    <div className="relative">
+                        <svg className="w-5 h-5 animate-pulse" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 3C7.95 3 4.21 4.34 1.2 6.6L3 9C5.5 7.12 8.62 6 12 6C15.38 6 18.5 7.12 21 9L22.8 6.6C19.79 4.34 16.05 3 12 3ZM12 9C9.3 9 6.81 9.89 4.8 11.4L6.6 13.8C8.1 12.67 9.97 12 12 12C14.03 12 15.9 12.67 17.4 13.8L19.2 11.4C17.19 9.89 14.7 9 12 9Z"/>
+                        </svg>
+                    </div>
+                );
+            case 'reconnecting':
+                return (
+                    <div className="relative">
+                        <svg className="w-5 h-5 animate-pulse" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 3C7.95 3 4.21 4.34 1.2 6.6L3 9C5.5 7.12 8.62 6 12 6C15.38 6 18.5 7.12 21 9L22.8 6.6C19.79 4.34 16.05 3 12 3ZM12 9C9.3 9 6.81 9.89 4.8 11.4L6.6 13.8C8.1 12.67 9.97 12 12 12C14.03 12 15.9 12.67 17.4 13.8L19.2 11.4C17.19 9.89 14.7 9 12 9Z"/>
+                        </svg>
+                    </div>
+                );
+            case 'disconnected':
+            default:
+                return (
+                    <div className="relative">
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 3C7.95 3 4.21 4.34 1.2 6.6L3 9C5.5 7.12 8.62 6 12 6C15.38 6 18.5 7.12 21 9L22.8 6.6C19.79 4.34 16.05 3 12 3Z"/>
+                        </svg>
+                    </div>
+                );
+        }
+    };
+
+    return (
+        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-40 transform transition-all duration-300 ${
+            isVisible ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0'
+        } ${className}`}>
+            <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full backdrop-blur-sm shadow-lg ${config.color}`}>
+                <div className={`text-lg ${config.pulse}`}>
+                    {getWiFiIcon()}
+                </div>
+                {latency && status === 'connected' && (
+                    <span className="text-xs font-medium">
+                        {latency}ms
+                    </span>
                 )}
             </div>
         </div>

@@ -60,7 +60,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [livekitRoom, setLivekitRoom] = useState<Room | null>(null);
     
     // Connection monitoring and toast system
-    const { status, latency, participants: participantCount } = useConnectionMonitor(livekitRoom);
+    const { status, latency } = useConnectionMonitor(livekitRoom);
     const { showToast } = useToast();
     const [selectedMusicUser, setSelectedMusicUser] = useState<UserPosition | null>(null);
 
@@ -1125,8 +1125,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             <div className="fixed inset-0 w-full h-full bg-gray-900" style={{ zIndex: 0 }}>
                 <ConnectionStatus 
                     status={status} 
-                    latency={latency} 
-                    participants={participantCount}
+                    latency={latency}
                 />
             <MapControls
                 room={room}
