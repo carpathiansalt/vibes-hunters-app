@@ -931,8 +931,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         try {
             console.log('Stopping music publishing...');
 
-            // Handle audio element cleanup for file uploads
-            if (currentMusicTrackRef.current.audioElement && musicSource === 'file') {
+            // Always pause the audio element regardless of source to stop local playback
+            if (currentMusicTrackRef.current.audioElement) {
                 currentMusicTrackRef.current.audioElement.pause();
                 currentMusicTrackRef.current.audioElement.currentTime = 0;
             }
@@ -945,7 +945,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 await livekitRoom.localParticipant.unpublishTrack(currentMusicTrackRef.current.track);
             }
 
-            // Clean up audio element for file uploads
+            // Clean up audio element for file uploads (revoke blob URLs)
             if (currentMusicTrackRef.current.audioElement && musicSource === 'file') {
                 // Revoke the object URL to free memory
                 if (currentMusicTrackRef.current.audioElement.src && currentMusicTrackRef.current.audioElement.src.startsWith('blob:')) {
