@@ -83,6 +83,9 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [roomInfoExpanded, setRoomInfoExpanded] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [selectedUserForEarshot, setSelectedUserForEarshot] = useState<UserPosition | null>(null);
+    
+    // Disconnection management
+    const disconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Genres data
     const genres = useMemo(() => [
@@ -971,8 +974,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         }
                     }, 2000);
                 } else {
-                    // For other disconnection reasons (page refresh, navigation, etc.), just clean up without alert
-                    console.log('Normal disconnection detected, cleaning up without alert');
+                    // For other disconnection reasons, check if it was intentional navigation
+                    console.log('Disconnection detected, reason:', reason);
                     
                     // Clean up any ongoing music publishing
                     if (currentMusicTrackRef.current) {
@@ -981,6 +984,9 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                     
                     // Clear any listening state
                     updateMusicState({ state: 'idle', listeningTo: undefined });
+                    
+                    // Don't show alerts for normal disconnections (user navigated away)
+                    console.log('Normal disconnection - no alert shown');
                 }
             });
 
@@ -1033,6 +1039,10 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             if (metadataUpdateTimeoutRef.current) {
                 clearTimeout(metadataUpdateTimeoutRef.current);
             }
+            // Clear any pending disconnect timeout
+            if (disconnectTimeoutRef.current) {
+                clearTimeout(disconnectTimeoutRef.current);
+            }
             // Stop music if publishing
             if (currentMusicTrackRef.current) {
                 stopMusicPublishing();
@@ -1072,6 +1082,67 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             return () => clearInterval(interval);
         }
     }, [isConnected, logParticipantState]);
+
+    // Smart disconnection management
+    useEffect(() => {
+        if (!livekitRoom || !isConnected) return;
+
+        let disconnectTimeout: NodeJS.Timeout | null = null;
+
+        // Handle page visibility changes (tab switching, phone hibernation, etc.)
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                console.log('📱 Page hidden - likely temporary (tab switch, phone hibernation)');
+                // Don't disconnect immediately, wait to see if user comes back
+            } else {
+                console.log('📱 Page visible again - user returned');
+                // Clear any pending disconnect timeout
+                if (disconnectTimeout) {
+                    clearTimeout(disconnectTimeout);
+                    disconnectTimeout = null;
+                }
+                if (disconnectTimeoutRef.current) {
+                    clearTimeout(disconnectTimeoutRef.current);
+                    disconnectTimeoutRef.current = null;
+                }
+            }
+        };
+
+        // Handle beforeunload (page refresh, navigation, tab close)
+        const handleBeforeUnload = () => {
+            console.log('🚪 Intentional navigation detected (refresh, navigation, tab close)');
+            
+            // For intentional navigation, disconnect immediately
+            if (livekitRoom) {
+                console.log('🔌 Disconnecting due to intentional navigation');
+                livekitRoom.disconnect();
+            }
+        };
+
+        // Handle page unload (cleanup)
+        const handleUnload = () => {
+            console.log('🚪 Page unloading - cleaning up');
+            if (livekitRoom) {
+                livekitRoom.disconnect();
+            }
+        };
+
+        // Add event listeners
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        window.addEventListener('unload', handleUnload);
+
+        // Cleanup function
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            window.removeEventListener('unload', handleUnload);
+            
+            if (disconnectTimeout) {
+                clearTimeout(disconnectTimeout);
+            }
+        };
+    }, [livekitRoom, isConnected]);
 
     // Ensure all participants have markers when map is ready or participants change
     useEffect(() => {
