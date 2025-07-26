@@ -244,11 +244,14 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 console.log('Clicked on participant:', user.username, 'isPublishingMusic:', user.isPublishingMusic);
                 
                 // Toggle earshot circle for this user
+                console.log('🔄 Earshot toggle - Current selectedUserForEarshot:', selectedUserForEarshot?.userId, 'Clicked user:', user.userId);
                 if (selectedUserForEarshot && selectedUserForEarshot.userId === user.userId) {
                     // If clicking the same user, hide the circle
+                    console.log('🔄 Hiding earshot circle for:', user.username);
                     setSelectedUserForEarshot(null);
                 } else {
                     // If clicking a different user, show their circle
+                    console.log('🔄 Showing earshot circle for:', user.username);
                     setSelectedUserForEarshot(user);
                     
                     // Show hunter name in a temporary notification
@@ -290,11 +293,14 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 console.log('Clicked on participant:', user.username, 'isPublishingMusic:', user.isPublishingMusic);
                 
                 // Toggle earshot circle for this user
+                console.log('🔄 Earshot toggle - Current selectedUserForEarshot:', selectedUserForEarshot?.userId, 'Clicked user:', user.userId);
                 if (selectedUserForEarshot && selectedUserForEarshot.userId === user.userId) {
                     // If clicking the same user, hide the circle
+                    console.log('🔄 Hiding earshot circle for:', user.username);
                     setSelectedUserForEarshot(null);
                 } else {
                     // If clicking a different user, show their circle
+                    console.log('🔄 Showing earshot circle for:', user.username);
                     setSelectedUserForEarshot(user);
                     
                     // Show hunter name in a temporary notification
@@ -321,7 +327,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             markersRef.current.set(identity, marker);
             console.log('✅ Created new marker for:', user.username, 'at:', user.position, 'marker:', marker);
         }
-    }, []);
+    }, [selectedUserForEarshot]);
 
     // Refresh all participant markers (useful after map initialization)
     const refreshAllMarkers = useCallback(() => {
@@ -668,11 +674,14 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
     // Earshot circle management for selected user
     const updateEarshotCircle = useCallback(() => {
+        console.log('🔄 updateEarshotCircle called - selectedUserForEarshot:', selectedUserForEarshot?.userId);
         if (!mapRef.current || !window.google?.maps || !selectedUserForEarshot) {
+            console.log('🔄 Removing earshot circle - conditions not met');
             // Remove circle if it exists and shouldn't be shown
             if (voiceRangeCircleRef.current) {
                 voiceRangeCircleRef.current.setMap(null);
                 voiceRangeCircleRef.current = null;
+                console.log('🔄 Earshot circle removed');
             }
             return;
         }
