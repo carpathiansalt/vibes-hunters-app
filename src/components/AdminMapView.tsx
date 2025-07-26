@@ -576,20 +576,16 @@ export default function AdminMapView() {
                                                                         <button
                                                                             key={track.sid}
                                                                             onClick={() => performAdminAction(
-                                                                                track.muted ? 'unmute_track' : 'mute_track',
+                                                                                'force_mute_track',
                                                                                 room.name,
                                                                                 p.identity,
                                                                                 track.sid
                                                                             )}
-                                                                            disabled={controlLoading === `${track.muted ? 'unmute_track' : 'mute_track'}_${p.identity}`}
-                                                                            className={`px-2 py-1 text-xs rounded text-white transition-colors ${
-                                                                                track.muted 
-                                                                                    ? 'bg-red-600/50 hover:bg-red-600/70' 
-                                                                                    : 'bg-green-600/50 hover:bg-green-600/70'
-                                                                            } disabled:opacity-50`}
-                                                                            title={`${track.name} (${track.type}) - ${track.muted ? 'Muted' : 'Unmuted'}`}
+                                                                            disabled={controlLoading === `force_mute_track_${p.identity}`}
+                                                                            className="px-2 py-1 text-xs bg-red-600/50 hover:bg-red-600/70 text-white rounded disabled:opacity-50 transition-colors"
+                                                                            title={`Unpublish ${track.name} (${track.type}) - This will mute the track and notify the participant`}
                                                                         >
-                                                                            {controlLoading === `${track.muted ? 'unmute_track' : 'mute_track'}_${p.identity}` ? '⏳' : (track.muted ? '🔇' : '🔊')}
+                                                                            {controlLoading === `force_mute_track_${p.identity}` ? '⏳' : '🚫'}
                                                                         </button>
                                                                     ))}
                                                                 </div>

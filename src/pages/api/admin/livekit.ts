@@ -314,6 +314,37 @@ async function handleAdminControl(req: NextApiRequest, res: NextApiResponse, roo
                 result = { success: true, message: `Unmuted track ${trackSid} for ${participantIdentity}` };
                 break;
 
+            case 'force_mute_track':
+                if (!trackSid) {
+                    return res.status(400).json({
+                        error: 'Missing trackSid',
+                        details: 'trackSid is required for force_mute_track action'
+                    });
+                }
+                console.log(`🚫 Admin force-muting/unpublishing track ${trackSid} for participant ${participantIdentity} in room ${roomName}`);
+                // 1. Mute the published track
+                await roomService.mutePublishedTrack(roomName, participantIdentity, trackSid, true);
+                // 2. Send a data message to the participant with a default reason
+                const defaultReason = 'Your track was unpublished by an admin for violating the terms of use.';
+                const data = Buffer.from(JSON.stringify({
+                    type: 'admin_track_muted',
+                    message: defaultReason,
+                    trackSid
+                }));
+                try {
+                    await roomService.sendData(
+                        roomName,
+                        data,
+                        0, // DataPacket_Kind.RELIABLE
+                        { destinationIdentities: [participantIdentity] }
+                    );
+                    console.log(`📢 Sent track mute notification to ${participantIdentity} in room ${roomName}`);
+                } catch (dataError) {
+                    console.warn(`⚠️ Failed to send track mute notification to ${participantIdentity}:`, dataError);
+                }
+                result = { success: true, message: `Track ${trackSid} unpublished and participant notified.` };
+                break;
+
             case 'update_metadata':
                 const { metadata } = req.body;
                 if (!metadata) {
@@ -330,7 +361,7 @@ async function handleAdminControl(req: NextApiRequest, res: NextApiResponse, roo
             default:
                 return res.status(400).json({
                     error: 'Invalid action',
-                    details: `Unknown action: ${action}. Supported actions: disconnect, mute_audio, unmute_audio, mute_video, unmute_video, mute_track, unmute_track, update_metadata`
+                    details: `Unknown action: ${action}. Supported actions: disconnect, mute_audio, unmute_audio, mute_video, unmute_video, mute_track, unmute_track, force_mute_track, update_metadata`
                 });
         }
 

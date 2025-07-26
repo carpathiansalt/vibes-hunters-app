@@ -736,6 +736,19 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 updateTrackPositions();
             });
 
+            // Listen for admin track mute/unpublish notifications
+            newRoom.on(RoomEvent.DataReceived, (payload: Uint8Array) => {
+                try {
+                    const data = JSON.parse(new TextDecoder().decode(payload));
+                    if (data.type === 'admin_track_muted') {
+                        alert(`Admin Notice: ${data.message}\n(Track SID: ${data.trackSid})`);
+                        // Optionally, you could add logic here to unpublish the track client-side if needed
+                    }
+                } catch (error) {
+                    console.warn('Failed to parse data message:', error);
+                }
+            });
+
             // Handle when the local participant is disconnected (e.g., by admin)
             newRoom.on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
                 console.log('🔴 Local participant disconnected from room:', reason);
