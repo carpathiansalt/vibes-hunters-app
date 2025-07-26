@@ -49,18 +49,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             });
         }
 
+        // Define result type for better type safety
+        type DeleteResult = 
+            | { room: string; success: true }
+            | { room: string; success: false; error: string };
+
         // Delete all empty rooms
         const deletePromises = emptyRooms.map(room => 
             roomService.deleteRoom(room.name).then(() => {
                 console.log(`✅ Deleted empty room: ${room.name}`);
-                return { room: room.name, success: true };
+                return { room: room.name, success: true } as DeleteResult;
             }).catch(error => {
                 console.warn(`⚠️ Failed to delete room ${room.name}:`, error);
                 return { 
                     room: room.name, 
                     success: false, 
                     error: error instanceof Error ? error.message : 'Unknown error' 
-                };
+                } as DeleteResult;
             })
         );
         
@@ -81,8 +86,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 timestamp: new Date().toISOString()
             },
             details: {
-                successful: deleteResults.filter(r => r.success).map(r => r.room),
-                failed: deleteResults.filter(r => !r.success).map(r => ({ room: r.room, error: r.error }))
+                successful: deleteResults.filter((r): r is { room: string; success: true } => r.success).map(r => r.room),
+                failed: deleteResults.filter((r): r is { room: string; success: false; error: string } => !r.success).map(r => ({ room: r.room, error: r.error }))
             }
         });
 
