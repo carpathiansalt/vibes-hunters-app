@@ -342,6 +342,24 @@ async function handleAdminControl(req: NextApiRequest, res: NextApiResponse, roo
                 } catch (dataError) {
                     console.warn(`⚠️ Failed to send track mute notification to ${participantIdentity}:`, dataError);
                 }
+                // 3. Notify all participants in the room
+                const notifyAllData = Buffer.from(JSON.stringify({
+                    type: 'admin_track_unpublished',
+                    message: 'A track was unpublished for terms violation.',
+                    trackSid,
+                    publisherIdentity: participantIdentity
+                }));
+                try {
+                    await roomService.sendData(
+                        roomName,
+                        notifyAllData,
+                        0 // DataPacket_Kind.RELIABLE
+                        // No destinationIdentities: send to all
+                    );
+                    console.log(`📢 Notified all participants in ${roomName} about unpublished track ${trackSid}`);
+                } catch (dataError) {
+                    console.warn(`⚠️ Failed to notify all participants about unpublished track:`, dataError);
+                }
                 result = { success: true, message: `Track ${trackSid} unpublished and participant notified.` };
                 break;
 

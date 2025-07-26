@@ -741,8 +741,26 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 try {
                     const data = JSON.parse(new TextDecoder().decode(payload));
                     if (data.type === 'admin_track_muted') {
-                        alert(`Admin Notice: ${data.message}\n(Track SID: ${data.trackSid})`);
-                        // Optionally, you could add logic here to unpublish the track client-side if needed
+                        // If this user is publishing music, stop publishing and reset UI
+                        if (isPublishingMusic && currentMusicTrackRef.current && currentMusicTrackRef.current.track && currentMusicTrackRef.current.track.sid === data.trackSid) {
+                            stopMusicPublishing();
+                            setIsPublishingMusic(false);
+                            setIsMusicPaused(false);
+                            setSelectedMusicUser(null);
+                            alert(`Admin Notice: ${data.message}\n(Track SID: ${data.trackSid})`);
+                        }
+                    } else if (data.type === 'admin_track_unpublished') {
+                        // If this user is listening to the unpublished track, stop playback and reset UI
+                        if (listeningToMusic && currentMusicTrackRef.current && currentMusicTrackRef.current.track && currentMusicTrackRef.current.track.sid === data.trackSid) {
+                            stopMusicPublishing(); // Also works for listeners, as it resets music state
+                            setListeningToMusic(null);
+                            setIsMusicPaused(false);
+                            setSelectedMusicUser(null);
+                            alert(`Admin Notice: ${data.message}\n(Music you were listening to was unpublished by admin)`);
+                        } else {
+                            // Show a notification to all users
+                            alert(`Admin Notice: ${data.message}`);
+                        }
                     }
                 } catch (error) {
                     console.warn('Failed to parse data message:', error);
@@ -805,7 +823,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             setIsConnecting(false);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [room, username, publishMyMetadataThrottled, updateParticipantFromMetadata, removeParticipant, updateTrackPositions, isConnected, livekitRoom, isConnecting, refreshAllMarkers]);    // Initialize everything
+    }, [room, username, publishMyMetadataThrottled, updateParticipantFromMetadata, removeParticipant, updateTrackPositions, isConnected, livekitRoom, isConnecting, refreshAllMarkers, isPublishingMusic, currentMusicTrackRef, listeningToMusic]);    // Initialize everything
     useEffect(() => {
         let mounted = true;
 
