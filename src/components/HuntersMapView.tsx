@@ -1136,16 +1136,42 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             }
         };
 
+        // Handle popstate (browser back/forward buttons)
+        const handlePopState = () => {
+            console.log('🔙 Browser navigation detected (back/forward button)');
+            
+            // For browser navigation, disconnect immediately
+            if (livekitRoom) {
+                console.log('🔌 Disconnecting due to browser navigation');
+                livekitRoom.disconnect();
+            }
+        };
+
+        // Handle hashchange (URL hash changes)
+        const handleHashChange = () => {
+            console.log('🔗 Hash change detected');
+            
+            // For hash changes, disconnect immediately
+            if (livekitRoom) {
+                console.log('🔌 Disconnecting due to hash change');
+                livekitRoom.disconnect();
+            }
+        };
+
         // Add event listeners
         document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('beforeunload', handleBeforeUnload);
         window.addEventListener('unload', handleUnload);
+        window.addEventListener('popstate', handlePopState);
+        window.addEventListener('hashchange', handleHashChange);
 
         // Cleanup function
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('beforeunload', handleBeforeUnload);
             window.removeEventListener('unload', handleUnload);
+            window.removeEventListener('popstate', handlePopState);
+            window.removeEventListener('hashchange', handleHashChange);
             
             if (disconnectTimeout) {
                 clearTimeout(disconnectTimeout);
@@ -1160,6 +1186,26 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             refreshAllMarkers();
         }
     }, [participants.size, refreshAllMarkers]); // Trigger when participant count changes
+
+    // Component unmount cleanup - ensure disconnection when component is destroyed
+    useEffect(() => {
+        return () => {
+            console.log('🧹 Component unmounting - cleaning up LiveKit connection');
+            if (livekitRoom) {
+                console.log('🔌 Disconnecting due to component unmount');
+                livekitRoom.disconnect();
+            }
+            // Clean up any ongoing music publishing
+            if (currentMusicTrackRef.current) {
+                console.log('🔌 Stopping music publishing due to component unmount');
+                stopMusicPublishing();
+            }
+            // Clear any listening state
+            updateMusicState({ state: 'idle', listeningTo: undefined });
+        };
+    }, [livekitRoom, stopMusicPublishing, updateMusicState]);
+
+
 
 
 
