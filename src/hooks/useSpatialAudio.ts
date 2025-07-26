@@ -27,8 +27,8 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
 
         const initializeController = async () => {
             try {
-                // Add delay to ensure room is fully connected
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                // Reduced delay for faster real-time response
+                await new Promise(resolve => setTimeout(resolve, 100));
 
                 // Double check room is still valid and connected
                 if (!room || room.state !== 'connected') {

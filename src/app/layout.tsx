@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { Analytics } from "@vercel/analytics/next";
+import { ToastProvider } from '@/components/ToastSystem';
 
 export const metadata: Metadata = {
     title: 'Vibes Hunters - Spatial Audio Social Experience',
@@ -34,9 +35,26 @@ export default function RootLayout({
 }) {
     return (
         <html lang="en">
+            <head>
+                {/* Resource Preloading for Performance */}
+                <link rel="preload" href="/api/token" as="fetch" crossOrigin="anonymous" />
+                <link rel="dns-prefetch" href="maps.googleapis.com" />
+                <link rel="dns-prefetch" href="api.livekit.io" />
+                <link rel="preconnect" href="https://maps.googleapis.com" />
+                <link rel="preconnect" href="https://api.livekit.io" />
+                
+                {/* Preload critical images */}
+                <link rel="preload" href="/boombox.png" as="image" type="image/png" />
+                <link rel="preload" href="/characters_001/char_001.png" as="image" type="image/png" />
+                
+                {/* Preload critical CSS */}
+                <link rel="preload" href="/globals.css" as="style" />
+            </head>
             <body className="antialiased">
-                {children}
-                <Analytics />
+                <ToastProvider>
+                    {children}
+                    <Analytics />
+                </ToastProvider>
             </body>
         </html>
     )

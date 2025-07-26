@@ -1,11 +1,15 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback, useMemo, Suspense, lazy } from 'react';
-import Image from 'next/image';
 import { Room, RoomEvent, RemoteParticipant, LocalAudioTrack, DisconnectReason } from 'livekit-client';
 import { Loader } from '@googlemaps/js-api-loader';
 import { Vector2, ParticipantMetadata, UserPosition } from '@/types';
 import { useSpatialAudio } from '@/hooks/useSpatialAudio';
+import { MapControls } from './MapControls';
+import { MusicControls } from './MusicControls';
+import { ErrorBoundary } from './ErrorBoundary';
+import { ConnectionStatus, useConnectionMonitor } from './ConnectionStatus';
+import { useToast } from './ToastSystem';
 
 // Lazy load heavy components
 const BoomboxMusicDialog = lazy(() => import('./BoomboxMusicDialog').then(mod => ({ default: mod.BoomboxMusicDialog })));
@@ -48,11 +52,16 @@ interface MusicStateData {
 export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) {
     // Core state
     const [myPosition, setMyPosition] = useState<Vector2>({ x: 51.5074, y: -0.1278 });
+    
     const [participants, setParticipants] = useState<Map<string, UserPosition>>(new Map());
     const [isConnected, setIsConnected] = useState(false);
     const [isConnecting, setIsConnecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [livekitRoom, setLivekitRoom] = useState<Room | null>(null);
+    
+    // Connection monitoring and toast system
+    const { status, latency, participants: participantCount } = useConnectionMonitor(livekitRoom);
+    const { showToast } = useToast();
     const [selectedMusicUser, setSelectedMusicUser] = useState<UserPosition | null>(null);
 
     // Consolidated music state
@@ -130,7 +139,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
         const now = Date.now();
         const timeSinceLastUpdate = now - lastMetadataUpdateRef.current;
-        const minUpdateInterval = 2000; // Minimum 2 seconds between updates
+        const minUpdateInterval = 500; // Reduced to 500ms for real-time feel
 
         const metadata: ParticipantMetadata = {
             username,
@@ -463,14 +472,14 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 setGpsAccuracy(position.coords.accuracy);
                 console.log('GPS position updated:', newPosition, 'accuracy:', position.coords.accuracy);
 
-                // Only update if position changed significantly (more than ~10 meters)
+                // Only update if position changed significantly (more than ~5 meters for more responsive updates)
                 const currentPos = myPosition;
                 const distance = Math.sqrt(
                     Math.pow((newPosition.x - currentPos.x) * 111000, 2) +
                     Math.pow((newPosition.y - currentPos.y) * 111000, 2)
                 );
 
-                if (distance > 10) {
+                if (distance > 5) {
                     setMyPosition(newPosition);
                     // Marker will be updated via participants state and updateMapMarker
                     // Update room metadata - will be handled by useEffect watching myPosition
@@ -819,7 +828,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                             await stopMusicPublishing();
                             updateMusicState({ state: 'idle', source: undefined, isPaused: false });
                             setSelectedMusicUser(null);
-                            alert(`Admin Notice: ${data.message}\n(Track SID: ${data.trackSid})`);
+                            showToast('warning', `Admin Notice: ${data.message}`, 5000);
                         }
                     } else if (data.type === 'admin_track_unpublished') {
                         // Check if this user is listening to the participant whose track was unpublished
@@ -835,12 +844,12 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                 // Still reset UI state even if leaveMusicParty fails
                                 updateMusicState({ state: 'idle', listeningTo: undefined });
                                 setSelectedMusicUser(null);
-                                alert(`Admin Notice: ${data.message}\n(Music you were listening to was unpublished by admin)`);
+                                showToast('warning', `Admin Notice: ${data.message}`, 5000);
                             }
-                        } else {
-                            // Show a notification to all users
-                            alert(`Admin Notice: ${data.message}`);
-                        }
+                                                    } else {
+                                // Show a notification to all users
+                                showToast('info', `Admin Notice: ${data.message}`, 3000);
+                            }
                     }
                 } catch (error) {
                     console.warn('Failed to parse data message:', error);
@@ -987,60 +996,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         }
     }, [participants.size, refreshAllMarkers]); // Trigger when participant count changes
 
-    // Enhanced music button styling
-    const getMusicButtonStyle = useCallback(() => {
-        const baseClasses = 'w-16 h-16 rounded-full shadow-2xl transition-all duration-300 flex items-center justify-center text-white text-2xl';
-        
-        if (isLoading) {
-            return `${baseClasses} bg-gray-500 cursor-not-allowed`;
-        }
-        
-        if (isPublishingMusic) {
-            if (musicState.source === 'file') {
-                return isMusicPaused 
-                    ? `${baseClasses} bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700`
-                    : `${baseClasses} bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700`;
-            } else {
-                return `${baseClasses} bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700`;
-            }
-        } else if (isListeningToMusic) {
-            return `${baseClasses} bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700`;
-        } else {
-            return `${baseClasses} bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700`;
-        }
-    }, [isPublishingMusic, isListeningToMusic, isMusicPaused, musicState.source, isLoading]);
 
-    // Enhanced music button icon
-    const getMusicButtonIcon = useCallback(() => {
-        if (isLoading) return '⏳';
-        if (isPublishingMusic) {
-            if (musicState.source === 'file') {
-                return isMusicPaused ? '▶️' : '⏸️';
-            } else {
-                return '📺';
-            }
-        } else if (isListeningToMusic) {
-            return '🎧';
-        } else {
-            return '🎵';
-        }
-    }, [isPublishingMusic, isListeningToMusic, isMusicPaused, musicState.source, isLoading]);
-
-    // Enhanced music button title
-    const getMusicButtonTitle = useCallback(() => {
-        if (isLoading) return 'Loading...';
-        if (isPublishingMusic) {
-            if (musicState.source === 'file') {
-                return isMusicPaused ? 'Resume Music' : 'Pause Music';
-            } else {
-                return 'Tab Audio Capture (Control in source tab)';
-            }
-        } else if (isListeningToMusic) {
-            return 'Disconnect from Music';
-        } else {
-            return 'Start Music Party';
-        }
-    }, [isPublishingMusic, isListeningToMusic, isMusicPaused, musicState.source, isLoading]);
 
     // Enhanced GPS accuracy indicator
     const getGpsAccuracyColor = useCallback((accuracy: number) => {
@@ -1096,28 +1052,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         });
     }, [participants, myPosition]);
 
-    // Enhanced genre change handler with loading state
-    const handleGenreChange = useCallback(async (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const newGenre = e.target.value;
-        if (newGenre === genre) return;
 
-        setIsLoading(true);
-        try {
-            if (livekitRoom) {
-                await livekitRoom.disconnect();
-                setLivekitRoom(null);
-                setIsConnected(false);
-                setParticipants(new Map());
-            }
-            setGenre(newGenre);
-            window.location.replace(`/map?room=${newGenre}&username=${username}&avatar=${avatar}`);
-        } catch (error) {
-            console.error('Error changing genre:', error);
-            setError('Failed to change genre. Please try again.');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [genre, livekitRoom, username, avatar]);
 
     // Enhanced music button click handler
     const handleMusicButtonClick = useCallback(async () => {
@@ -1186,35 +1121,52 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     }, [isPublishingMusic, isListeningToMusic, isMusicPaused, musicState, isLoading, myPosition, username, avatar, leaveMusicParty, updateMusicState]);
 
     return (
-        <div className="fixed inset-0 w-full h-full bg-gray-900" style={{ zIndex: 0 }}>
-            {/* Upgraded genre selector UI: centered, modern card, aligned, responsive */}
-            <div className="fixed top-4 left-0 z-30 flex flex-row items-start justify-left px-4 pointer-events-none">
-                <div className="w-full max-w-sm pointer-events-auto flex flex-col items-center">
-                    <div className="bg-white/90 rounded-3xl shadow-xl border border-purple-200 px-0 py-0 flex flex-col items-center gap-2" style={{ minWidth: '200px' }}>
-                        <div className="relative w-full flex items-center justify-center">
-                            <select
-                                value={genre}
-                                onChange={handleGenreChange}
-                                className="w-full p-3 rounded-2xl border-2 border-purple-400 focus:border-purple-500 focus:outline-none transition-colors text-lg text-gray-900 bg-white placeholder-gray-400 appearance-none pr-16 text-center font-semibold"
-                                style={{ paddingRight: '64px', maxWidth: '100%' }}
-                            >
-                                {genres.map(g => (
-                                    <option key={g.name} value={g.name}>{g.name}</option>
-                                ))}
-                            </select>
-                            {/* Genre image visually prominent, right aligned */}
-                            <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-                                {(() => {
-                                    const selected = genres.find(g => g.name === genre);
-                                    return selected ? (
-                                        <Image src={selected.image} alt={selected.name} width={48} height={48} className="rounded-xl object-contain shadow-lg border-2 border-purple-300 bg-white" />
-                                    ) : null;
-                                })()}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <ErrorBoundary>
+            <div className="fixed inset-0 w-full h-full bg-gray-900" style={{ zIndex: 0 }}>
+                <ConnectionStatus 
+                    status={status} 
+                    latency={latency} 
+                    participants={participantCount}
+                />
+            <MapControls
+                room={room}
+                username={username}
+                participants={participants}
+                myPosition={myPosition}
+                isConnected={isConnected}
+                isConnecting={isConnecting}
+                locationPermission={locationPermission}
+                isTrackingLocation={isTrackingLocation}
+                gpsAccuracy={gpsAccuracy}
+                showVoiceRange={showVoiceRange}
+                setShowVoiceRange={setShowVoiceRange}
+                onGenreChange={(newGenre: string) => {
+                    if (newGenre === genre) return;
+                    if (livekitRoom) {
+                        livekitRoom.disconnect();
+                        setLivekitRoom(null);
+                        setIsConnected(false);
+                        setParticipants(new Map());
+                    }
+                    setGenre(newGenre);
+                    window.location.replace(`/map?room=${newGenre}&username=${username}&avatar=${avatar}`);
+                }}
+                onCenterMap={() => centerMapOnUser()}
+                onShowAllParticipants={showAllParticipants}
+                onRequestLocation={async () => {
+                    const result = await requestLocationPermission();
+                    if (result.success) {
+                        startLocationTracking();
+                        if (result.position) {
+                            centerMapOnUser(result.position);
+                        }
+                    }
+                }}
+                onDebug={process.env.NODE_ENV === 'development' ? () => {
+                    logParticipantState();
+                    refreshAllMarkers();
+                } : undefined}
+            />
             {error && (
                 <div className="absolute top-4 left-4 right-4 z-30 bg-red-500 text-white p-4 rounded-lg shadow-lg">
                     <div className="font-bold mb-2">Error</div>
@@ -1370,41 +1322,12 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 </Suspense>
             </div>
 
-            {/* Bottom Center Music Button */}
-            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-30">
-                <button
-                    onClick={handleMusicButtonClick}
-                    className={getMusicButtonStyle()}
-                    title={getMusicButtonTitle()}
-                >
-                    {getMusicButtonIcon()}
-                </button>
-
-                {/* Stop Button - Only show when music is playing or paused */}
-                {isPublishingMusic && (
-                    <button
-                        onClick={stopMusicPublishing}
-                        className="absolute -top-12 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-full shadow-lg transition-all duration-300 flex items-center justify-center text-white text-lg"
-                        title="Stop Music Party"
-                    >
-                        ⏹️
-                    </button>
-                )}
-
-                {/* Music Status Indicator */}
-                {isListeningToMusic && (
-                    <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-2 py-1 rounded-lg text-xs font-medium">
-                        Listening to music party
-                    </div>
-                )}
-
-                {/* Music Source Indicator for Publishing */}
-                {isPublishingMusic && musicState.source === 'tab-capture' && (
-                    <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-orange-600 text-white px-2 py-1 rounded-lg text-xs font-medium">
-                        Tab Audio Capture
-                    </div>
-                )}
-            </div>
+            <MusicControls
+                musicState={musicState}
+                isLoading={isLoading}
+                onMusicButtonClick={handleMusicButtonClick}
+                onStopMusic={stopMusicPublishing}
+            />
 
             {selectedMusicUser && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60" style={{ pointerEvents: 'auto' }}>
@@ -1519,5 +1442,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 </div>
             )}
         </div>
+        </ErrorBoundary>
     );
 }
