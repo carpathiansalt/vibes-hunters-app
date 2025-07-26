@@ -736,23 +736,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 updateTrackPositions();
             });
 
-            // Handle data messages (e.g., admin notifications)
-            newRoom.on(RoomEvent.DataReceived, (payload: Uint8Array, participant, topic) => {
-                try {
-                    const data = JSON.parse(new TextDecoder().decode(payload));
-                    console.log('📨 Received data message:', data, 'from:', participant?.identity, 'topic:', topic);
-                    
-                    // Handle admin disconnect notification
-                    if (data.type === 'admin_disconnect') {
-                        console.log('🚨 Admin disconnect notification received');
-                        alert(`🚨 Admin Action: ${data.message}\n\nYou will be redirected to the prejoin page shortly.`);
-                        // The actual disconnect will be handled by the Disconnected event
-                    }
-                } catch (error) {
-                    console.warn('Failed to parse data message:', error);
-                }
-            });
-
             // Handle when the local participant is disconnected (e.g., by admin)
             newRoom.on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
                 console.log('🔴 Local participant disconnected from room:', reason);

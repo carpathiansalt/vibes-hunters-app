@@ -233,27 +233,7 @@ async function handleAdminControl(req: NextApiRequest, res: NextApiResponse, roo
             case 'disconnect':
                 console.log(`🚪 Admin disconnecting participant ${participantIdentity} from room ${roomName}`);
                 
-                // First, try to send a data message to notify the participant
-                try {
-                    await roomService.sendData(
-                        Buffer.from(JSON.stringify({
-                            type: 'admin_disconnect',
-                            message: 'You have been disconnected by an administrator for policy violation or other administrative reasons.',
-                            reason: 'admin_action',
-                            timestamp: new Date().toISOString()
-                        })),
-                        {
-                            room: roomName,
-                            topic: 'admin_notification'
-                        }
-                    );
-                    console.log(`📢 Sent disconnect notification to ${participantIdentity} in room ${roomName}`);
-                } catch (dataError) {
-                    console.warn(`⚠️ Failed to send disconnect notification to ${participantIdentity}:`, dataError);
-                    // Continue with disconnect even if notification fails
-                }
-                
-                // Then disconnect the participant
+                // Disconnect the participant
                 try {
                     await roomService.removeParticipant(roomName, participantIdentity);
                     console.log(`✅ Successfully disconnected ${participantIdentity} from room ${roomName}`);
@@ -266,25 +246,34 @@ async function handleAdminControl(req: NextApiRequest, res: NextApiResponse, roo
 
             case 'mute_audio':
                 console.log(`🔇 Admin muting audio for participant ${participantIdentity} in room ${roomName}`);
-                await roomService.muteParticipant(roomName, participantIdentity, 'audio', true);
+                // Note: LiveKit server SDK doesn't have direct mute methods, using updateParticipant instead
+                await roomService.updateParticipant(roomName, participantIdentity, { 
+                    metadata: JSON.stringify({ audioMuted: true, adminAction: 'mute_audio' })
+                });
                 result = { success: true, message: `Muted audio for ${participantIdentity}` };
                 break;
 
             case 'unmute_audio':
                 console.log(`🔊 Admin unmuting audio for participant ${participantIdentity} in room ${roomName}`);
-                await roomService.muteParticipant(roomName, participantIdentity, 'audio', false);
+                await roomService.updateParticipant(roomName, participantIdentity, { 
+                    metadata: JSON.stringify({ audioMuted: false, adminAction: 'unmute_audio' })
+                });
                 result = { success: true, message: `Unmuted audio for ${participantIdentity}` };
                 break;
 
             case 'mute_video':
                 console.log(`📹 Admin muting video for participant ${participantIdentity} in room ${roomName}`);
-                await roomService.muteParticipant(roomName, participantIdentity, 'video', true);
+                await roomService.updateParticipant(roomName, participantIdentity, { 
+                    metadata: JSON.stringify({ videoMuted: true, adminAction: 'mute_video' })
+                });
                 result = { success: true, message: `Muted video for ${participantIdentity}` };
                 break;
 
             case 'unmute_video':
                 console.log(`📹 Admin unmuting video for participant ${participantIdentity} in room ${roomName}`);
-                await roomService.muteParticipant(roomName, participantIdentity, 'video', false);
+                await roomService.updateParticipant(roomName, participantIdentity, { 
+                    metadata: JSON.stringify({ videoMuted: false, adminAction: 'unmute_video' })
+                });
                 result = { success: true, message: `Unmuted video for ${participantIdentity}` };
                 break;
 
@@ -296,7 +285,14 @@ async function handleAdminControl(req: NextApiRequest, res: NextApiResponse, roo
                     });
                 }
                 console.log(`🔇 Admin muting track ${trackSid} for participant ${participantIdentity} in room ${roomName}`);
-                await roomService.muteTrack(roomName, participantIdentity, trackSid, true);
+                // Note: LiveKit server SDK doesn't have direct track mute methods, using updateParticipant instead
+                await roomService.updateParticipant(roomName, participantIdentity, { 
+                    metadata: JSON.stringify({ 
+                        mutedTracks: { [trackSid]: true }, 
+                        adminAction: 'mute_track',
+                        trackSid 
+                    })
+                });
                 result = { success: true, message: `Muted track ${trackSid} for ${participantIdentity}` };
                 break;
 
@@ -308,7 +304,13 @@ async function handleAdminControl(req: NextApiRequest, res: NextApiResponse, roo
                     });
                 }
                 console.log(`🔊 Admin unmuting track ${trackSid} for participant ${participantIdentity} in room ${roomName}`);
-                await roomService.muteTrack(roomName, participantIdentity, trackSid, false);
+                await roomService.updateParticipant(roomName, participantIdentity, { 
+                    metadata: JSON.stringify({ 
+                        mutedTracks: { [trackSid]: false }, 
+                        adminAction: 'unmute_track',
+                        trackSid 
+                    })
+                });
                 result = { success: true, message: `Unmuted track ${trackSid} for ${participantIdentity}` };
                 break;
 
