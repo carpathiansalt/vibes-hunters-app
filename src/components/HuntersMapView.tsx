@@ -1,14 +1,32 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo, Suspense, lazy } from 'react';
 import Image from 'next/image';
 import { Room, RoomEvent, RemoteParticipant, LocalAudioTrack, DisconnectReason } from 'livekit-client';
 import { Loader } from '@googlemaps/js-api-loader';
 import { Vector2, ParticipantMetadata, UserPosition } from '@/types';
-import { BoomboxMusicDialog } from './BoomboxMusicDialog';
-import { MicrophoneButton } from './MicrophoneButton';
-import { EarshotRadius } from './EarshotRadius';
 import { useSpatialAudio } from '@/hooks/useSpatialAudio';
+
+// Lazy load heavy components
+const BoomboxMusicDialog = lazy(() => import('./BoomboxMusicDialog').then(mod => ({ default: mod.BoomboxMusicDialog })));
+const MicrophoneButton = lazy(() => import('./MicrophoneButton').then(mod => ({ default: mod.MicrophoneButton })));
+const EarshotRadius = lazy(() => import('./EarshotRadius').then(mod => ({ default: mod.EarshotRadius })));
+
+// Loading components
+const MapLoadingSpinner = () => (
+    <div className="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
+        <div className="text-white text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+            <p>Loading map...</p>
+        </div>
+    </div>
+);
+
+const ComponentLoadingSpinner = () => (
+    <div className="flex items-center justify-center p-4">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
+    </div>
+);
 
 interface HuntersMapViewProps {
     room: string;
@@ -1279,11 +1297,13 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                             </button>
                             {showVoiceRange && (
                                 <div className="mt-2 p-2 bg-black/40 rounded">
-                                    <EarshotRadius
-                                        show={showVoiceRange}
-                                        radius={50}
-                                        onToggle={() => setShowVoiceRange(!showVoiceRange)}
-                                    />
+                                    <Suspense fallback={<ComponentLoadingSpinner />}>
+                                        <EarshotRadius
+                                            show={showVoiceRange}
+                                            radius={50}
+                                            onToggle={() => setShowVoiceRange(!showVoiceRange)}
+                                        />
+                                    </Suspense>
                                 </div>
                             )}
 
@@ -1332,18 +1352,22 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 </div>
             )}
 
-            <div
-                ref={mapContainerRef}
-                className="absolute top-0 left-0 w-full h-full z-20"
-                style={{ width: '100%', height: '100%', top: 0, left: 0 }}
-            />
+            <Suspense fallback={<MapLoadingSpinner />}>
+                <div
+                    ref={mapContainerRef}
+                    className="absolute top-0 left-0 w-full h-full z-20"
+                    style={{ width: '100%', height: '100%', top: 0, left: 0 }}
+                />
+            </Suspense>
 
             {/* Microphone Button for Spatial Voice Chat */}
             <div className="absolute bottom-30 right-4 z-30">
-                <MicrophoneButton
-                    room={livekitRoom}
-                    localParticipant={livekitRoom?.localParticipant || null}
-                />
+                <Suspense fallback={<ComponentLoadingSpinner />}>
+                    <MicrophoneButton
+                        room={livekitRoom}
+                        localParticipant={livekitRoom?.localParticipant || null}
+                    />
+                </Suspense>
             </div>
 
             {/* Bottom Center Music Button */}
@@ -1385,7 +1409,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             {selectedMusicUser && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60" style={{ pointerEvents: 'auto' }}>
                     <div className="relative w-full max-w-lg mx-auto my-8 max-h-[90vh] overflow-y-auto flex flex-col" style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.35)' }}>
-                        <BoomboxMusicDialog
+                        <Suspense fallback={<ComponentLoadingSpinner />}>
+                            <BoomboxMusicDialog
                             user={selectedMusicUser}
                             onClose={() => setSelectedMusicUser(null)}
                             onJoin={async () => {
@@ -1481,6 +1506,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                             isListening={musicState.listeningTo === selectedMusicUser.userId}
                             isSelf={selectedMusicUser.userId === 'self'}
                         />
+                        </Suspense>
                         {/* Close button for desktop accessibility */}
                         <button
                             onClick={() => setSelectedMusicUser(null)}
