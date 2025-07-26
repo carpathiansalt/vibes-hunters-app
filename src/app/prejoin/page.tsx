@@ -164,7 +164,7 @@ export default function PreJoinPage() {
                             {/* Avatar Selection */}
                             <fieldset>
                                 <legend className="block font-semibold mb-2 sm:mb-3 text-gray-900 text-sm sm:text-base">Choose Your Avatar</legend>
-                                <div className="w-full overflow-hidden my-2 sm:my-3">
+                                <div className="w-full overflow-hidden my-3 sm:my-4">
                                     <AvatarCarousel 
                                         avatars={avatars} 
                                         avatar={avatar} 
@@ -349,7 +349,7 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
     }, [setAvatar]);
 
     return (
-        <div className="flex items-center justify-center gap-1 sm:gap-2 w-full py-1 sm:py-2" role="group" aria-label="Avatar selection carousel">
+        <div className="flex items-center justify-center gap-2 sm:gap-3 w-full py-2 sm:py-3" role="group" aria-label="Avatar selection carousel">
             <button
                 type="button"
                 onClick={handlePrev}
@@ -361,21 +361,21 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
                 ←
             </button>
             
-            <div className="flex gap-1 sm:gap-2 overflow-hidden flex-1 justify-center py-1" role="radiogroup" aria-describedby={ariaDescribedBy}>
+            <div className="flex gap-2 sm:gap-3 overflow-hidden flex-1 justify-center py-1" role="radiogroup" aria-describedby={ariaDescribedBy}>
                 {visibleAvatars.map((a, index) => (
                     <button
                         type="button"
                         key={a}
                         onClick={() => setAvatar(a)}
                         onKeyDown={(e) => handleKeyDown(e, a)}
-                        className={`relative rounded-xl sm:rounded-2xl border-2 sm:border-3 p-1 sm:p-2 transition-all focus:outline-none focus:ring-2 focus:ring-purple-400 flex-shrink-0 ${
+                        className={`relative rounded-xl sm:rounded-2xl border-2 sm:border-3 p-1.5 sm:p-2 transition-all focus:outline-none focus:ring-2 focus:ring-purple-400 flex-shrink-0 ${
                             avatar === a
                                 ? 'border-purple-500 bg-purple-50 scale-105'
                                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                         }`}
                         style={{ 
-                            width: 'clamp(50px, 15vw, 72px)', 
-                            height: 'clamp(50px, 15vw, 72px)' 
+                            width: 'clamp(48px, 12vw, 64px)', 
+                            height: 'clamp(48px, 12vw, 64px)' 
                         }}
                         role="radio"
                         aria-checked={avatar === a}
