@@ -14,8 +14,6 @@ interface MapControlsProps {
     locationPermission: 'granted' | 'denied' | 'prompt';
     isTrackingLocation: boolean;
     gpsAccuracy: number | null;
-    showVoiceRange: boolean;
-    setShowVoiceRange: (show: boolean) => void;
     onGenreChange: (genre: string) => void;
     onCenterMap: () => void;
     onShowAllParticipants: () => void;
@@ -33,8 +31,6 @@ export function MapControls({
     locationPermission,
     isTrackingLocation,
     gpsAccuracy,
-    showVoiceRange,
-    setShowVoiceRange,
     onGenreChange,
     onCenterMap,
     onShowAllParticipants,

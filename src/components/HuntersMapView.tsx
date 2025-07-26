@@ -14,7 +14,7 @@ import { useToast } from './ToastSystem';
 // Lazy load heavy components
 const BoomboxMusicDialog = lazy(() => import('./BoomboxMusicDialog').then(mod => ({ default: mod.BoomboxMusicDialog })));
 const MicrophoneButton = lazy(() => import('./MicrophoneButton').then(mod => ({ default: mod.MicrophoneButton })));
-const EarshotRadius = lazy(() => import('./EarshotRadius').then(mod => ({ default: mod.EarshotRadius })));
+
 
 // Loading components
 const MapLoadingSpinner = () => (
@@ -80,9 +80,9 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
 
     // UI state
-    const [showVoiceRange, setShowVoiceRange] = useState(false);
     const [roomInfoExpanded, setRoomInfoExpanded] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [selectedUserForEarshot, setSelectedUserForEarshot] = useState<UserPosition | null>(null);
 
     // Genres data
     const genres = useMemo(() => [
@@ -239,6 +239,23 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             window.google.maps.event.clearListeners(marker, 'click');
             marker.addListener('click', () => {
                 console.log('Clicked on participant:', user.username, 'isPublishingMusic:', user.isPublishingMusic);
+                
+                // Show earshot circle for this user
+                setSelectedUserForEarshot(user);
+                
+                // Show hunter name in a temporary notification
+                const notification = document.createElement('div');
+                notification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+                notification.textContent = `🎤 ${user.username}'s voice range (500m)`;
+                document.body.appendChild(notification);
+                
+                // Remove notification after 3 seconds
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 3000);
+                
                 if (user.isPublishingMusic) {
                     setSelectedMusicUser(user);
                 } else {
@@ -262,6 +279,23 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
             marker.addListener('click', () => {
                 console.log('Clicked on participant:', user.username, 'isPublishingMusic:', user.isPublishingMusic);
+                
+                // Show earshot circle for this user
+                setSelectedUserForEarshot(user);
+                
+                // Show hunter name in a temporary notification
+                const notification = document.createElement('div');
+                notification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+                notification.textContent = `🎤 ${user.username}'s voice range (500m)`;
+                document.body.appendChild(notification);
+                
+                // Remove notification after 3 seconds
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 3000);
+                
                 if (user.isPublishingMusic) {
                     setSelectedMusicUser(user);
                 } else {
@@ -617,9 +651,9 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         }
     }, [participants]);
 
-    // Voice range circle management
-    const updateVoiceRangeCircle = useCallback(() => {
-        if (!mapRef.current || !window.google?.maps || !showVoiceRange) {
+    // Earshot circle management for selected user
+    const updateEarshotCircle = useCallback(() => {
+        if (!mapRef.current || !window.google?.maps || !selectedUserForEarshot) {
             // Remove circle if it exists and shouldn't be shown
             if (voiceRangeCircleRef.current) {
                 voiceRangeCircleRef.current.setMap(null);
@@ -628,11 +662,11 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             return;
         }
 
-        const voiceRangeMeters = 50; // Voice chat radius in meters
+        const earshotRadiusMeters = 500; // Voice chat radius in meters (from spatial audio hook)
 
         if (voiceRangeCircleRef.current) {
             // Update existing circle position
-            voiceRangeCircleRef.current.setCenter({ lat: myPosition.x, lng: myPosition.y });
+            voiceRangeCircleRef.current.setCenter({ lat: selectedUserForEarshot.position.x, lng: selectedUserForEarshot.position.y });
         } else {
             // Create new circle
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -643,16 +677,16 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 fillColor: '#3B82F6',
                 fillOpacity: 0.15,
                 map: mapRef.current,
-                center: { lat: myPosition.x, lng: myPosition.y },
-                radius: voiceRangeMeters
+                center: { lat: selectedUserForEarshot.position.x, lng: selectedUserForEarshot.position.y },
+                radius: earshotRadiusMeters
             });
         }
-    }, [myPosition, showVoiceRange]);
+    }, [selectedUserForEarshot]);
 
-    // Update voice range circle when position or visibility changes
+    // Update earshot circle when selected user changes
     useEffect(() => {
-        updateVoiceRangeCircle();
-    }, [updateVoiceRangeCircle]);
+        updateEarshotCircle();
+    }, [updateEarshotCircle]);
 
     // Connect to LiveKit
     const connectToLiveKit = useCallback(async () => {
@@ -1139,8 +1173,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 locationPermission={locationPermission}
                 isTrackingLocation={isTrackingLocation}
                 gpsAccuracy={gpsAccuracy}
-                showVoiceRange={showVoiceRange}
-                setShowVoiceRange={setShowVoiceRange}
+                
                 onGenreChange={(newGenre: string) => {
                     if (newGenre === genre) return;
                     if (livekitRoom) {
@@ -1241,24 +1274,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                     🔧 Debug & Refresh
                                 </button>
                             )}
-                            <button
-                                onClick={() => setShowVoiceRange(!showVoiceRange)}
-                                className="mt-2 bg-blue-600 hover:bg-blue-500 px-2 py-1 rounded text-xs font-medium transition-colors w-full flex items-center justify-between"
-                            >
-                                <span>🎤 Voice Range</span>
-                                <span className="text-xs">{showVoiceRange ? '✓' : '○'}</span>
-                            </button>
-                            {showVoiceRange && (
-                                <div className="mt-2 p-2 bg-black/40 rounded">
-                                    <Suspense fallback={<ComponentLoadingSpinner />}>
-                                        <EarshotRadius
-                                            show={showVoiceRange}
-                                            radius={50}
-                                            onToggle={() => setShowVoiceRange(!showVoiceRange)}
-                                        />
-                                    </Suspense>
-                                </div>
-                            )}
+                            
 
                             {/* Legal Links */}
                             <div className="mt-4 pt-2 border-t border-gray-600">
