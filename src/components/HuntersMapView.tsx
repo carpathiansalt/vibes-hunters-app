@@ -746,19 +746,28 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                             stopMusicPublishing();
                             setIsPublishingMusic(false);
                             setIsMusicPaused(false);
+                            setListeningToMusic(null);
                             setSelectedMusicUser(null);
+                            setMusicSource(null);
                             alert(`Admin Notice: ${data.message}\n(Track SID: ${data.trackSid})`);
                         }
                     } else if (data.type === 'admin_track_unpublished') {
                         // If this user is listening to the unpublished track, stop playback and reset UI
                         if (listeningToMusic && currentMusicTrackRef.current && currentMusicTrackRef.current.track && currentMusicTrackRef.current.track.sid === data.trackSid) {
                             stopMusicPublishing(); // Also works for listeners, as it resets music state
-                            setListeningToMusic(null);
+                            setIsPublishingMusic(false);
                             setIsMusicPaused(false);
+                            setListeningToMusic(null);
                             setSelectedMusicUser(null);
+                            setMusicSource(null);
                             alert(`Admin Notice: ${data.message}\n(Music you were listening to was unpublished by admin)`);
                         } else {
-                            // Show a notification to all users
+                            // Show a notification to all users and reset UI if needed
+                            setIsPublishingMusic(false);
+                            setIsMusicPaused(false);
+                            setListeningToMusic(null);
+                            setSelectedMusicUser(null);
+                            setMusicSource(null);
                             alert(`Admin Notice: ${data.message}`);
                         }
                     }
