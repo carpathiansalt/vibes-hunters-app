@@ -48,11 +48,65 @@ export default function AdminMapView() {
     const [error, setError] = useState('');
     const [adminData, setAdminData] = useState<AdminData | null>(null);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+    const [actionLoading, setActionLoading] = useState<string | null>(null);
 
     // Map refs
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<google.maps.Map | null>(null);
     const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
+
+    // Participant control functions
+    const performParticipantAction = useCallback(async (action: string, room: string, identity: string, additionalData?: any) => {
+        if (!isAuthenticated) return;
+
+        const actionKey = `${action}-${room}-${identity}`;
+        setActionLoading(actionKey);
+        
+        try {
+            const requestBody = {
+                action,
+                room,
+                identity,
+                ...additionalData
+            };
+
+            const response = await fetch('/api/admin/livekit', {
+                method: 'POST',
+                headers: {
+                    'x-admin-password': password,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestBody),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Action failed');
+            }
+
+            const result = await response.json();
+            console.log(`✅ ${action} successful:`, result.message);
+            
+            // Refresh data after successful action
+            setTimeout(() => fetchAdminData(), 500);
+            
+        } catch (err) {
+            console.error(`❌ ${action} failed:`, err);
+            setError(`Failed to ${action}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        } finally {
+            setActionLoading(null);
+        }
+    }, [isAuthenticated, password]);
+
+    const muteTrack = useCallback((room: string, identity: string, trackSid: string, muted: boolean) => {
+        performParticipantAction('muteTrack', room, identity, { trackSid, muted });
+    }, [performParticipantAction]);
+
+    const kickParticipant = useCallback((room: string, identity: string) => {
+        if (confirm(`Are you sure you want to kick ${identity} from room ${room}?`)) {
+            performParticipantAction('kickParticipant', room, identity);
+        }
+    }, [performParticipantAction]);
 
     const fetchAdminData = useCallback(async () => {
         if (!isAuthenticated) return;
@@ -280,11 +334,23 @@ export default function AdminMapView() {
                         title: `${participant.username || participant.identity} (${room.name})${participant.isPublishingMusic ? ' 🎵' : ''}`,
                         zIndex: participant.isPublishingMusic ? 999 : 500,
                     });
-                    // Info window
+                    // Info window with enhanced participant controls
+                    const tracksInfo = participant.tracks?.map(track => `
+                        <div class="flex items-center justify-between gap-2 mt-1">
+                            <span class="text-xs">${track.type}: ${track.name}</span>
+                            <button 
+                                onclick="window.adminMuteTrack('${room.name}', '${participant.identity}', '${track.sid}', ${!track.muted})"
+                                class="text-xs px-2 py-1 rounded ${track.muted ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}"
+                            >
+                                ${track.muted ? 'Unmute' : 'Mute'}
+                            </button>
+                        </div>
+                    `).join('') || '';
+
                     const infoWindow = new window.google.maps.InfoWindow({
                         content: `
-                            <div class="p-2">
-                                <div class="font-semibold text-gray-800">${participant.username || participant.identity}</div>
+                            <div class="p-3 min-w-[200px]">
+                                <div class="font-semibold text-gray-800 mb-2">${participant.username || participant.identity}</div>
                                 <div class="text-sm text-gray-600">Room: ${room.name}</div>
                                 <div class="text-sm text-gray-600">State: ${participant.state}</div>
                                 ${participant.isPublishingMusic ? `
@@ -293,6 +359,20 @@ export default function AdminMapView() {
                                 ` : ''}
                                 <div class="text-xs text-gray-500 mt-1">
                                     Position: (${participant.position.x.toFixed(4)}, ${participant.position.y.toFixed(4)})
+                                </div>
+                                ${participant.tracks?.length ? `
+                                    <div class="mt-2 border-t pt-2">
+                                        <div class="text-xs font-semibold text-gray-700 mb-1">Tracks:</div>
+                                        ${tracksInfo}
+                                    </div>
+                                ` : ''}
+                                <div class="mt-3 pt-2 border-t flex gap-2">
+                                    <button 
+                                        onclick="window.adminKickParticipant('${room.name}', '${participant.identity}')"
+                                        class="text-xs px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                                    >
+                                        Kick
+                                    </button>
                                 </div>
                             </div>
                         `
@@ -329,6 +409,21 @@ export default function AdminMapView() {
             updateMapMarkers();
         }
     }, [adminData, updateMapMarkers, selectedRoom]);
+
+    // Expose admin functions to window for InfoWindow buttons
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            (window as any).adminMuteTrack = muteTrack;
+            (window as any).adminKickParticipant = kickParticipant;
+        }
+        
+        return () => {
+            if (typeof window !== 'undefined') {
+                delete (window as any).adminMuteTrack;
+                delete (window as any).adminKickParticipant;
+            }
+        };
+    }, [muteTrack, kickParticipant]);
 
     // Collapsible panel state
     const [panelCollapsed, setPanelCollapsed] = useState(false);
@@ -377,12 +472,39 @@ export default function AdminMapView() {
 
     return (
         <div className="relative w-full h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900 overflow-hidden">
+            {/* Top-Center Info Box */}
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30 bg-gradient-to-r from-purple-800/90 to-blue-800/90 backdrop-blur-lg text-white rounded-2xl shadow-2xl border border-white/20 px-6 py-3">
+                <div className="flex items-center gap-6 text-center">
+                    <div className="flex items-center gap-2">
+                        <span className="text-2xl">👥</span>
+                        <div>
+                            <div className="text-2xl font-bold">{adminData?.summary?.totalParticipants ?? 0}</div>
+                            <div className="text-xs text-white/80">Total Users</div>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-2xl">🏠</span>
+                        <div>
+                            <div className="text-2xl font-bold">{adminData?.summary?.totalRooms ?? 0}</div>
+                            <div className="text-xs text-white/80">Active Rooms</div>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-2xl">🎵</span>
+                        <div>
+                            <div className="text-2xl font-bold">{adminData?.summary?.totalMusicPublishers ?? 0}</div>
+                            <div className="text-xs text-white/80">Music Publishers</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* Admin Info Panel (glassmorphism overlay, collapsible) */}
             <div
                 className={`absolute bottom-4 left-4 z-20 bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 text-white rounded-2xl shadow-2xl border border-white/20 transition-all duration-300 ${panelCollapsed ? 'p-2 min-w-[48px] max-w-[60px] h-[56px] flex items-center justify-center' : 'p-0 min-w-[0px] max-w-[90vw]'} ${panelCollapsed ? 'overflow-hidden' : ''}`}
                 style={{
                     maxHeight: panelCollapsed ? '60px' : '90vh',
-                    width: panelCollapsed ? '56px' : 'clamp(320px, 90vw, 380px)',
+                    width: panelCollapsed ? '56px' : 'clamp(320px, 90vw, 420px)',
                     boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
                     borderRadius: '1.25rem',
                     border: '1px solid rgba(255,255,255,0.15)',
@@ -404,21 +526,8 @@ export default function AdminMapView() {
                         <div className="flex items-center gap-3 mb-2 w-full justify-center">
                             <span className="font-extrabold text-2xl tracking-tight">Admin Dashboard</span>
                         </div>
-                        <div className="flex flex-row gap-6 justify-between w-full mb-2">
-                            <div className="flex flex-col items-center">
-                                <span className="font-semibold text-sm">Rooms</span>
-                                <span className="font-bold text-lg">{adminData?.summary?.totalRooms ?? 0}</span>
-                            </div>
-                            <div className="flex flex-col items-center">
-                                <span className="font-semibold text-sm">Users</span>
-                                <span className="font-bold text-lg">{adminData?.summary?.totalParticipants ?? 0}</span>
-                            </div>
-                            <div className="flex flex-col items-center">
-                                <span className="font-semibold text-sm">Music</span>
-                                <span className="font-bold text-lg">{adminData?.summary?.totalMusicPublishers ?? 0}</span>
-                            </div>
-                        </div>
-                        {/* Room selector dropdown (like prejoin page) */}
+                        
+                        {/* Room selector dropdown */}
                         <div className="w-full mb-2">
                             <label className="block text-white/90 font-medium mb-1 text-center">Select Room</label>
                             <select
@@ -432,31 +541,68 @@ export default function AdminMapView() {
                                 ))}
                             </select>
                         </div>
-                        {/* Active Rooms and Participants */}
-                        <div className="w-full mb-2">
-                            <span className="font-semibold">Active Rooms</span>
+                        
+                        {/* Active Rooms and Participants with Controls */}
+                        <div className="w-full mb-2 max-h-64 overflow-y-auto">
+                            <span className="font-semibold">Active Rooms & Controls</span>
                             <ul className="ml-2 mt-2">
                                 {(selectedRoom && selectedRoom !== '__all__' ? adminData?.rooms?.filter(r => r.name === selectedRoom) : adminData?.rooms)?.map(room => (
-                                    <li key={room.name} className="mb-2">
-                                        <span className="mr-1">🏠</span> <span className="font-bold">{room.name}</span> <span className="text-xs text-white/60">({room.numParticipants} participant{room.numParticipants !== 1 ? 's' : ''})</span>
-                                        <ul className="ml-4">
+                                    <li key={room.name} className="mb-3">
+                                        <div className="flex items-center justify-between">
+                                            <span className="mr-1">🏠</span> 
+                                            <span className="font-bold">{room.name}</span> 
+                                            <span className="text-xs text-white/60">({room.numParticipants})</span>
+                                        </div>
+                                        <ul className="ml-4 mt-1">
                                             {room.participants.map(p => (
-                                                <li key={p.identity} className="flex items-center gap-2 text-sm mt-1">
-                                                    {p.avatar ? (
-                                                        <Image
-                                                            src={p.isPublishingMusic ? '/boombox.png' : `/characters_001/${p.avatar.endsWith('.png') ? p.avatar : p.avatar + '.png'}`}
-                                                            alt="avatar"
-                                                            width={24}
-                                                            height={24}
-                                                            className="w-6 h-6 rounded-full inline-block border-2 border-white/30 object-cover"
-                                                            style={{ objectFit: 'cover' }}
-                                                            unoptimized={p.isPublishingMusic}
-                                                        />
-                                                    ) : (
-                                                        <span className="text-lg">🧑</span>
+                                                <li key={p.identity} className="bg-white/10 rounded-lg p-2 mb-2">
+                                                    <div className="flex items-center gap-2 text-sm mb-2">
+                                                        {p.avatar ? (
+                                                            <Image
+                                                                src={p.isPublishingMusic ? '/boombox.png' : `/characters_001/${p.avatar.endsWith('.png') ? p.avatar : p.avatar + '.png'}`}
+                                                                alt="avatar"
+                                                                width={24}
+                                                                height={24}
+                                                                className="w-6 h-6 rounded-full inline-block border-2 border-white/30 object-cover"
+                                                                style={{ objectFit: 'cover' }}
+                                                                unoptimized={p.isPublishingMusic}
+                                                            />
+                                                        ) : (
+                                                            <span className="text-lg">🧑</span>
+                                                        )}
+                                                        <span className="font-semibold">{p.username ?? p.identity}</span>
+                                                        {p.isPublishingMusic && <span className="ml-1 text-pink-400">🎶</span>}
+                                                    </div>
+                                                    
+                                                    {/* Track Controls */}
+                                                    {p.tracks && p.tracks.length > 0 && (
+                                                        <div className="mb-2">
+                                                            <div className="text-xs text-white/80 mb-1">Tracks:</div>
+                                                            {p.tracks.map(track => (
+                                                                <div key={track.sid} className="flex items-center justify-between text-xs bg-white/5 rounded p-1 mb-1">
+                                                                    <span>{track.type}: {track.name}</span>
+                                                                    <button
+                                                                        onClick={() => muteTrack(room.name, p.identity, track.sid, !track.muted)}
+                                                                        disabled={actionLoading === `muteTrack-${room.name}-${p.identity}`}
+                                                                        className={`px-2 py-1 rounded text-xs ${track.muted ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'} text-white disabled:opacity-50`}
+                                                                    >
+                                                                        {track.muted ? 'Unmute' : 'Mute'}
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
                                                     )}
-                                                    <span className="font-semibold">{p.username ?? p.identity}</span>
-                                                    {p.isPublishingMusic && <span className="ml-1 text-pink-400">🎶</span>}
+                                                    
+                                                    {/* Participant Controls */}
+                                                    <div className="flex gap-1">
+                                                        <button
+                                                            onClick={() => kickParticipant(room.name, p.identity)}
+                                                            disabled={actionLoading === `kickParticipant-${room.name}-${p.identity}`}
+                                                            className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs disabled:opacity-50"
+                                                        >
+                                                            {actionLoading === `kickParticipant-${room.name}-${p.identity}` ? '...' : 'Kick'}
+                                                        </button>
+                                                    </div>
                                                 </li>
                                             ))}
                                         </ul>
@@ -464,6 +610,7 @@ export default function AdminMapView() {
                                 ))}
                             </ul>
                         </div>
+                        
                         <div className="flex flex-row gap-3 w-full justify-center mt-2">
                             <button onClick={handleRefresh} className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 flex items-center gap-2 text-base">
                                 <span>🔄</span> Refresh
@@ -475,6 +622,11 @@ export default function AdminMapView() {
                         <div className="mt-2 text-xs text-white/60 text-center w-full">
                             Updated: {lastUpdated ? lastUpdated.toLocaleTimeString() : 'N/A'}
                         </div>
+                        {error && (
+                            <div className="mt-2 text-xs text-red-400 text-center w-full">
+                                ⚠️ {error}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

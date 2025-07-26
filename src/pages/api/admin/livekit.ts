@@ -36,16 +36,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       LIVEKIT_URL: process.env.LIVEKIT_URL,
       ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
     });
+    
     // Authentication check
     if (req.headers['x-admin-password'] !== process.env.ADMIN_PASSWORD) {
         console.warn('[LiveKit API] Unauthorized access attempt');
         return res.status(401).json({ error: 'Unauthorized', code: 401 });
-    }
-
-    // Only allow GET requests
-    if (req.method !== 'GET') {
-        console.warn('[LiveKit API] Method not allowed:', req.method);
-        return res.status(405).json({ error: 'Method not allowed', code: 405 });
     }
 
     // Check required environment variables
@@ -65,6 +60,60 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
         // Initialize RoomServiceClient using LiveKit Server SDK
         const roomService = new RoomServiceClient(livekitUrl, apiKey, apiSecret);
+
+        // Handle different HTTP methods for participant control
+        if (req.method === 'POST') {
+            const { action, room, identity, trackSid, muted } = req.body;
+
+            switch (action) {
+                case 'muteTrack':
+                    if (!room || !identity || !trackSid || typeof muted !== 'boolean') {
+                        return res.status(400).json({ error: 'Missing required parameters: room, identity, trackSid, muted' });
+                    }
+                    
+                    console.log(`🔇 ${muted ? 'Muting' : 'Unmuting'} track ${trackSid} for participant ${identity} in room ${room}`);
+                    await roomService.mutePublishedTrack(room, identity, trackSid, muted);
+                    return res.status(200).json({ success: true, message: `Track ${muted ? 'muted' : 'unmuted'} successfully` });
+
+                case 'kickParticipant':
+                    if (!room || !identity) {
+                        return res.status(400).json({ error: 'Missing required parameters: room, identity' });
+                    }
+                    
+                    console.log(`👢 Kicking participant ${identity} from room ${room}`);
+                    await roomService.removeParticipant(room, identity);
+                    return res.status(200).json({ success: true, message: 'Participant removed successfully' });
+
+                case 'updateParticipant':
+                    if (!room || !identity) {
+                        return res.status(400).json({ error: 'Missing required parameters: room, identity' });
+                    }
+                    
+                    const { metadata, permissions } = req.body;
+                    console.log(`✏️ Updating participant ${identity} in room ${room}`);
+                    await roomService.updateParticipant(room, identity, metadata, permissions);
+                    return res.status(200).json({ success: true, message: 'Participant updated successfully' });
+
+                case 'updateSubscriptions':
+                    if (!room || !identity || !req.body.trackSids || typeof req.body.subscribe !== 'boolean') {
+                        return res.status(400).json({ error: 'Missing required parameters: room, identity, trackSids, subscribe' });
+                    }
+                    
+                    console.log(`🔄 ${req.body.subscribe ? 'Subscribing' : 'Unsubscribing'} participant ${identity} to tracks in room ${room}`);
+                    await roomService.updateSubscriptions(room, identity, req.body.trackSids, req.body.subscribe);
+                    return res.status(200).json({ success: true, message: 'Subscriptions updated successfully' });
+
+                default:
+                    return res.status(400).json({ error: 'Invalid action. Supported actions: muteTrack, kickParticipant, updateParticipant, updateSubscriptions' });
+            }
+        }
+
+        // Handle GET requests (existing functionality)
+        if (req.method !== 'GET') {
+            console.warn('[LiveKit API] Method not allowed:', req.method);
+            return res.status(405).json({ error: 'Method not allowed', code: 405 });
+        }
+
         console.log('🔗 Connecting to LiveKit server:', livekitUrl);
 
         // List all rooms using the official SDK
