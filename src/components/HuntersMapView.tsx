@@ -862,41 +862,43 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 setIsConnected(false);
                 setIsConnecting(false);
                 
-                // Determine disconnect reason for better user feedback
-                let disconnectMessage = 'You have been disconnected from the room.';
-                if (reason === DisconnectReason.SERVER_SHUTDOWN) {
-                    disconnectMessage = 'The server has been shut down. You will be redirected to the prejoin page.';
-                } else if (reason === DisconnectReason.CLIENT_INITIATED) {
-                    disconnectMessage = 'You have been disconnected from the room. You will be redirected to the prejoin page.';
-                } else if (reason === DisconnectReason.DUPLICATE_IDENTITY) {
-                    disconnectMessage = 'Another user with the same identity joined the room. You will be redirected to the prejoin page.';
-                } else if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
-                    disconnectMessage = 'You have been removed from the room by an administrator. You will be redirected to the prejoin page.';
-                } else {
-                    disconnectMessage = 'You have been disconnected from the room. You will be redirected to the prejoin page.';
-                }
-                
-                // Show alert to user about being disconnected
-                alert(disconnectMessage);
-                
-                // Clean up any ongoing music publishing
-                if (currentMusicTrackRef.current) {
-                    stopMusicPublishing();
-                }
-                
-                // Clear any listening state
-                updateMusicState({ state: 'idle', listeningTo: undefined });
-                
-                // Redirect to prejoin page after a short delay
-                setTimeout(() => {
-                    try {
-                        window.location.href = '/prejoin';
-                    } catch (error) {
-                        console.error('Failed to redirect to prejoin page:', error);
-                        // Fallback: try to reload the page
-                        window.location.reload();
+                // Only show alert and redirect for admin-initiated disconnections
+                if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+                    const disconnectMessage = 'You have been removed from the room by an administrator. You will be redirected to the prejoin page.';
+                    
+                    // Show alert to user about being disconnected by admin
+                    alert(disconnectMessage);
+                    
+                    // Clean up any ongoing music publishing
+                    if (currentMusicTrackRef.current) {
+                        stopMusicPublishing();
                     }
-                }, 2000);
+                    
+                    // Clear any listening state
+                    updateMusicState({ state: 'idle', listeningTo: undefined });
+                    
+                    // Redirect to prejoin page after a short delay
+                    setTimeout(() => {
+                        try {
+                            window.location.href = '/prejoin';
+                        } catch (error) {
+                            console.error('Failed to redirect to prejoin page:', error);
+                            // Fallback: try to reload the page
+                            window.location.reload();
+                        }
+                    }, 2000);
+                } else {
+                    // For other disconnection reasons (page refresh, navigation, etc.), just clean up without alert
+                    console.log('Normal disconnection detected, cleaning up without alert');
+                    
+                    // Clean up any ongoing music publishing
+                    if (currentMusicTrackRef.current) {
+                        stopMusicPublishing();
+                    }
+                    
+                    // Clear any listening state
+                    updateMusicState({ state: 'idle', listeningTo: undefined });
+                }
             });
 
             await newRoom.connect(wsUrl, token);
