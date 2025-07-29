@@ -873,18 +873,16 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 } else {
                     disconnectMessage = 'You have been disconnected from the room. You will be redirected to the prejoin page.';
                 }
-                
-                // Show alert to user about being disconnected
-                alert(disconnectMessage);
-                
+                // Show alert ONLY for admin-initiated disconnect
+                if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+                    alert(disconnectMessage);
+                }
                 // Clean up any ongoing music publishing
                 if (currentMusicTrackRef.current) {
                     stopMusicPublishing();
                 }
-                
                 // Clear any listening state
                 updateMusicState({ state: 'idle', listeningTo: undefined });
-                
                 // Redirect to prejoin page after a short delay
                 setTimeout(() => {
                     try {
