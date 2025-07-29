@@ -886,31 +886,30 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         
                         // Check if this user is the one publishing music that got unpublished
                         if (isPublishingMusic && currentMusicTrackRef.current && currentMusicTrackRef.current.track && currentMusicTrackRef.current.track.sid === data.trackSid) {
-                            console.log('🎵 Admin unpublished our music track (by SID), stopping publishing');
+                            console.log('🎵 Admin unpublished our music track (by SID), showing alert');
+                            alert(`Admin Notice: ${data.message}\n(Your music was unpublished by admin)`);
+                            // Stop music when user clicks OK on the alert
                             await stopMusicPublishing();
-                            // Force update the music state to ensure UI reflects the change
                             updateMusicState({ state: 'idle', source: undefined, isPaused: false });
                             setSelectedMusicUser(null);
-                            alert(`Admin Notice: ${data.message}\n(Your music was unpublished by admin)`);
                         }
                         // Also check if we're the publisher by identity (in case track SID comparison fails)
                         else if (isPublishingMusic && data.publisherIdentity && data.publisherIdentity === newRoom.localParticipant.identity) {
-                            console.log('🎵 Admin unpublished our music track (by identity), stopping publishing');
+                            console.log('🎵 Admin unpublished our music track (by identity), showing alert');
+                            alert(`Admin Notice: ${data.message}\n(Your music was unpublished by admin)`);
+                            // Stop music when user clicks OK on the alert
                             await stopMusicPublishing();
-                            // Force update the music state to ensure UI reflects the change
                             updateMusicState({ state: 'idle', source: undefined, isPaused: false });
                             setSelectedMusicUser(null);
-                            alert(`Admin Notice: ${data.message}\n(Your music was unpublished by admin)`);
                         }
-                        // If we're publishing music but track SID and identity don't match, still stop publishing
-                        // This handles cases where the track might have been already unpublished
+                        // If we're publishing music but track SID and identity don't match, still show alert
                         else if (isPublishingMusic) {
-                            console.log('🎵 Admin unpublished track and we are publishing music, stopping publishing (fallback)');
+                            console.log('🎵 Admin unpublished track and we are publishing music, showing alert (fallback)');
+                            alert(`Admin Notice: ${data.message}\n(Your music was unpublished by admin)`);
+                            // Stop music when user clicks OK on the alert
                             await stopMusicPublishing();
-                            // Force update the music state to ensure UI reflects the change
                             updateMusicState({ state: 'idle', source: undefined, isPaused: false });
                             setSelectedMusicUser(null);
-                            alert(`Admin Notice: ${data.message}\n(Your music was unpublished by admin)`);
                         }
                         // Check if this user is listening to the participant whose track was unpublished
                         else if (musicStateRef.current.listeningTo && data.publisherIdentity && musicStateRef.current.listeningTo === data.publisherIdentity) {
