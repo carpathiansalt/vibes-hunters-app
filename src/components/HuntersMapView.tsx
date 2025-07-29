@@ -841,11 +841,21 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             // Handle local track unpublish events (when our own tracks are unpublished)
             newRoom.on(RoomEvent.LocalTrackUnpublished, (publication: TrackPublication) => {
                 const trackSid = (publication as { sid?: string }).sid;
-                console.log('🎵 Local track unpublished:', trackSid);
+                const trackName = (publication as { name?: string }).name;
+                console.log('🎵 Local track unpublished:', trackSid, 'name:', trackName);
                 
                 // If this is our music track being unpublished, reset the music state
                 if (isPublishingMusic && currentMusicTrackRef.current && currentMusicTrackRef.current.track && currentMusicTrackRef.current.track.sid === trackSid) {
                     console.log('🎵 Our music track was unpublished, resetting music state');
+                    // Clean up references
+                    currentMusicTrackRef.current = null;
+                    // Force update the music state to ensure UI reflects the change
+                    updateMusicState({ state: 'idle', source: undefined, isPaused: false });
+                    setSelectedMusicUser(null);
+                }
+                // Also check by track name in case SID comparison fails
+                else if (isPublishingMusic && trackName && trackName.startsWith('music-')) {
+                    console.log('🎵 Our music track was unpublished (by name), resetting music state');
                     // Clean up references
                     currentMusicTrackRef.current = null;
                     // Force update the music state to ensure UI reflects the change
@@ -874,6 +884,15 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         // Check if this user is the one publishing music that got unpublished
                         if (isPublishingMusic && currentMusicTrackRef.current && currentMusicTrackRef.current.track && currentMusicTrackRef.current.track.sid === data.trackSid) {
                             console.log('🎵 Admin unpublished our music track, stopping publishing');
+                            await stopMusicPublishing();
+                            // Force update the music state to ensure UI reflects the change
+                            updateMusicState({ state: 'idle', source: undefined, isPaused: false });
+                            setSelectedMusicUser(null);
+                            alert(`Admin Notice: ${data.message}\n(Your music was unpublished by admin)`);
+                        }
+                        // Also check if we're the publisher by identity (in case track SID comparison fails)
+                        else if (isPublishingMusic && data.publisherIdentity && data.publisherIdentity === newRoom.localParticipant.identity) {
+                            console.log('🎵 Admin unpublished our music track (by identity), stopping publishing');
                             await stopMusicPublishing();
                             // Force update the music state to ensure UI reflects the change
                             updateMusicState({ state: 'idle', source: undefined, isPaused: false });
