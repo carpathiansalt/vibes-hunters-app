@@ -120,6 +120,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const lastMetadataUpdateRef = useRef<number>(0);
     const metadataUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const currentMusicTrackRef = useRef<{ track: LocalAudioTrack; audioElement: HTMLAudioElement | null; musicTitle?: string; musicDescription?: string } | null>(null);
+    const musicStateRef = useRef<MusicStateData>({ state: 'idle' });
 
     // Spatial audio hook
     const {
@@ -298,9 +299,10 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
     // Enhanced music state management
     const updateMusicState = useCallback((newState: Partial<MusicStateData>) => {
-        const oldState = musicState;
+        const oldState = musicStateRef.current;
         setMusicState(prev => {
             const updated = { ...prev, ...newState };
+            musicStateRef.current = updated;
             console.log('🎵 Music state changed:', {
                 from: oldState,
                 to: updated,
@@ -308,7 +310,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             });
             return updated;
         });
-    }, [musicState]);
+    }, []);
 
     // Enhanced stop music function
     const stopMusicPublishing = useCallback(async () => {
@@ -814,7 +816,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 console.log('📝 Participant metadata changed:', participant.identity, 'new metadata:', metadata);
                 
                 // Check if this is the participant we're listening to and they stopped publishing music
-                if (musicState.listeningTo === participant.identity && metadata) {
+                if (musicStateRef.current.listeningTo === participant.identity && metadata) {
                     try {
                         const parsedMetadata = JSON.parse(metadata);
                         if (!parsedMetadata.isPublishingMusic) {
@@ -859,7 +861,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 
                 // Check if this is a music track that we were listening to
                 const trackName = (publication as { name?: string }).name;
-                if (trackName && trackName.startsWith('music-') && musicState.listeningTo === participant.identity) {
+                if (trackName && trackName.startsWith('music-') && musicStateRef.current.listeningTo === participant.identity) {
                     console.log('🎵 Music track unsubscribed, stopping music listening for:', participant.identity);
                     
                     // Stop listening to this participant's music
@@ -890,7 +892,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 
                 // Check if this is a music track that we were listening to
                 const trackName = (publication as { name?: string }).name;
-                if (trackName && trackName.startsWith('music-') && musicState.listeningTo === participant.identity) {
+                if (trackName && trackName.startsWith('music-') && musicStateRef.current.listeningTo === participant.identity) {
                     console.log('🎵 Music track unpublished, stopping music listening for:', participant.identity);
                     
                     // Stop listening to this participant's music
@@ -929,7 +931,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                     } else if (data.type === 'admin_track_unpublished') {
                         console.log('🎵 Admin track unpublished data received:', data);
                         // Check if this user is listening to the participant whose track was unpublished
-                        if (musicState.listeningTo && data.publisherIdentity && musicState.listeningTo === data.publisherIdentity) {
+                        if (musicStateRef.current.listeningTo && data.publisherIdentity && musicStateRef.current.listeningTo === data.publisherIdentity) {
                             console.log('🎵 User is listening to the unpublished track, stopping music listening');
                             // Stop listening to this participant's music using the spatial audio hook
                             const success = await leaveMusicParty(data.publisherIdentity);
@@ -1122,10 +1124,10 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
     // Periodic check to ensure music state consistency
     useEffect(() => {
-        if (isConnected && musicState.listeningTo) {
+        if (isConnected && musicStateRef.current.listeningTo) {
             const checkMusicState = () => {
                 // Check if the participant we're listening to still exists and is publishing music
-                const targetParticipant = participants.get(musicState.listeningTo!);
+                const targetParticipant = participants.get(musicStateRef.current.listeningTo!);
                 if (!targetParticipant || !targetParticipant.isPublishingMusic) {
                     console.log('🎵 Music state inconsistency detected, resetting to idle');
                     updateMusicState({ state: 'idle', listeningTo: undefined });
@@ -1136,7 +1138,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             const interval = setInterval(checkMusicState, 5000); // Check every 5 seconds
             return () => clearInterval(interval);
         }
-    }, [isConnected, musicState.listeningTo, participants, updateMusicState]);
+    }, [isConnected, participants, updateMusicState]);
 
     // Ensure all participants have markers when map is ready or participants change
     useEffect(() => {
@@ -1325,8 +1327,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             
             // Add global function for the notification
             (window as unknown as Record<string, unknown>).leaveMusicParty = async () => {
-                if (musicState.listeningTo) {
-                    await leaveMusicParty(musicState.listeningTo);
+                if (musicStateRef.current.listeningTo) {
+                    await leaveMusicParty(musicStateRef.current.listeningTo);
                     updateMusicState({ state: 'idle', listeningTo: undefined });
                 }
                 notification.remove();
@@ -1438,7 +1440,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                 if (selectedMusicUser.userId !== 'self') {
                                     console.log('Managing music party for:', selectedMusicUser.username, 'userId:', selectedMusicUser.userId);
 
-                                    const isCurrentlyListening = musicState.listeningTo === selectedMusicUser.userId;
+                                    const isCurrentlyListening = musicStateRef.current.listeningTo === selectedMusicUser.userId;
 
                                     try {
                                         // Enable audio context first (important for mobile)
@@ -1473,9 +1475,9 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                             }
 
                                             // If already listening to another music party, leave it first
-                                            if (musicState.listeningTo && musicState.listeningTo !== selectedMusicUser.userId) {
+                                            if (musicStateRef.current.listeningTo && musicStateRef.current.listeningTo !== selectedMusicUser.userId) {
                                                 console.log('Leaving current music party before joining new one');
-                                                await leaveMusicParty(musicState.listeningTo);
+                                                await leaveMusicParty(musicStateRef.current.listeningTo);
                                                 updateMusicState({ state: 'idle', listeningTo: undefined });
                                             }
 
@@ -1523,7 +1525,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                 // This will be called from the dialog, but we also have our own stop function
                                 stopMusicPublishing();
                             }}
-                            isListening={musicState.listeningTo === selectedMusicUser.userId}
+                            isListening={musicStateRef.current.listeningTo === selectedMusicUser.userId}
                             isSelf={selectedMusicUser.userId === 'self'}
                         />
                         </Suspense>
