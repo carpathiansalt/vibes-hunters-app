@@ -887,24 +887,33 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         // Check if this user is the one publishing music that got unpublished
                         if (isPublishingMusic && currentMusicTrackRef.current && currentMusicTrackRef.current.track && currentMusicTrackRef.current.track.sid === data.trackSid) {
                             console.log('🎵 Admin unpublished our music track (by SID), activating stop button');
+                            console.log('🎵 Current music state before stop:', musicStateRef.current);
+                            console.log('🎵 Current music track ref before stop:', currentMusicTrackRef.current);
                             // Activate the stop button by calling stopMusicPublishing (same as clicking the stop button)
                             await stopMusicPublishing();
+                            console.log('🎵 Music publishing stopped, showing alert');
                             // Show alert after music is stopped
                             alert(`Admin Notice: ${data.message}\n(Your music was unpublished by admin)`);
                         }
                         // Also check if we're the publisher by identity (in case track SID comparison fails)
                         else if (isPublishingMusic && data.publisherIdentity && data.publisherIdentity === newRoom.localParticipant.identity) {
                             console.log('🎵 Admin unpublished our music track (by identity), activating stop button');
+                            console.log('🎵 Current music state before stop:', musicStateRef.current);
+                            console.log('🎵 Current music track ref before stop:', currentMusicTrackRef.current);
                             // Activate the stop button by calling stopMusicPublishing (same as clicking the stop button)
                             await stopMusicPublishing();
+                            console.log('🎵 Music publishing stopped, showing alert');
                             // Show alert after music is stopped
                             alert(`Admin Notice: ${data.message}\n(Your music was unpublished by admin)`);
                         }
                         // If we're publishing music but track SID and identity don't match, still activate stop button
                         else if (isPublishingMusic) {
                             console.log('🎵 Admin unpublished track and we are publishing music, activating stop button (fallback)');
+                            console.log('🎵 Current music state before stop:', musicStateRef.current);
+                            console.log('🎵 Current music track ref before stop:', currentMusicTrackRef.current);
                             // Activate the stop button by calling stopMusicPublishing (same as clicking the stop button)
                             await stopMusicPublishing();
+                            console.log('🎵 Music publishing stopped, showing alert');
                             // Show alert after music is stopped
                             alert(`Admin Notice: ${data.message}\n(Your music was unpublished by admin)`);
                         }
@@ -925,9 +934,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                 alert(`Admin Notice: ${data.message}\n(Music you were listening to was unpublished by admin)`);
                             }
                         } else {
-                            console.log('🎵 User is not listening to the unpublished track, showing general notification');
-                            // Show a notification to all users
-                            alert(`Admin Notice: ${data.message}`);
+                            console.log('🎵 User is not affected by the unpublished track, no notification needed');
+                            // Don't show alert to users who weren't affected
                         }
                         
                         // Update the publisher's metadata to reflect they're no longer publishing music
