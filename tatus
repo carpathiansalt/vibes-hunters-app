@@ -1,0 +1,5 @@
+[33meab9a32[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/cursor/optimize-codebase-for-performance-8423[m[33m)[m Add admin unpublish alert for music track removal
+[33mfdaf587[m Add fallback handling for admin music track unpublishing
+[33mc38be2f[m Improve admin music unpublish logging and notification handling
+[33m390128c[m Refactor admin music unpublish handling to use stopMusicPublishing
+[33m3b98376[m Fix music unpublishing to stop playback before showing admin alert
