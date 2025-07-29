@@ -138,7 +138,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
         const now = Date.now();
         const timeSinceLastUpdate = now - lastMetadataUpdateRef.current;
-        const minUpdateInterval = 2000; // Minimum 2 seconds between updates
+        const minUpdateInterval = 500; // Reduced from 2000ms to 500ms for more responsive updates
 
         const metadata: ParticipantMetadata = {
             username,
@@ -1135,7 +1135,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 }
             };
 
-            const interval = setInterval(checkMusicState, 5000); // Check every 5 seconds
+            const interval = setInterval(checkMusicState, 2000); // Reduced from 5000ms to 2000ms for faster detection
             return () => clearInterval(interval);
         }
     }, [isConnected, participants, updateMusicState]);
