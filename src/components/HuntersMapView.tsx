@@ -12,6 +12,7 @@ const BoomboxMusicDialog = lazy(() => import('./BoomboxMusicDialog').then(mod =>
 const MicrophoneButton = lazy(() => import('./MicrophoneButton').then(mod => ({ default: mod.MicrophoneButton })));
 const EarshotRadius = lazy(() => import('./EarshotRadius').then(mod => ({ default: mod.EarshotRadius })));
 
+
 // Loading components
 const MapLoadingSpinner = () => (
     <div className="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
