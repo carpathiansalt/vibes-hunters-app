@@ -755,7 +755,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                             console.log('🎵 Publisher stopped publishing music, immediately resetting music state for:', participant.identity);
                             
                             // Immediately reset UI state first for responsive feedback
-                            setMusicState({ state: 'idle', listeningTo: undefined });
+                            updateMusicState({ state: 'idle', listeningTo: undefined });
                             setSelectedMusicUser(null);
                             
                             // Then stop listening to this participant's music
@@ -794,7 +794,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                     console.log(`🎵 Music track unsubscribed, immediately stopping music listening for: ${participant.identity}${isMobile ? ' (MOBILE)' : ''}`);
                     
                     // Immediately reset UI state first for responsive feedback (critical for mobile)
-                    setMusicState({ state: 'idle', listeningTo: undefined });
+                    updateMusicState({ state: 'idle', listeningTo: undefined });
                     setSelectedMusicUser(null);
                     
                     // Then stop listening to this participant's music
@@ -822,7 +822,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                     console.log(`🎵 Music track unpublished, immediately stopping music listening for: ${participant.identity}${isMobile ? ' (MOBILE)' : ''}`);
                     
                     // Immediately reset UI state first for responsive feedback (critical for mobile)
-                    setMusicState({ state: 'idle', listeningTo: undefined });
+                    updateMusicState({ state: 'idle', listeningTo: undefined });
                     setSelectedMusicUser(null);
                     
                     // Then stop listening to this participant's music
@@ -849,7 +849,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                     // Clean up references
                     currentMusicTrackRef.current = null;
                     // Force update the music state to ensure UI reflects the change
-                    setMusicState({ state: 'idle', source: undefined, isPaused: false });
+                    updateMusicState({ state: 'idle', source: undefined, isPaused: false });
                     setSelectedMusicUser(null);
                 }
             });
@@ -864,7 +864,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                             console.log('🎵 Admin muted our music track, stopping publishing');
                             await stopMusicPublishing();
                             // Force update the music state to ensure UI reflects the change
-                            setMusicState({ state: 'idle', source: undefined, isPaused: false });
+                            updateMusicState({ state: 'idle', source: undefined, isPaused: false });
                             setSelectedMusicUser(null);
                             alert(`Admin Notice: ${data.message}\n(Track SID: ${data.trackSid})`);
                         }
@@ -876,7 +876,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                             console.log('🎵 Admin unpublished our music track, stopping publishing');
                             await stopMusicPublishing();
                             // Force update the music state to ensure UI reflects the change
-                            setMusicState({ state: 'idle', source: undefined, isPaused: false });
+                            updateMusicState({ state: 'idle', source: undefined, isPaused: false });
                             setSelectedMusicUser(null);
                             alert(`Admin Notice: ${data.message}\n(Your music was unpublished by admin)`);
                         }
@@ -884,7 +884,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         else if (musicStateRef.current.listeningTo && data.publisherIdentity && musicStateRef.current.listeningTo === data.publisherIdentity) {
                             console.log('🎵 User is listening to the unpublished track, immediately stopping music listening');
                             // Immediately reset UI state first for responsive feedback
-                            setMusicState({ state: 'idle', listeningTo: undefined });
+                            updateMusicState({ state: 'idle', listeningTo: undefined });
                             setSelectedMusicUser(null);
                             
                             // Then stop listening to this participant's music using the spatial audio hook
@@ -952,7 +952,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 if (isPublishingMusic || musicStateRef.current.listeningTo) {
                     console.log('🎵 Resetting music state due to disconnection');
                     currentMusicTrackRef.current = null;
-                    setMusicState({ state: 'idle', source: undefined, isPaused: false, listeningTo: undefined });
+                    updateMusicState({ state: 'idle', source: undefined, isPaused: false, listeningTo: undefined });
                     setSelectedMusicUser(null);
                 }
                 
@@ -1093,8 +1093,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                     const targetParticipant = participants.get(musicStateRef.current.listeningTo!);
                     if (!targetParticipant || !targetParticipant.isPublishingMusic) {
                         console.log(`🎵 Music listening state inconsistency detected, immediately resetting to idle${isMobile ? ' (MOBILE)' : ''}`);
-                        // Use setMusicState for immediate UI update on mobile
-                        setMusicState({ state: 'idle', listeningTo: undefined });
+                        // Use updateMusicState for immediate UI update on mobile
+                        updateMusicState({ state: 'idle', listeningTo: undefined });
                         setSelectedMusicUser(null);
                     }
                 }
@@ -1103,7 +1103,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 if (isPublishingMusic && (!currentMusicTrackRef.current || !currentMusicTrackRef.current.track)) {
                     console.log(`🎵 Music publishing state inconsistency detected, immediately resetting to idle${isMobile ? ' (MOBILE)' : ''}`);
                     // Force update the music state to ensure UI reflects the change
-                    setMusicState({ state: 'idle', source: undefined, isPaused: false });
+                    updateMusicState({ state: 'idle', source: undefined, isPaused: false });
                     setSelectedMusicUser(null);
                 }
                 
@@ -1113,7 +1113,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                     // On mobile, be more aggressive about resetting state if participant metadata is inconsistent
                     if (!targetParticipant || !targetParticipant.isPublishingMusic) {
                         console.log('🎵 Mobile: Aggressive state reset - participant not publishing, immediately resetting to idle');
-                        setMusicState({ state: 'idle', listeningTo: undefined });
+                        updateMusicState({ state: 'idle', listeningTo: undefined });
                         setSelectedMusicUser(null);
                     }
                 }
