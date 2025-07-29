@@ -98,24 +98,24 @@ export default function PreJoinPage() {
     }, [handleJoinRoom, isLoading]);
 
     return (
-        <main className="min-h-screen flex flex-col bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900">
+        <main className="h-screen flex flex-col bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900 overflow-hidden">
             {/* Header */}
-            <header className="text-center text-white pt-6 pb-4 px-4">
-                <div className="mb-3">
-                    <div className="text-4xl sm:text-5xl lg:text-6xl mb-2" role="img" aria-label="Music note">🎵</div>
-                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">Vibes Hunters</h1>
+            <header className="text-center text-white pt-4 pb-2 px-4 flex-shrink-0">
+                <div className="mb-2">
+                    <div className="text-3xl sm:text-4xl lg:text-5xl mb-1" role="img" aria-label="Music note">🎵</div>
+                    <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1">Vibes Hunters</h1>
                 </div>
-                <p className="text-purple-200 text-sm sm:text-base lg:text-lg">Find your tribe through music</p>
+                <p className="text-purple-200 text-xs sm:text-sm lg:text-base">Find your tribe through music</p>
             </header>
 
             {/* Main Content */}
-            <div className="flex-1 flex items-center justify-center px-3 sm:px-4 lg:px-6 pb-4">
-                <section className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 lg:p-8 w-full max-w-sm sm:max-w-md lg:max-w-lg mx-auto" aria-labelledby="setup-heading">
-                    <h2 id="setup-heading" className="text-lg sm:text-xl lg:text-2xl font-bold mb-4 sm:mb-6 text-center text-gray-800">
+            <div className="flex-1 flex items-center justify-center px-3 sm:px-4 lg:px-6 pb-2 overflow-y-auto">
+                <section className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-5 lg:p-6 w-full max-w-sm sm:max-w-md lg:max-w-lg mx-auto" aria-labelledby="setup-heading">
+                    <h2 id="setup-heading" className="text-lg sm:text-xl lg:text-2xl font-bold mb-3 sm:mb-4 text-center text-gray-800">
                         Choose Your Vibe
                     </h2>
 
-                    <form className="space-y-5 sm:space-y-6 lg:space-y-7" onSubmit={(e) => { e.preventDefault(); handleJoinRoom(); }} noValidate>
+                    <form className="space-y-4 sm:space-y-5" onSubmit={(e) => { e.preventDefault(); handleJoinRoom(); }} noValidate>
                         {/* Music Genre Selection */}
                         <div>
                             <label htmlFor="genre-select" className="block font-semibold mb-2 sm:mb-3 text-gray-900 text-sm sm:text-base">
@@ -227,30 +227,19 @@ export default function PreJoinPage() {
             </div>
 
             {/* Footer */}
-            <footer className="text-center text-purple-200 text-xs sm:text-sm px-4 pb-4 sm:pb-6 space-y-3 sm:space-y-4" role="contentinfo">
-                <p className="text-xs sm:text-sm">Connect with others who share your musical taste</p>
-
-                {/* Features highlight */}
-                <section className="bg-white/20 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 max-w-xs sm:max-w-sm mx-auto border border-white/20" aria-labelledby="features-heading">
-                    <h3 id="features-heading" className="font-bold text-white mb-2 sm:mb-3 text-sm sm:text-base">🎵 Share Your Music</h3>
-                    <ul className="text-xs sm:text-sm space-y-1 sm:space-y-2 text-white text-left">
-                        <li>• Upload audio files from your device</li>
-                        <li>• Capture audio from any tab (desktop)</li>
-                        <li>• Works with Spotify, YouTube, Apple Music</li>
-                        <li>• Real-time spatial audio voice chat</li>
-                    </ul>
-                </section>
+            <footer className="text-center text-purple-200 text-xs px-4 pb-2 flex-shrink-0" role="contentinfo">
+                <p className="text-xs mb-2">Connect with others who share your musical taste</p>
 
                 {/* Legal Links */}
-                <nav className="flex flex-wrap justify-center gap-2 sm:gap-3 text-xs" aria-label="Legal and information links">
+                <nav className="flex flex-wrap justify-center gap-2 text-xs mb-2" aria-label="Legal and information links">
                     <Link href="/legal/about" className="hover:text-white transition-colors underline focus:outline-none focus:ring-2 focus:ring-purple-300 rounded px-1">
                         About
                     </Link>
                     <Link href="/legal/privacy" className="hover:text-white transition-colors underline focus:outline-none focus:ring-2 focus:ring-purple-300 rounded px-1">
-                        Privacy Policy
+                        Privacy
                     </Link>
                     <Link href="/legal/terms" className="hover:text-white transition-colors underline focus:outline-none focus:ring-2 focus:ring-purple-300 rounded px-1">
-                        Terms of Service
+                        Terms
                     </Link>
                     <Link href="/legal/faq" className="hover:text-white transition-colors underline focus:outline-none focus:ring-2 focus:ring-purple-300 rounded px-1">
                         FAQ
@@ -258,13 +247,12 @@ export default function PreJoinPage() {
                 </nav>
 
                 {/* Contact Info */}
-                <address className="text-xs not-italic space-y-1">
-                    <p>Questions or feedback? Contact us at:</p>
+                <address className="text-xs not-italic">
                     <a
                         href="mailto:info@vibes-hunters.com"
                         className="text-purple-300 hover:text-white transition-colors underline font-medium focus:outline-none focus:ring-2 focus:ring-purple-300 rounded px-1"
                     >
-                        info@vibes-hunters.com
+                        Contact us
                     </a>
                 </address>
             </footer>
