@@ -760,25 +760,21 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                     try {
                         const parsedMetadata = JSON.parse(metadata);
                         if (!parsedMetadata.isPublishingMusic) {
-                            console.log('🎵 Publisher stopped publishing music, resetting music state for:', participant.identity);
+                            console.log('🎵 Publisher stopped publishing music, immediately resetting music state for:', participant.identity);
                             
-                            // Stop listening to this participant's music
+                            // Immediately reset UI state first for responsive feedback
+                            setMusicState({ state: 'idle', listeningTo: undefined });
+                            setSelectedMusicUser(null);
+                            
+                            // Then stop listening to this participant's music
                             leaveMusicParty(participant.identity).then((success) => {
                                 if (success) {
-                                    updateMusicState({ state: 'idle', listeningTo: undefined });
-                                    setSelectedMusicUser(null);
                                     console.log('Successfully stopped listening to music from:', participant.identity);
                                 } else {
                                     console.error('Failed to stop listening to music from:', participant.identity);
-                                    // Still reset UI state even if leaveMusicParty fails
-                                    updateMusicState({ state: 'idle', listeningTo: undefined });
-                                    setSelectedMusicUser(null);
                                 }
                             }).catch((error) => {
                                 console.error('Error stopping music listening:', error);
-                                // Still reset UI state even if there's an error
-                                updateMusicState({ state: 'idle', listeningTo: undefined });
-                                setSelectedMusicUser(null);
                             });
                         }
                     } catch (error) {
@@ -802,25 +798,21 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 // Check if this is a music track that we were listening to
                 const trackName = (publication as { name?: string }).name;
                 if (trackName && trackName.startsWith('music-') && musicStateRef.current.listeningTo === participant.identity) {
-                    console.log('🎵 Music track unsubscribed, stopping music listening for:', participant.identity);
+                    console.log('🎵 Music track unsubscribed, immediately stopping music listening for:', participant.identity);
                     
-                    // Stop listening to this participant's music
+                    // Immediately reset UI state first for responsive feedback
+                    setMusicState({ state: 'idle', listeningTo: undefined });
+                    setSelectedMusicUser(null);
+                    
+                    // Then stop listening to this participant's music
                     leaveMusicParty(participant.identity).then((success) => {
                         if (success) {
-                            updateMusicState({ state: 'idle', listeningTo: undefined });
-                            setSelectedMusicUser(null);
                             console.log('Successfully stopped listening to music from:', participant.identity);
                         } else {
                             console.error('Failed to stop listening to music from:', participant.identity);
-                            // Still reset UI state even if leaveMusicParty fails
-                            updateMusicState({ state: 'idle', listeningTo: undefined });
-                            setSelectedMusicUser(null);
                         }
                     }).catch((error) => {
                         console.error('Error stopping music listening:', error);
-                        // Still reset UI state even if there's an error
-                        updateMusicState({ state: 'idle', listeningTo: undefined });
-                        setSelectedMusicUser(null);
                     });
                 }
             });
@@ -836,7 +828,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                     console.log('🎵 Music track unpublished, immediately stopping music listening for:', participant.identity);
                     
                     // Immediately reset UI state first for responsive feedback
-                    updateMusicState({ state: 'idle', listeningTo: undefined });
+                    setMusicState({ state: 'idle', listeningTo: undefined });
                     setSelectedMusicUser(null);
                     
                     // Then stop listening to this participant's music
@@ -896,18 +888,18 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         }
                         // Check if this user is listening to the participant whose track was unpublished
                         else if (musicStateRef.current.listeningTo && data.publisherIdentity && musicStateRef.current.listeningTo === data.publisherIdentity) {
-                            console.log('🎵 User is listening to the unpublished track, stopping music listening');
-                            // Stop listening to this participant's music using the spatial audio hook
+                            console.log('🎵 User is listening to the unpublished track, immediately stopping music listening');
+                            // Immediately reset UI state first for responsive feedback
+                            setMusicState({ state: 'idle', listeningTo: undefined });
+                            setSelectedMusicUser(null);
+                            
+                            // Then stop listening to this participant's music using the spatial audio hook
                             const success = await leaveMusicParty(data.publisherIdentity);
                             if (success) {
-                                updateMusicState({ state: 'idle', listeningTo: undefined });
-                                setSelectedMusicUser(null);
+                                console.log('Successfully stopped listening to music after admin unpublish');
                                 alert(`Admin Notice: ${data.message}\n(Music you were listening to was unpublished by admin)`);
                             } else {
                                 console.error('Failed to leave music party after admin unpublish');
-                                // Still reset UI state even if leaveMusicParty fails
-                                updateMusicState({ state: 'idle', listeningTo: undefined });
-                                setSelectedMusicUser(null);
                                 alert(`Admin Notice: ${data.message}\n(Music you were listening to was unpublished by admin)`);
                             }
                         } else {
@@ -1117,7 +1109,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 }
             };
 
-            const interval = setInterval(checkMusicState, 2000); // Check every 2 seconds for faster detection
+            const interval = setInterval(checkMusicState, 500); // Check every 500ms for immediate detection
             return () => clearInterval(interval);
         }
     }, [isConnected, participants, isPublishingMusic, updateMusicState]);
