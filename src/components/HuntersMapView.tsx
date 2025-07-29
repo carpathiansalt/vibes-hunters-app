@@ -883,6 +883,8 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         console.log('🎵 Current music state:', musicStateRef.current);
                         console.log('🎵 Current music track ref:', currentMusicTrackRef.current);
                         console.log('🎵 Local participant identity:', newRoom.localParticipant.identity);
+                        console.log('🎵 Is publishing music:', isPublishingMusic);
+                        console.log('🎵 Music state state:', musicStateRef.current.state);
                         
                         // Check if this user is the one publishing music that got unpublished
                         if (isPublishingMusic && currentMusicTrackRef.current && currentMusicTrackRef.current.track && currentMusicTrackRef.current.track.sid === data.trackSid) {
@@ -909,6 +911,17 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         // If we're publishing music but track SID and identity don't match, still activate stop button
                         else if (isPublishingMusic) {
                             console.log('🎵 Admin unpublished track and we are publishing music, activating stop button (fallback)');
+                            console.log('🎵 Current music state before stop:', musicStateRef.current);
+                            console.log('🎵 Current music track ref before stop:', currentMusicTrackRef.current);
+                            // Activate the stop button by calling stopMusicPublishing (same as clicking the stop button)
+                            await stopMusicPublishing();
+                            console.log('🎵 Music publishing stopped, showing alert');
+                            // Show alert after music is stopped
+                            alert(`Admin Notice: ${data.message}\n(Your music was unpublished by admin)`);
+                        }
+                        // Ultimate fallback: if we're in publishing state but none of the above matched, still stop
+                        else if (musicStateRef.current.state === 'publishing' || musicStateRef.current.state === 'paused') {
+                            console.log('🎵 Admin unpublished track and we are in publishing state, activating stop button (ultimate fallback)');
                             console.log('🎵 Current music state before stop:', musicStateRef.current);
                             console.log('🎵 Current music track ref before stop:', currentMusicTrackRef.current);
                             // Activate the stop button by calling stopMusicPublishing (same as clicking the stop button)
