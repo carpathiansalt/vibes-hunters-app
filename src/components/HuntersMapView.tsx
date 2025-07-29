@@ -309,51 +309,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         });
     }, []);
 
-    // Enhanced stop music function
-    const stopMusicPublishing = useCallback(async () => {
-        if (!livekitRoom || !currentMusicTrackRef.current) {
-            console.log('No room or track to stop');
-            return;
-        }
 
-        setIsLoading(true);
-        try {
-            console.log('Stopping music publishing...');
-
-            // Handle audio element cleanup for file uploads
-            if (currentMusicTrackRef.current.audioElement && musicState.source === 'file') {
-                currentMusicTrackRef.current.audioElement.pause();
-                currentMusicTrackRef.current.audioElement.currentTime = 0;
-            }
-
-            // Stop the track before unpublishing
-            if (currentMusicTrackRef.current.track) {
-                currentMusicTrackRef.current.track.stop();
-                await livekitRoom.localParticipant.unpublishTrack(currentMusicTrackRef.current.track);
-            }
-
-            // Clean up audio element for file uploads
-            if (currentMusicTrackRef.current.audioElement && musicState.source === 'file') {
-                if (currentMusicTrackRef.current.audioElement.src && currentMusicTrackRef.current.audioElement.src.startsWith('blob:')) {
-                    URL.revokeObjectURL(currentMusicTrackRef.current.audioElement.src);
-                }
-                currentMusicTrackRef.current.audioElement.src = '';
-            }
-
-            // Clean up references
-            currentMusicTrackRef.current = null;
-            updateMusicState({ state: 'idle', source: undefined, isPaused: false });
-            console.log('Music publishing stopped successfully');
-
-        } catch (error) {
-            console.error('Error stopping music:', error);
-            setError('Failed to stop music');
-            // Still update state even if there's an error
-            updateMusicState({ state: 'idle', source: undefined, isPaused: false });
-        } finally {
-            setIsLoading(false);
-        }
-    }, [livekitRoom, musicState.source, updateMusicState]);
 
     // Remove participant
     const removeParticipant = useCallback((identity: string) => {
@@ -602,6 +558,42 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
 
 
+    // Stop music publishing function
+    const stopMusicPublishing = useCallback(async () => {
+        if (!livekitRoom || !currentMusicTrackRef.current) {
+            console.log('No room or track to stop');
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            console.log('Stopping music publishing...');
+
+            // Handle audio element cleanup for file uploads
+            if (currentMusicTrackRef.current.audioElement && musicState.source === 'file') {
+                currentMusicTrackRef.current.audioElement.pause();
+                currentMusicTrackRef.current.audioElement.currentTime = 0;
+            }
+
+            // Stop the track before unpublishing
+            if (currentMusicTrackRef.current.track) {
+                currentMusicTrackRef.current.track.stop();
+                await livekitRoom.localParticipant.unpublishTrack(currentMusicTrackRef.current.track);
+            }
+
+            // Reset state
+            currentMusicTrackRef.current = null;
+            updateMusicState({ state: 'idle', source: undefined, isPaused: false });
+            setSelectedMusicUser(null);
+
+            console.log('Music publishing stopped successfully');
+        } catch (error) {
+            console.error('Error stopping music publishing:', error);
+            setError('Failed to stop music publishing');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [livekitRoom, musicState.source, updateMusicState]);
 
     // Connect to LiveKit
     const connectToLiveKit = useCallback(async () => {
@@ -1176,7 +1168,35 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const handleMusicButtonClick = useCallback(async () => {
         if (isLoading) return;
 
-        if (isListeningToMusic) {
+        if (isPublishingMusic) {
+            if (musicState.source === 'file') {
+                if (isMusicPaused) {
+                    // Resume music
+                    if (currentMusicTrackRef.current?.audioElement) {
+                        try {
+                            await currentMusicTrackRef.current.audioElement.play();
+                            updateMusicState({ state: 'publishing', isPaused: false });
+                        } catch (error) {
+                            console.error('Error resuming music:', error);
+                            setError('Failed to resume music');
+                        }
+                    }
+                } else {
+                    // Pause music
+                    if (currentMusicTrackRef.current?.audioElement) {
+                        currentMusicTrackRef.current.audioElement.pause();
+                        updateMusicState({ state: 'paused', isPaused: true });
+                    }
+                }
+            } else if (musicState.source === 'tab-capture') {
+                // Show better UX for tab capture
+                const notification = document.createElement('div');
+                notification.className = 'fixed top-4 right-4 bg-orange-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+                notification.textContent = 'Tab audio capture cannot be paused. Control playback in the source tab.';
+                document.body.appendChild(notification);
+                setTimeout(() => notification.remove(), 4000);
+            }
+        } else if (isListeningToMusic) {
             // Enhanced leave music party UX
             const notification = document.createElement('div');
             notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
@@ -1208,70 +1228,62 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 isPublishingMusic: false
             });
         }
-    }, [isListeningToMusic, isLoading, myPosition, username, avatar, leaveMusicParty, updateMusicState]);
+    }, [isPublishingMusic, isListeningToMusic, isMusicPaused, musicState, isLoading, myPosition, username, avatar, leaveMusicParty, updateMusicState]);
 
-    // Pause/Resume music handler
-    const handlePauseResumeClick = useCallback(async () => {
-        if (isLoading) return;
-
+    // Enhanced music button style
+    const getMusicButtonStyle = useCallback(() => {
+        const baseClasses = 'w-16 h-16 rounded-full shadow-2xl transition-all duration-300 flex items-center justify-center text-white text-2xl';
+        
+        if (isLoading) {
+            return `${baseClasses} bg-gray-500 cursor-not-allowed`;
+        }
+        
         if (isPublishingMusic) {
             if (musicState.source === 'file') {
-                if (isMusicPaused) {
-                    // Resume music
-                    if (currentMusicTrackRef.current?.audioElement) {
-                        try {
-                            await currentMusicTrackRef.current.audioElement.play();
-                            updateMusicState({ state: 'publishing', isPaused: false });
-                        } catch (error) {
-                            console.error('Error resuming music:', error);
-                            setError('Failed to resume music');
-                        }
-                    }
-                } else {
-                    // Pause music
-                    if (currentMusicTrackRef.current?.audioElement) {
-                        currentMusicTrackRef.current.audioElement.pause();
-                        updateMusicState({ state: 'paused', isPaused: true });
-                    }
-                }
-            } else if (musicState.source === 'tab-capture') {
-                // Show better UX for tab capture
-                const notification = document.createElement('div');
-                notification.className = 'fixed top-4 right-4 bg-orange-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-                notification.textContent = 'Tab audio capture cannot be paused. Control playback in the source tab.';
-                document.body.appendChild(notification);
-                setTimeout(() => notification.remove(), 4000);
+                return isMusicPaused 
+                    ? `${baseClasses} bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700`
+                    : `${baseClasses} bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700`;
+            } else {
+                return `${baseClasses} bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700`;
             }
+        } else if (isListeningToMusic) {
+            return `${baseClasses} bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700`;
+        } else {
+            return `${baseClasses} bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700`;
         }
-    }, [isPublishingMusic, isMusicPaused, musicState, isLoading, updateMusicState]);
+    }, [isPublishingMusic, isListeningToMusic, isMusicPaused, musicState.source, isLoading]);
 
-    // Stop music handler (unpublish track)
-    const handleStopClick = useCallback(async () => {
-        if (isLoading) return;
-
-        if (isPublishingMusic && currentMusicTrackRef.current?.track) {
-            try {
-                // Unpublish the track
-                await livekitRoom?.localParticipant.unpublishTrack(currentMusicTrackRef.current.track);
-                
-                // Stop audio element if it exists
-                if (currentMusicTrackRef.current.audioElement) {
-                    currentMusicTrackRef.current.audioElement.pause();
-                    currentMusicTrackRef.current.audioElement.currentTime = 0;
-                }
-                
-                // Reset state
-                currentMusicTrackRef.current = null;
-                updateMusicState({ state: 'idle', source: undefined, isPaused: false });
-                setSelectedMusicUser(null);
-                
-                console.log('Music stopped and track unpublished');
-            } catch (error) {
-                console.error('Error stopping music:', error);
-                setError('Failed to stop music');
+    // Enhanced music button icon
+    const getMusicButtonIcon = useCallback(() => {
+        if (isLoading) return '⏳';
+        if (isPublishingMusic) {
+            if (musicState.source === 'file') {
+                return isMusicPaused ? '▶️' : '⏸️';
+            } else {
+                return '📺';
             }
+        } else if (isListeningToMusic) {
+            return '🎧';
+        } else {
+            return '🎵';
         }
-    }, [isPublishingMusic, isLoading, livekitRoom, updateMusicState]);
+    }, [isPublishingMusic, isListeningToMusic, isMusicPaused, musicState.source, isLoading]);
+
+    // Enhanced music button title
+    const getMusicButtonTitle = useCallback(() => {
+        if (isLoading) return 'Loading...';
+        if (isPublishingMusic) {
+            if (musicState.source === 'file') {
+                return isMusicPaused ? 'Resume Music' : 'Pause Music';
+            } else {
+                return 'Tab Audio Capture (Control in source tab)';
+            }
+        } else if (isListeningToMusic) {
+            return 'Disconnect from Music';
+        } else {
+            return 'Start Music Party';
+        }
+    }, [isPublishingMusic, isListeningToMusic, isMusicPaused, musicState.source, isLoading]);
 
     return (
         <div className="fixed inset-0 w-full h-full bg-gray-900" style={{ zIndex: 0 }}>
@@ -1330,11 +1342,12 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             <MusicControls
                 isPublishingMusic={isPublishingMusic}
                 isListeningToMusic={isListeningToMusic}
-                isMusicPaused={isMusicPaused}
-                isLoading={isLoading}
+                musicStateSource={musicState.source}
                 onMusicButtonClick={handleMusicButtonClick}
-                onPauseResumeClick={handlePauseResumeClick}
-                onStopClick={handleStopClick}
+                onStopMusic={stopMusicPublishing}
+                getMusicButtonStyle={getMusicButtonStyle}
+                getMusicButtonIcon={getMusicButtonIcon}
+                getMusicButtonTitle={getMusicButtonTitle}
             />
 
             {selectedMusicUser && (
