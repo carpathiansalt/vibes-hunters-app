@@ -792,27 +792,28 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             });
 
             newRoom.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, publication: TrackPublication, participant: RemoteParticipant) => {
-                console.log('🎵 Track unsubscribed:', track.sid, 'from participant:', participant.identity);
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                console.log(`🎵 Track unsubscribed: ${track.sid} from participant: ${participant.identity}${isMobile ? ' (MOBILE)' : ''}`);
                 updateTrackPositions();
                 
                 // Check if this is a music track that we were listening to
                 const trackName = (publication as { name?: string }).name;
                 if (trackName && trackName.startsWith('music-') && musicStateRef.current.listeningTo === participant.identity) {
-                    console.log('🎵 Music track unsubscribed, immediately stopping music listening for:', participant.identity);
+                    console.log(`🎵 Music track unsubscribed, immediately stopping music listening for: ${participant.identity}${isMobile ? ' (MOBILE)' : ''}`);
                     
-                    // Immediately reset UI state first for responsive feedback
+                    // Immediately reset UI state first for responsive feedback (critical for mobile)
                     setMusicState({ state: 'idle', listeningTo: undefined });
                     setSelectedMusicUser(null);
                     
                     // Then stop listening to this participant's music
                     leaveMusicParty(participant.identity).then((success) => {
                         if (success) {
-                            console.log('Successfully stopped listening to music from:', participant.identity);
+                            console.log(`Successfully stopped listening to music from: ${participant.identity}${isMobile ? ' (MOBILE)' : ''}`);
                         } else {
-                            console.error('Failed to stop listening to music from:', participant.identity);
+                            console.error(`Failed to stop listening to music from: ${participant.identity}${isMobile ? ' (MOBILE)' : ''}`);
                         }
                     }).catch((error) => {
-                        console.error('Error stopping music listening:', error);
+                        console.error(`Error stopping music listening: ${error}${isMobile ? ' (MOBILE)' : ''}`);
                     });
                 }
             });
@@ -820,26 +821,27 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             // Also listen for TrackUnpublished event (when publisher unpublishes)
             newRoom.on(RoomEvent.TrackUnpublished, (publication: TrackPublication, participant: RemoteParticipant) => {
                 const trackSid = (publication as { sid?: string }).sid;
-                console.log('🎵 Track unpublished:', trackSid, 'from participant:', participant.identity);
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                console.log(`🎵 Track unpublished: ${trackSid} from participant: ${participant.identity}${isMobile ? ' (MOBILE)' : ''}`);
                 
                 // Check if this is a music track that we were listening to
                 const trackName = (publication as { name?: string }).name;
                 if (trackName && trackName.startsWith('music-') && musicStateRef.current.listeningTo === participant.identity) {
-                    console.log('🎵 Music track unpublished, immediately stopping music listening for:', participant.identity);
+                    console.log(`🎵 Music track unpublished, immediately stopping music listening for: ${participant.identity}${isMobile ? ' (MOBILE)' : ''}`);
                     
-                    // Immediately reset UI state first for responsive feedback
+                    // Immediately reset UI state first for responsive feedback (critical for mobile)
                     setMusicState({ state: 'idle', listeningTo: undefined });
                     setSelectedMusicUser(null);
                     
                     // Then stop listening to this participant's music
                     leaveMusicParty(participant.identity).then((success) => {
                         if (success) {
-                            console.log('Successfully stopped listening to music from:', participant.identity);
+                            console.log(`Successfully stopped listening to music from: ${participant.identity}${isMobile ? ' (MOBILE)' : ''}`);
                         } else {
-                            console.error('Failed to stop listening to music from:', participant.identity);
+                            console.error(`Failed to stop listening to music from: ${participant.identity}${isMobile ? ' (MOBILE)' : ''}`);
                         }
                     }).catch((error) => {
-                        console.error('Error stopping music listening:', error);
+                        console.error(`Error stopping music listening: ${error}${isMobile ? ' (MOBILE)' : ''}`);
                     });
                 }
             });
@@ -1086,33 +1088,49 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         }
     }, [isConnected, logParticipantState]);
 
-    // Periodic check to ensure music state consistency
+    // Periodic check to ensure music state consistency - optimized for mobile
     useEffect(() => {
         if (isConnected) {
+            // Detect mobile device for faster polling
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const checkInterval = isMobile ? 250 : 500; // Faster polling on mobile
+            
             const checkMusicState = () => {
                 // Check if we're listening to music but the participant is no longer publishing
                 if (musicStateRef.current.listeningTo) {
                     const targetParticipant = participants.get(musicStateRef.current.listeningTo!);
                     if (!targetParticipant || !targetParticipant.isPublishingMusic) {
-                        console.log('🎵 Music listening state inconsistency detected, resetting to idle');
-                        updateMusicState({ state: 'idle', listeningTo: undefined });
+                        console.log(`🎵 Music listening state inconsistency detected, immediately resetting to idle${isMobile ? ' (MOBILE)' : ''}`);
+                        // Use setMusicState for immediate UI update on mobile
+                        setMusicState({ state: 'idle', listeningTo: undefined });
                         setSelectedMusicUser(null);
                     }
                 }
                 
                 // Check if we think we're publishing music but don't have a track
                 if (isPublishingMusic && (!currentMusicTrackRef.current || !currentMusicTrackRef.current.track)) {
-                    console.log('🎵 Music publishing state inconsistency detected, resetting to idle');
+                    console.log(`🎵 Music publishing state inconsistency detected, immediately resetting to idle${isMobile ? ' (MOBILE)' : ''}`);
                     // Force update the music state to ensure UI reflects the change
                     setMusicState({ state: 'idle', source: undefined, isPaused: false });
                     setSelectedMusicUser(null);
                 }
+                
+                // Additional mobile-specific check: more aggressive state reset for mobile
+                if (isMobile && musicStateRef.current.listeningTo) {
+                    const targetParticipant = participants.get(musicStateRef.current.listeningTo!);
+                    // On mobile, be more aggressive about resetting state if participant metadata is inconsistent
+                    if (!targetParticipant || !targetParticipant.isPublishingMusic) {
+                        console.log('🎵 Mobile: Aggressive state reset - participant not publishing, immediately resetting to idle');
+                        setMusicState({ state: 'idle', listeningTo: undefined });
+                        setSelectedMusicUser(null);
+                    }
+                }
             };
 
-            const interval = setInterval(checkMusicState, 500); // Check every 500ms for immediate detection
+            const interval = setInterval(checkMusicState, checkInterval);
             return () => clearInterval(interval);
         }
-    }, [isConnected, participants, isPublishingMusic, updateMusicState]);
+    }, [isConnected, participants, isPublishingMusic]);
 
     // Ensure all participants have markers when map is ready or participants change
     useEffect(() => {
