@@ -340,7 +340,7 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
                 ←
             </button>
             
-            <div className="flex gap-2 sm:gap-3 max-w-full flex-nowrap flex-1 justify-center overflow-hidden" role="radiogroup" aria-describedby={ariaDescribedBy}>
+            <div className="flex gap-2 sm:gap-3 max-w-full flex-nowrap flex-1 justify-center overflow-hidden py-2" role="radiogroup" aria-describedby={ariaDescribedBy}>
                 {visibleAvatars.map((a, index) => (
                     <button
                         type="button"
@@ -349,7 +349,7 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
                         onKeyDown={(e) => handleKeyDown(e, a)}
                         className={`relative rounded-lg sm:rounded-xl border-2 p-1.5 sm:p-1.5 transition-all focus:outline-none focus:ring-2 focus:ring-purple-400 flex-shrink-0 ${
                             avatar === a
-                                ? 'border-purple-500 bg-purple-50 scale-105'
+                                ? 'border-purple-500 bg-purple-50 border-4 shadow-lg'
                                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                         }`}
                         style={{ 
