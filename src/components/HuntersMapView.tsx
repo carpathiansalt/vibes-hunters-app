@@ -848,6 +848,41 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                             // Show a notification to all users
                             alert(`Admin Notice: ${data.message}`);
                         }
+                        
+                        // Update the publisher's metadata to reflect they're no longer publishing music
+                        if (data.publisherIdentity) {
+                            const publisher = newRoom.remoteParticipants.get(data.publisherIdentity);
+                            if (publisher) {
+                                try {
+                                    const currentMetadata = publisher.metadata ? JSON.parse(publisher.metadata) : {};
+                                    // Update the participant's metadata in our local state
+                                    const updatedUserPosition: UserPosition = {
+                                        userId: publisher.identity,
+                                        username: currentMetadata.username || publisher.identity,
+                                        avatar: currentMetadata.avatar || 'char_001',
+                                        position: currentMetadata.position || { x: 0, y: 0 },
+                                        isPublishingMusic: false,
+                                        musicTitle: undefined,
+                                        partyTitle: undefined,
+                                        partyDescription: undefined
+                                    };
+                                    
+                                    // Update participants state
+                                    setParticipants(prev => {
+                                        const updated = new Map(prev);
+                                        updated.set(publisher.identity, updatedUserPosition);
+                                        return updated;
+                                    });
+                                    
+                                    // Update the map marker to show regular avatar instead of boombox
+                                    updateMapMarker(publisher.identity, updatedUserPosition);
+                                    
+                                    console.log('Updated publisher metadata after admin unpublish:', publisher.identity);
+                                } catch (error) {
+                                    console.error('Error updating publisher metadata after admin unpublish:', error);
+                                }
+                            }
+                        }
                     }
                 } catch (error) {
                     console.warn('Failed to parse data message:', error);
