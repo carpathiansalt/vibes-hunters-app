@@ -269,6 +269,57 @@ interface AvatarCarouselProps {
 }
 
 function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDescribedBy }: AvatarCarouselProps) {
+    const [start, setStart] = React.useState(0);
+    const [visibleCount, setVisibleCount] = React.useState(5);
+
+    // Memoized visible avatars to prevent unnecessary recalculations
+    const visibleAvatars = React.useMemo(() => {
+        const end = Math.min(start + visibleCount, avatars.length);
+        return avatars.slice(start, end);
+    }, [avatars, start, visibleCount]);
+
+    // Optimize resize handler with debouncing
+    React.useEffect(() => {
+        let timeoutId: NodeJS.Timeout;
+        
+        const updateVisibleCount = () => {
+            const width = window.innerWidth;
+            if (width >= 1024) { // lg breakpoint
+                setVisibleCount(4);
+            } else if (width >= 768) { // md breakpoint
+                setVisibleCount(3);
+            } else if (width >= 640) { // sm breakpoint
+                setVisibleCount(3);
+            } else { // mobile
+                setVisibleCount(2);
+            }
+        };
+
+        const debouncedResize = () => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(updateVisibleCount, 150);
+        };
+
+        updateVisibleCount();
+        window.addEventListener('resize', debouncedResize);
+        
+        return () => {
+            window.removeEventListener('resize', debouncedResize);
+            clearTimeout(timeoutId);
+        };
+    }, []);
+
+    const canGoPrev = start > 0;
+    const canGoNext = start + visibleCount < avatars.length;
+
+    const handlePrev = React.useCallback(() => {
+        setStart(s => Math.max(0, s - 1));
+    }, []);
+
+    const handleNext = React.useCallback(() => {
+        setStart(s => Math.min(avatars.length - visibleCount, s + 1));
+    }, [avatars.length, visibleCount]);
+
     const handleKeyDown = React.useCallback((e: React.KeyboardEvent, avatarId: string) => {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
@@ -277,24 +328,35 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
     }, [setAvatar]);
 
     return (
-        <div className="w-full" role="radiogroup" aria-describedby={ariaDescribedBy}>
-            <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 sm:gap-3 justify-items-center">
-                {avatars.slice(0, 20).map((a, index) => (
+        <div className="flex items-center justify-center gap-2 sm:gap-3 w-full my-2 sm:my-0">
+            <button
+                type="button"
+                onClick={handlePrev}
+                disabled={!canGoPrev}
+                className="flex-shrink-0 p-2 sm:p-2.5 rounded-lg bg-gray-200 text-gray-600 disabled:opacity-50 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors text-base min-w-[44px] min-h-[44px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center"
+                aria-label="Previous avatars"
+                tabIndex={canGoPrev ? 0 : -1}
+            >
+                ←
+            </button>
+            
+            <div className="flex gap-2 sm:gap-3 max-w-full flex-nowrap flex-1 justify-center overflow-hidden" role="radiogroup" aria-describedby={ariaDescribedBy}>
+                {visibleAvatars.map((a, index) => (
                     <button
                         type="button"
                         key={a}
                         onClick={() => setAvatar(a)}
                         onKeyDown={(e) => handleKeyDown(e, a)}
-                        className={`relative rounded-lg sm:rounded-xl border-2 p-1.5 sm:p-2 transition-all focus:outline-none focus:ring-2 focus:ring-purple-400 ${
+                        className={`relative rounded-lg sm:rounded-xl border-2 p-1.5 sm:p-1.5 transition-all focus:outline-none focus:ring-2 focus:ring-purple-400 flex-shrink-0 ${
                             avatar === a
-                                ? 'border-purple-500 bg-purple-50 scale-110'
+                                ? 'border-purple-500 bg-purple-50 scale-105'
                                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                         }`}
                         style={{ 
-                            width: 'clamp(50px, 8vw, 60px)', 
-                            height: 'clamp(50px, 8vw, 60px)',
-                            minWidth: '45px',
-                            minHeight: '45px',
+                            width: 'clamp(65px, 12vw, 75px)', 
+                            height: 'clamp(65px, 12vw, 75px)',
+                            minWidth: '55px',
+                            minHeight: '55px',
                         }}
                         role="radio"
                         aria-checked={avatar === a}
@@ -304,21 +366,21 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
                         <Image
                             src={`/characters_001/${a}.png`}
                             alt={`Avatar ${a}`}
-                            width={60}
-                            height={60}
+                            width={75}
+                            height={75}
                             className="w-full h-full rounded object-cover"
                             style={{ 
                                 width: '100%', 
                                 height: '100%',
-                                minWidth: '45px',
-                                minHeight: '45px',
+                                minWidth: '55px',
+                                minHeight: '55px',
                             }}
-                            priority={index < 10}
-                            loading={index < 10 ? 'eager' : 'lazy'}
+                            priority={index < 3}
+                            loading={index < 3 ? 'eager' : 'lazy'}
                         />
                         {avatar === a && (
-                            <div className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-purple-500 rounded-full flex items-center justify-center" aria-hidden="true">
-                                <svg className="w-1.5 h-1.5 sm:w-2 sm:h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="absolute -top-1 -right-1 w-4 h-4 sm:w-4 sm:h-4 bg-purple-500 rounded-full flex items-center justify-center" aria-hidden="true">
+                                <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                 </svg>
                             </div>
@@ -326,6 +388,17 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
                     </button>
                 ))}
             </div>
+            
+            <button
+                type="button"
+                onClick={handleNext}
+                disabled={!canGoNext}
+                className="flex-shrink-0 p-2 sm:p-2.5 rounded-lg bg-gray-200 text-gray-600 disabled:opacity-50 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-colors text-base min-w-[44px] min-h-[44px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center"
+                aria-label="Next avatars"
+                tabIndex={canGoNext ? 0 : -1}
+            >
+                →
+            </button>
         </div>
     );
 }
