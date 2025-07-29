@@ -1251,7 +1251,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 </div>
             );
         });
-    }, [participants, myPosition]);
+    }, [participants, myPosition, centerMapOnUser]);
 
     // Enhanced genre change handler with loading state
     const handleGenreChange = useCallback(async (e: React.ChangeEvent<HTMLSelectElement>) => {
