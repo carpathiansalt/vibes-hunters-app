@@ -98,7 +98,7 @@ export default function PreJoinPage() {
     }, [handleJoinRoom, isLoading]);
 
     return (
-        <main className="h-screen flex flex-col bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900 overflow-hidden">
+        <main className="min-h-screen flex flex-col bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900">
             {/* Header */}
             <header className="text-center text-white pt-4 pb-2 px-4 flex-shrink-0">
                 <div className="mb-2">
@@ -109,7 +109,7 @@ export default function PreJoinPage() {
             </header>
 
             {/* Main Content */}
-            <div className="flex-1 flex items-center justify-center px-3 sm:px-4 lg:px-6 pb-2 overflow-y-auto">
+            <div className="flex-1 flex items-center justify-center px-3 sm:px-4 lg:px-6 pb-2">
                 <section className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-5 lg:p-6 w-full max-w-sm sm:max-w-md lg:max-w-lg mx-auto" aria-labelledby="setup-heading">
                     <h2 id="setup-heading" className="text-lg sm:text-xl lg:text-2xl font-bold mb-3 sm:mb-4 text-center text-gray-800">
                         Choose Your Vibe
