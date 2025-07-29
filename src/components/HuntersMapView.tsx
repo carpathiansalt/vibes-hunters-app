@@ -1,11 +1,17 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback, useMemo, Suspense, lazy } from 'react';
-import Image from 'next/image';
 import { Room, RoomEvent, RemoteParticipant, LocalAudioTrack, DisconnectReason } from 'livekit-client';
 import { Loader } from '@googlemaps/js-api-loader';
 import { Vector2, ParticipantMetadata, UserPosition } from '@/types';
 import { useSpatialAudio } from '@/hooks/useSpatialAudio';
+
+// Import UI components
+import { GenreSelector } from './GenreSelector';
+import { MusicControls } from './MusicControls';
+import { RoomInfoPanel } from './RoomInfoPanel';
+import { LocationPermissionBanner } from './LocationPermissionBanner';
+import { ErrorDisplay } from './ErrorDisplay';
 
 // Lazy load heavy components
 const BoomboxMusicDialog = lazy(() => import('./BoomboxMusicDialog').then(mod => ({ default: mod.BoomboxMusicDialog })));
@@ -1188,170 +1194,56 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
     return (
         <div className="fixed inset-0 w-full h-full bg-gray-900" style={{ zIndex: 0 }}>
-            {/* Upgraded genre selector UI: centered, modern card, aligned, responsive */}
-            <div className="fixed top-4 left-0 z-30 flex flex-row items-start justify-left px-4 pointer-events-none">
-                <div className="w-full max-w-sm pointer-events-auto flex flex-col items-center">
-                    <div className="bg-white/90 rounded-3xl shadow-xl border border-purple-200 px-0 py-0 flex flex-col items-center gap-2" style={{ minWidth: '200px' }}>
-                        <div className="relative w-full flex items-center justify-center">
-                            <select
-                                value={genre}
-                                onChange={handleGenreChange}
-                                className="w-full p-3 rounded-2xl border-2 border-purple-400 focus:border-purple-500 focus:outline-none transition-colors text-lg text-gray-900 bg-white placeholder-gray-400 appearance-none pr-16 text-center font-semibold"
-                                style={{ paddingRight: '64px', maxWidth: '100%' }}
-                            >
-                                {genres.map(g => (
-                                    <option key={g.name} value={g.name}>{g.name}</option>
-                                ))}
-                            </select>
-                            {/* Genre image visually prominent, right aligned */}
-                            <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-                                {(() => {
-                                    const selected = genres.find(g => g.name === genre);
-                                    return selected ? (
-                                        <Image src={selected.image} alt={selected.name} width={48} height={48} className="rounded-xl object-contain shadow-lg border-2 border-purple-300 bg-white" />
-                                    ) : null;
-                                })()}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {error && (
-                <div className="absolute top-4 left-4 right-4 z-30 bg-red-500 text-white p-4 rounded-lg shadow-lg">
-                    <div className="font-bold mb-2">Error</div>
-                    <pre className="whitespace-pre-wrap text-sm">{error}</pre>
-                </div>
-            )}
+            {/* Genre Selector */}
+            <GenreSelector
+                genres={genres}
+                selectedGenre={genre}
+                onGenreChange={handleGenreChange}
+            />
+            
+            {/* Error Display */}
+            <ErrorDisplay error={error} />
 
-            {/* Move Info box to bottom left corner */}
-            <div className="absolute bottom-4 left-4 z-30 bg-black/80 text-white rounded-lg backdrop-blur-sm shadow-lg w-auto" style={{ minWidth: 0, maxWidth: '100%', width: 'auto' }}>
-                <button
-                    onClick={() => setRoomInfoExpanded(!roomInfoExpanded)}
-                    className="w-full p-3 text-left hover:bg-white/10 transition-colors rounded-lg"
-                >
-                    <div className="text-sm font-bold text-green-400 flex items-center justify-between">
-                        <span>🎵 Info</span>
-                        <span className="text-xs">{roomInfoExpanded ? '▼' : '▶'}</span>
-                    </div>
-                </button>
-
-                {roomInfoExpanded && (
-                    <div className="p-3 pt-0 space-y-1 max-w-xs">
-                        <div className="text-sm">
-                            <div>Room: <span className="text-blue-300">{room}</span></div>
-                            <div>Hunter: <span className="text-yellow-300">{username}</span></div>
-                            <div>Status: {
-                                isConnecting ? '🟡 Connecting...' :
-                                    isConnected ? '🟢 Connected' :
-                                        '🔴 Disconnected'
-                            }</div>
-                            <div>GPS: {
-                                locationPermission === 'granted' ?
-                                    isTrackingLocation ? '🟢 Tracking' : '🟡 Available' :
-                                    locationPermission === 'denied' ? '🔴 Denied' :
-                                        '🟡 Requesting...'
-                            }</div>
-                            {gpsAccuracy && (
-                                <div>Accuracy: <span className={`${getGpsAccuracyColor(gpsAccuracy)}`}>{Math.round(gpsAccuracy)}m</span></div>
-                            )}
-                            <div className="border-t border-gray-600 pt-1 mt-2">
-                                <div>Hunters Online: <span className="text-purple-300">{participants.size}</span></div>
-                                {participants.size > 0 && (
-                                    <div className="mt-1 text-xs">
-                                        <div className="text-gray-300">Active Hunters:</div>
-                                        {renderParticipantList()}
-                                        {participants.size > 5 && (
-                                            <div className="text-gray-500">...and {participants.size - 5} more</div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                            <button
-                                onClick={() => centerMapOnUser()}
-                                className="mt-2 bg-blue-600 hover:bg-blue-500 px-2 py-1 rounded text-xs font-medium transition-colors w-full"
-                            >
-                                📍 Center on Me
-                            </button>
-                            <button
-                                onClick={() => showAllParticipants()}
-                                className="mt-1 bg-green-600 hover:bg-green-500 px-2 py-1 rounded text-xs font-medium transition-colors w-full"
-                            >
-                                🌍 Show All Hunters
-                            </button>
-                            {process.env.NODE_ENV === 'development' && (
-                                <button
-                                    onClick={() => {
-                                        logParticipantState();
-                                        refreshAllMarkers();
-                                    }}
-                                    className="mt-1 bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-xs font-medium transition-colors w-full"
-                                >
-                                    🔧 Debug & Refresh
-                                </button>
-                            )}
-                            <button
-                                onClick={() => setShowVoiceRange(!showVoiceRange)}
-                                className="mt-2 bg-blue-600 hover:bg-blue-500 px-2 py-1 rounded text-xs font-medium transition-colors w-full flex items-center justify-between"
-                            >
-                                <span>🎤 Voice Range</span>
-                                <span className="text-xs">{showVoiceRange ? '✓' : '○'}</span>
-                            </button>
-                            {showVoiceRange && (
-                                <div className="mt-2 p-2 bg-black/40 rounded">
-                                    <Suspense fallback={<ComponentLoadingSpinner />}>
-                                        <EarshotRadius
-                                            show={showVoiceRange}
-                                            radius={50}
-                                            onToggle={() => setShowVoiceRange(!showVoiceRange)}
-                                        />
-                                    </Suspense>
-                                </div>
-                            )}
-
-                            {/* Legal Links */}
-                            <div className="mt-4 pt-2 border-t border-gray-600">
-                                <div className="text-xs text-gray-400 space-y-1">
-                                    <div className="flex flex-wrap gap-2">
-                                        <a href="/legal/about" className="hover:text-white transition-colors underline">About</a>
-                                        <a href="/legal/faq" className="hover:text-white transition-colors underline">FAQ</a>
-                                        <a href="/legal/privacy" className="hover:text-white transition-colors underline">Privacy</a>
-                                    </div>
-                                    <div>
-                                        <a href="mailto:info@vibes-hunters.com" className="text-blue-300 hover:text-white transition-colors text-xs">
-                                            info@vibes-hunters.com
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
+                        {/* Room Info Panel */}
+            <RoomInfoPanel
+                room={room}
+                username={username}
+                isConnecting={isConnecting}
+                isConnected={isConnected}
+                locationPermission={locationPermission}
+                isTrackingLocation={isTrackingLocation}
+                gpsAccuracy={gpsAccuracy}
+                participants={participants}
+                myPosition={myPosition}
+                roomInfoExpanded={roomInfoExpanded}
+                showVoiceRange={showVoiceRange}
+                onToggleRoomInfo={() => setRoomInfoExpanded(!roomInfoExpanded)}
+                onToggleVoiceRange={() => setShowVoiceRange(!showVoiceRange)}
+                onCenterMapOnUser={() => centerMapOnUser()}
+                onShowAllParticipants={() => showAllParticipants()}
+                onLogParticipantState={logParticipantState}
+                onRefreshAllMarkers={refreshAllMarkers}
+                getGpsAccuracyColor={getGpsAccuracyColor}
+                renderParticipantList={renderParticipantList}
+                ComponentLoadingSpinner={ComponentLoadingSpinner}
+                EarshotRadius={EarshotRadius}
+            />
 
 
-            {locationPermission === 'denied' && (
-                <div className="absolute bottom-4 right-4 z-30 bg-orange-600 text-white p-3 rounded-lg backdrop-blur-sm">
-                    <div className="text-sm">
-                        <div className="font-bold mb-1">📍 Enable GPS</div>
-                        <div className="mb-2">For the best experience, enable location access in your browser.</div>
-                        <button
-                            onClick={async () => {
-                                const result = await requestLocationPermission();
-                                if (result.success) {
-                                    startLocationTracking();
-                                    // Recenter map on new location
-                                    if (result.position) {
-                                        centerMapOnUser(result.position);
-                                    }
-                                }
-                            }}
-                            className="bg-orange-500 hover:bg-orange-400 px-3 py-1 rounded text-sm font-medium transition-colors"
-                        >
-                            Request Location
-                        </button>
-                    </div>
-                </div>
-            )}
+            {/* Location Permission Banner */}
+            <LocationPermissionBanner
+                locationPermission={locationPermission}
+                onRequestLocation={async () => {
+                    const result = await requestLocationPermission();
+                    if (result.success) {
+                        startLocationTracking();
+                        // Recenter map on new location
+                        if (result.position) {
+                            centerMapOnUser(result.position);
+                        }
+                    }
+                }}
+            />
 
             <Suspense fallback={<MapLoadingSpinner />}>
                 <div
@@ -1371,41 +1263,19 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 </Suspense>
             </div>
 
-            {/* Bottom Center Music Button */}
-            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-30">
-                <button
-                    onClick={handleMusicButtonClick}
-                    className={getMusicButtonStyle()}
-                    title={getMusicButtonTitle()}
-                >
-                    {getMusicButtonIcon()}
-                </button>
-
-                {/* Stop Button - Only show when music is playing or paused */}
-                {isPublishingMusic && (
-                    <button
-                        onClick={stopMusicPublishing}
-                        className="absolute -top-12 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-full shadow-lg transition-all duration-300 flex items-center justify-center text-white text-lg"
-                        title="Stop Music Party"
-                    >
-                        ⏹️
-                    </button>
-                )}
-
-                {/* Music Status Indicator */}
-                {isListeningToMusic && (
-                    <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-2 py-1 rounded-lg text-xs font-medium">
-                        Listening to music party
-                    </div>
-                )}
-
-                {/* Music Source Indicator for Publishing */}
-                {isPublishingMusic && musicState.source === 'tab-capture' && (
-                    <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-orange-600 text-white px-2 py-1 rounded-lg text-xs font-medium">
-                        Tab Audio Capture
-                    </div>
-                )}
-            </div>
+            {/* Music Controls */}
+            <MusicControls
+                isPublishingMusic={isPublishingMusic}
+                isListeningToMusic={isListeningToMusic}
+                isMusicPaused={isMusicPaused}
+                musicStateSource={musicState.source}
+                isLoading={isLoading}
+                onMusicButtonClick={handleMusicButtonClick}
+                onStopMusic={stopMusicPublishing}
+                getMusicButtonStyle={getMusicButtonStyle}
+                getMusicButtonIcon={getMusicButtonIcon}
+                getMusicButtonTitle={getMusicButtonTitle}
+            />
 
             {selectedMusicUser && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60" style={{ pointerEvents: 'auto' }}>
