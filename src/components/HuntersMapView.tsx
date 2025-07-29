@@ -298,8 +298,17 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
     // Enhanced music state management
     const updateMusicState = useCallback((newState: Partial<MusicStateData>) => {
-        setMusicState(prev => ({ ...prev, ...newState }));
-    }, []);
+        const oldState = musicState;
+        setMusicState(prev => {
+            const updated = { ...prev, ...newState };
+            console.log('🎵 Music state changed:', {
+                from: oldState,
+                to: updated,
+                timestamp: new Date().toISOString()
+            });
+            return updated;
+        });
+    }, [musicState]);
 
     // Enhanced stop music function
     const stopMusicPublishing = useCallback(async () => {
@@ -803,6 +812,38 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             newRoom.on(RoomEvent.ParticipantMetadataChanged, (metadata: string | undefined, participant: RemoteParticipant | any) => {
                 console.log('📝 Participant metadata changed:', participant.identity, 'new metadata:', metadata);
+                
+                // Check if this is the participant we're listening to and they stopped publishing music
+                if (musicState.listeningTo === participant.identity && metadata) {
+                    try {
+                        const parsedMetadata = JSON.parse(metadata);
+                        if (!parsedMetadata.isPublishingMusic) {
+                            console.log('🎵 Publisher stopped publishing music, resetting music state for:', participant.identity);
+                            
+                            // Stop listening to this participant's music
+                            leaveMusicParty(participant.identity).then((success) => {
+                                if (success) {
+                                    updateMusicState({ state: 'idle', listeningTo: undefined });
+                                    setSelectedMusicUser(null);
+                                    console.log('Successfully stopped listening to music from:', participant.identity);
+                                } else {
+                                    console.error('Failed to stop listening to music from:', participant.identity);
+                                    // Still reset UI state even if leaveMusicParty fails
+                                    updateMusicState({ state: 'idle', listeningTo: undefined });
+                                    setSelectedMusicUser(null);
+                                }
+                            }).catch((error) => {
+                                console.error('Error stopping music listening:', error);
+                                // Still reset UI state even if there's an error
+                                updateMusicState({ state: 'idle', listeningTo: undefined });
+                                setSelectedMusicUser(null);
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Error parsing participant metadata:', error);
+                    }
+                }
+                
                 // Always update for all participants, including local, to ensure state is correct
                 updateParticipantFromMetadata(participant);
                 console.log('✅ Updated participant display for:', participant.identity);
