@@ -5,9 +5,7 @@ import React from 'react';
 interface MusicControlsProps {
     isPublishingMusic: boolean;
     isListeningToMusic: boolean;
-    isMusicPaused: boolean;
     musicStateSource: 'file' | 'tab-capture' | undefined;
-    isLoading: boolean;
     onMusicButtonClick: () => void;
     onStopMusic: () => void;
     getMusicButtonStyle: () => string;
@@ -18,9 +16,7 @@ interface MusicControlsProps {
 export function MusicControls({
     isPublishingMusic,
     isListeningToMusic,
-    isMusicPaused,
     musicStateSource,
-    isLoading,
     onMusicButtonClick,
     onStopMusic,
     getMusicButtonStyle,

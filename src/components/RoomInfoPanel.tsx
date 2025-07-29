@@ -12,7 +12,6 @@ interface RoomInfoPanelProps {
     isTrackingLocation: boolean;
     gpsAccuracy: number | null;
     participants: Map<string, UserPosition>;
-    myPosition: { x: number; y: number };
     roomInfoExpanded: boolean;
     showVoiceRange: boolean;
     onToggleRoomInfo: () => void;
@@ -40,7 +39,6 @@ export function RoomInfoPanel({
     isTrackingLocation,
     gpsAccuracy,
     participants,
-    myPosition,
     roomInfoExpanded,
     showVoiceRange,
     onToggleRoomInfo,

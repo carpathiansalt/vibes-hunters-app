@@ -1214,7 +1214,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 isTrackingLocation={isTrackingLocation}
                 gpsAccuracy={gpsAccuracy}
                 participants={participants}
-                myPosition={myPosition}
                 roomInfoExpanded={roomInfoExpanded}
                 showVoiceRange={showVoiceRange}
                 onToggleRoomInfo={() => setRoomInfoExpanded(!roomInfoExpanded)}
@@ -1267,9 +1266,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             <MusicControls
                 isPublishingMusic={isPublishingMusic}
                 isListeningToMusic={isListeningToMusic}
-                isMusicPaused={isMusicPaused}
                 musicStateSource={musicState.source}
-                isLoading={isLoading}
                 onMusicButtonClick={handleMusicButtonClick}
                 onStopMusic={stopMusicPublishing}
                 getMusicButtonStyle={getMusicButtonStyle}
