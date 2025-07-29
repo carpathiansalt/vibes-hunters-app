@@ -842,6 +842,37 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 }
             });
 
+            // Also listen for TrackUnpublished event (when publisher unpublishes)
+            newRoom.on(RoomEvent.TrackUnpublished, (publication: TrackPublication, participant: RemoteParticipant) => {
+                const trackSid = (publication as { sid?: string }).sid;
+                console.log('🎵 Track unpublished:', trackSid, 'from participant:', participant.identity);
+                
+                // Check if this is a music track that we were listening to
+                const trackName = (publication as { name?: string }).name;
+                if (trackName && trackName.startsWith('music-') && musicState.listeningTo === participant.identity) {
+                    console.log('🎵 Music track unpublished, stopping music listening for:', participant.identity);
+                    
+                    // Stop listening to this participant's music
+                    leaveMusicParty(participant.identity).then((success) => {
+                        if (success) {
+                            updateMusicState({ state: 'idle', listeningTo: undefined });
+                            setSelectedMusicUser(null);
+                            console.log('Successfully stopped listening to music from:', participant.identity);
+                        } else {
+                            console.error('Failed to stop listening to music from:', participant.identity);
+                            // Still reset UI state even if leaveMusicParty fails
+                            updateMusicState({ state: 'idle', listeningTo: undefined });
+                            setSelectedMusicUser(null);
+                        }
+                    }).catch((error) => {
+                        console.error('Error stopping music listening:', error);
+                        // Still reset UI state even if there's an error
+                        updateMusicState({ state: 'idle', listeningTo: undefined });
+                        setSelectedMusicUser(null);
+                    });
+                }
+            });
+
             // Listen for admin track mute/unpublish notifications
             newRoom.on(RoomEvent.DataReceived, async (payload: Uint8Array) => {
                 try {
@@ -855,8 +886,10 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                             alert(`Admin Notice: ${data.message}\n(Track SID: ${data.trackSid})`);
                         }
                     } else if (data.type === 'admin_track_unpublished') {
+                        console.log('🎵 Admin track unpublished data received:', data);
                         // Check if this user is listening to the participant whose track was unpublished
                         if (musicState.listeningTo && data.publisherIdentity && musicState.listeningTo === data.publisherIdentity) {
+                            console.log('🎵 User is listening to the unpublished track, stopping music listening');
                             // Stop listening to this participant's music using the spatial audio hook
                             const success = await leaveMusicParty(data.publisherIdentity);
                             if (success) {
@@ -871,6 +904,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                                 alert(`Admin Notice: ${data.message}\n(Music you were listening to was unpublished by admin)`);
                             }
                         } else {
+                            console.log('🎵 User is not listening to the unpublished track, showing general notification');
                             // Show a notification to all users
                             alert(`Admin Notice: ${data.message}`);
                         }
@@ -1044,6 +1078,24 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             return () => clearInterval(interval);
         }
     }, [isConnected, logParticipantState]);
+
+    // Periodic check to ensure music state consistency
+    useEffect(() => {
+        if (isConnected && musicState.listeningTo) {
+            const checkMusicState = () => {
+                // Check if the participant we're listening to still exists and is publishing music
+                const targetParticipant = participants.get(musicState.listeningTo!);
+                if (!targetParticipant || !targetParticipant.isPublishingMusic) {
+                    console.log('🎵 Music state inconsistency detected, resetting to idle');
+                    updateMusicState({ state: 'idle', listeningTo: undefined });
+                    setSelectedMusicUser(null);
+                }
+            };
+
+            const interval = setInterval(checkMusicState, 5000); // Check every 5 seconds
+            return () => clearInterval(interval);
+        }
+    }, [isConnected, musicState.listeningTo, participants, updateMusicState]);
 
     // Ensure all participants have markers when map is ready or participants change
     useEffect(() => {
