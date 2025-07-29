@@ -333,7 +333,14 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
 
             if (isMusicTrack) {
                 // Clean up music track audio elements using proper detach method
-                logger.log('Cleaning up music track audio element for:', participant.identity);
+                logger.log('🎵 Cleaning up music track audio element for:', participant.identity, 'track:', publication.trackName);
+                
+                // Remove from joined music tracks set if this was a joined party
+                if (joinedMusicTracks.current.has(participant.identity)) {
+                    logger.log('🎵 Removing from joined music parties:', participant.identity);
+                    joinedMusicTracks.current.delete(participant.identity);
+                }
+                
                 const audioElements = document.querySelectorAll(`audio[data-participant="${participant.identity}"][data-track-type="music"]`);
                 audioElements.forEach(element => {
                     const audioElement = element as HTMLAudioElement;
@@ -345,6 +352,18 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                         audioElement.srcObject = null;
                     }
                     audioElement.remove();
+                });
+                
+                // Additional cleanup: remove any audio elements that might have been missed
+                const remainingAudioElements = document.querySelectorAll(`audio[data-participant="${participant.identity}"]`);
+                remainingAudioElements.forEach(element => {
+                    const audioElement = element as HTMLAudioElement;
+                    const trackName = audioElement.getAttribute('data-track');
+                    if (trackName && trackName.startsWith('music-')) {
+                        logger.log('🎵 Cleaning up remaining music audio element for track:', trackName);
+                        audioElement.pause();
+                        audioElement.remove();
+                    }
                 });
             } else {
                 // Remove spatial audio source for voice tracks
@@ -658,7 +677,7 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                 return false;
             }
 
-            logger.log('Leaving music party from:', participantIdentity);
+            logger.log('🎵 Leaving music party from:', participantIdentity);
 
             // Remove from joined music tracks set
             joinedMusicTracks.current.delete(participantIdentity);
@@ -676,13 +695,47 @@ export function useSpatialAudio(room: Room | null, participants: Map<string, Use
                 const isMusicTrack = publication.trackName?.startsWith('music-');
                 if (isMusicTrack && publication.isSubscribed) {
                     try {
+                        logger.log('🎵 Unsubscribing from music track:', publication.trackName);
                         await publication.setSubscribed(false);
-                        logger.log('Unsubscribed from music track:', publication.trackName);
+                        
+                        // Force detach the track if it's attached to any audio elements
+                        if (publication.track) {
+                            const trackAudioElements = document.querySelectorAll(`audio[data-participant="${participantIdentity}"][data-track="${publication.trackName}"]`);
+                            trackAudioElements.forEach(element => {
+                                const audioEl = element as HTMLAudioElement;
+                                if (publication.track instanceof RemoteAudioTrack) {
+                                    publication.track.detach(audioEl);
+                                }
+                                audioEl.pause();
+                                audioEl.remove();
+                            });
+                        }
+                        
+                        logger.log('✅ Successfully unsubscribed from music track:', publication.trackName);
                     } catch (error) {
                         logger.error('Failed to unsubscribe from music track:', error);
                     }
                 }
             }
+
+            // Additional cleanup: force unsubscribe from any music tracks that might still be subscribed
+            // This handles edge cases where the track was unpublished but subscription wasn't cleared
+            setTimeout(async () => {
+                try {
+                    const currentParticipant = room.remoteParticipants.get(participantIdentity);
+                    if (currentParticipant) {
+                        for (const publication of currentParticipant.audioTrackPublications.values()) {
+                            const isMusicTrack = publication.trackName?.startsWith('music-');
+                            if (isMusicTrack && publication.isSubscribed) {
+                                logger.log('🎵 Force unsubscribing from remaining music track:', publication.trackName);
+                                await publication.setSubscribed(false);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    logger.error('Error in delayed cleanup:', error);
+                }
+            }, 100);
 
             logger.log('✅ Successfully left music party from:', participantIdentity);
             logger.log('👥 Currently joined music parties:', Array.from(joinedMusicTracks.current));

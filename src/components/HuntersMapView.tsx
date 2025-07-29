@@ -893,25 +893,21 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 // Check if this is a music track that we were listening to
                 const trackName = (publication as { name?: string }).name;
                 if (trackName && trackName.startsWith('music-') && musicStateRef.current.listeningTo === participant.identity) {
-                    console.log('🎵 Music track unpublished, stopping music listening for:', participant.identity);
+                    console.log('🎵 Music track unpublished, immediately stopping music listening for:', participant.identity);
                     
-                    // Stop listening to this participant's music
+                    // Immediately reset UI state first for responsive feedback
+                    updateMusicState({ state: 'idle', listeningTo: undefined });
+                    setSelectedMusicUser(null);
+                    
+                    // Then stop listening to this participant's music
                     leaveMusicParty(participant.identity).then((success) => {
                         if (success) {
-                            updateMusicState({ state: 'idle', listeningTo: undefined });
-                            setSelectedMusicUser(null);
                             console.log('Successfully stopped listening to music from:', participant.identity);
                         } else {
                             console.error('Failed to stop listening to music from:', participant.identity);
-                            // Still reset UI state even if leaveMusicParty fails
-                            updateMusicState({ state: 'idle', listeningTo: undefined });
-                            setSelectedMusicUser(null);
                         }
                     }).catch((error) => {
                         console.error('Error stopping music listening:', error);
-                        // Still reset UI state even if there's an error
-                        updateMusicState({ state: 'idle', listeningTo: undefined });
-                        setSelectedMusicUser(null);
                     });
                 }
             });
