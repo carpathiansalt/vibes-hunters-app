@@ -340,7 +340,7 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
     }, [setAvatar]);
 
     return (
-        <div className="flex items-center justify-center gap-1 sm:gap-2 w-full my-2 sm:my-0">
+        <div className="flex items-center justify-center gap-2 sm:gap-3 w-full my-2 sm:my-0">
             <button
                 type="button"
                 onClick={handlePrev}
@@ -352,23 +352,23 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
                 ←
             </button>
             
-            <div className="flex gap-1 sm:gap-2 overflow-x-auto max-w-full flex-nowrap flex-1 justify-center scrollbar-thin scrollbar-thumb-purple-300 scrollbar-track-transparent" role="radiogroup" aria-describedby={ariaDescribedBy}>
+            <div className="flex gap-2 sm:gap-3 overflow-x-auto max-w-full flex-nowrap flex-1 justify-center scrollbar-thin scrollbar-thumb-purple-300 scrollbar-track-transparent" role="radiogroup" aria-describedby={ariaDescribedBy}>
                 {visibleAvatars.map((a, index) => (
                     <button
                         type="button"
                         key={a}
                         onClick={() => setAvatar(a)}
                         onKeyDown={(e) => handleKeyDown(e, a)}
-                        className={`relative rounded-lg sm:rounded-xl border-2 p-1.5 sm:p-1.5 transition-all focus:outline-none focus:ring-2 focus:ring-purple-400 flex-shrink-0 ${
+                        className={`relative rounded-lg sm:rounded-xl border-2 p-1 sm:p-1.5 transition-all focus:outline-none focus:ring-2 focus:ring-purple-400 flex-shrink-0 ${
                             avatar === a
                                 ? 'border-purple-500 bg-purple-50 scale-105'
                                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                         }`}
                         style={{ 
-                            width: 'clamp(56px, 10vw, 64px)', 
-                            height: 'clamp(56px, 10vw, 64px)',
-                            minWidth: '48px',
-                            minHeight: '48px',
+                            width: 'clamp(60px, 12vw, 72px)', 
+                            height: 'clamp(60px, 12vw, 72px)',
+                            minWidth: '52px',
+                            minHeight: '52px',
                         }}
                         role="radio"
                         aria-checked={avatar === a}
@@ -378,14 +378,14 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
                         <Image
                             src={`/characters_001/${a}.png`}
                             alt={`Avatar ${a}`}
-                            width={64}
-                            height={64}
+                            width={72}
+                            height={72}
                             className="w-full h-full rounded object-cover"
                             style={{ 
                                 width: '100%', 
                                 height: '100%',
-                                minWidth: '48px',
-                                minHeight: '48px',
+                                minWidth: '52px',
+                                minHeight: '52px',
                             }}
                             priority={index < 3}
                             loading={index < 3 ? 'eager' : 'lazy'}
