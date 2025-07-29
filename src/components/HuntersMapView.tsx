@@ -77,7 +77,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
 
     // UI state
-    const [roomInfoExpanded, setRoomInfoExpanded] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
     // Genres data
@@ -113,7 +112,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<google.maps.Map | null>(null);
     const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
-    const voiceRangeCircleRef = useRef<google.maps.Circle | null>(null);
+
     const watchIdRef = useRef<number | null>(null);
     const lastMetadataUpdateRef = useRef<number>(0);
     const metadataUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -444,7 +443,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         y: position.coords.longitude
                     };
                     setMyPosition(newPosition);
-                    setGpsAccuracy(position.coords.accuracy);
                     console.log('GPS location granted:', newPosition, 'accuracy:', position.coords.accuracy);
                     resolve({ success: true, position: newPosition });
                 },
@@ -467,8 +465,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const startLocationTracking = useCallback(() => {
         if (!navigator.geolocation || watchIdRef.current !== null) return;
 
-        setIsTrackingLocation(true);
-
         watchIdRef.current = navigator.geolocation.watchPosition(
             (position) => {
                 const newPosition = {
@@ -476,7 +472,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                     y: position.coords.longitude
                 };
 
-                setGpsAccuracy(position.coords.accuracy);
                 console.log('GPS position updated:', newPosition, 'accuracy:', position.coords.accuracy);
 
                 // Only update if position changed significantly (more than ~10 meters)
@@ -495,7 +490,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             (error) => {
                 console.error('GPS tracking error:', error);
                 setError(`GPS tracking error: ${error.message}`);
-                setIsTrackingLocation(false);
             },
             {
                 enableHighAccuracy: true,
@@ -510,7 +504,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         if (watchIdRef.current !== null) {
             navigator.geolocation.clearWatch(watchIdRef.current);
             watchIdRef.current = null;
-            setIsTrackingLocation(false);
             console.log('GPS tracking stopped');
         }
     }, []);
@@ -608,42 +601,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
 
 
-    // Voice range circle management
-    const updateVoiceRangeCircle = useCallback(() => {
-        if (!mapRef.current || !window.google?.maps || !showVoiceRange) {
-            // Remove circle if it exists and shouldn't be shown
-            if (voiceRangeCircleRef.current) {
-                voiceRangeCircleRef.current.setMap(null);
-                voiceRangeCircleRef.current = null;
-            }
-            return;
-        }
 
-        const voiceRangeMeters = 50; // Voice chat radius in meters
-
-        if (voiceRangeCircleRef.current) {
-            // Update existing circle position
-            voiceRangeCircleRef.current.setCenter({ lat: myPosition.x, lng: myPosition.y });
-        } else {
-            // Create new circle
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            voiceRangeCircleRef.current = new (window.google.maps as any).Circle({
-                strokeColor: '#3B82F6', // Blue color
-                strokeOpacity: 0.8,
-                strokeWeight: 2,
-                fillColor: '#3B82F6',
-                fillOpacity: 0.15,
-                map: mapRef.current,
-                center: { lat: myPosition.x, lng: myPosition.y },
-                radius: voiceRangeMeters
-            });
-        }
-    }, [myPosition, showVoiceRange]);
-
-    // Update voice range circle when position or visibility changes
-    useEffect(() => {
-        updateVoiceRangeCircle();
-    }, [updateVoiceRangeCircle]);
 
     // Connect to LiveKit
     const connectToLiveKit = useCallback(async () => {
@@ -1234,12 +1192,6 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 genres={genres}
                 currentGenre={genre}
                 onGenreChange={handleGenreChange}
-                participants={participants}
-                myPosition={myPosition}
-                roomInfoExpanded={roomInfoExpanded}
-                onToggleRoomInfo={() => setRoomInfoExpanded(!roomInfoExpanded)}
-                onCenterMapOnUser={() => centerMapOnUser()}
-                isLoading={isLoading}
             />
 
             {/* Participant List */}

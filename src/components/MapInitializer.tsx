@@ -107,7 +107,8 @@ export function MapInitializer({
     }, [initialPosition]);
 
     // Expose methods via ref
-    React.useImperativeHandle(React.useRef(), () => ({
+    const ref = React.useRef();
+    React.useImperativeHandle(ref, () => ({
         addMarker,
         updateMarker,
         removeMarker,
