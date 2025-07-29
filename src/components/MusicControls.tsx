@@ -9,6 +9,8 @@ interface MusicControlsProps {
     isMusicPaused: boolean;
     isLoading: boolean;
     onMusicButtonClick: () => void;
+    onPauseResumeClick?: () => void;
+    onStopClick?: () => void;
 }
 
 export function MusicControls({
@@ -16,9 +18,12 @@ export function MusicControls({
     isListeningToMusic,
     isMusicPaused,
     isLoading,
-    onMusicButtonClick
+    onMusicButtonClick,
+    onPauseResumeClick,
+    onStopClick
 }: MusicControlsProps) {
     console.log('MusicControls render:', { isPublishingMusic, isListeningToMusic, isMusicPaused, isLoading });
+    
     const getButtonText = () => {
         if (isPublishingMusic) {
             return isMusicPaused ? '▶️ Resume' : '⏸️ Pause';
@@ -39,10 +44,27 @@ export function MusicControls({
         }
     };
 
+    const handleButtonClick = () => {
+        if (isPublishingMusic && onPauseResumeClick) {
+            onPauseResumeClick();
+        } else {
+            onMusicButtonClick();
+        }
+    };
+
     return (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 flex gap-2">
+            {isPublishingMusic && (
+                <button
+                    onClick={onStopClick}
+                    disabled={isLoading}
+                    className="px-4 py-3 rounded-full text-white font-medium shadow-lg transition-all duration-200 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    🛑 Stop
+                </button>
+            )}
             <button
-                onClick={onMusicButtonClick}
+                onClick={handleButtonClick}
                 disabled={isLoading}
                 className={`px-6 py-3 rounded-full text-white font-medium shadow-lg transition-all duration-200 ${getButtonColor()} disabled:opacity-50 disabled:cursor-not-allowed`}
             >
