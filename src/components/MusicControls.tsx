@@ -18,6 +18,7 @@ export function MusicControls({
     isLoading,
     onMusicButtonClick
 }: MusicControlsProps) {
+    console.log('MusicControls render:', { isPublishingMusic, isListeningToMusic, isMusicPaused, isLoading });
     const getButtonText = () => {
         if (isPublishingMusic) {
             return isMusicPaused ? '▶️ Resume' : '⏸️ Pause';
@@ -34,12 +35,12 @@ export function MusicControls({
         } else if (isListeningToMusic) {
             return 'bg-blue-600 hover:bg-blue-700';
         } else {
-            return 'bg-green-600 hover:bg-green-700';
+            return 'bg-violet-600 hover:bg-violet-700';
         }
     };
 
     return (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
             <button
                 onClick={onMusicButtonClick}
                 disabled={isLoading}
