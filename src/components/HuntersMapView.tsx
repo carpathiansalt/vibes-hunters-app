@@ -7,16 +7,17 @@ import { Vector2, ParticipantMetadata, UserPosition } from '@/types';
 import { useSpatialAudio } from '@/hooks/useSpatialAudio';
 
 // Import UI components
-import { GenreSelector } from './GenreSelector';
-import { MusicControls } from './MusicControls';
-import { RoomInfoPanel } from './RoomInfoPanel';
 import { LocationPermissionBanner } from './LocationPermissionBanner';
 import { ErrorDisplay } from './ErrorDisplay';
+
+// Import new optimized components
+import { MapControls } from './MapControls';
+import { ParticipantList } from './ParticipantList';
+import { MusicControls } from './MusicControls';
 
 // Lazy load heavy components
 const BoomboxMusicDialog = lazy(() => import('./BoomboxMusicDialog').then(mod => ({ default: mod.BoomboxMusicDialog })));
 const MicrophoneButton = lazy(() => import('./MicrophoneButton').then(mod => ({ default: mod.MicrophoneButton })));
-const EarshotRadius = lazy(() => import('./EarshotRadius').then(mod => ({ default: mod.EarshotRadius })));
 
 
 // Loading components
@@ -73,12 +74,9 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const musicDescription = partyDescription;
 
     // Location tracking
-    const [isTrackingLocation, setIsTrackingLocation] = useState(false);
     const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
-    const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
 
     // UI state
-    const [showVoiceRange, setShowVoiceRange] = useState(false);
     const [roomInfoExpanded, setRoomInfoExpanded] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -608,23 +606,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         console.log('Map centered on position:', targetPosition);
     }, [myPosition]);
 
-    // Show all participants on map by adjusting bounds
-    const showAllParticipants = useCallback(() => {
-        if (!mapRef.current || !window.google?.maps) return;
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const bounds = new (window.google.maps as any).LatLngBounds();
-
-        // Add all participant positions (including local)
-        participants.forEach((participant) => {
-            bounds.extend({ lat: participant.position.x, lng: participant.position.y });
-        });
-
-        if (participants.size > 0) {
-            mapRef.current.fitBounds(bounds);
-            console.log('Map adjusted to show all', participants.size, 'participants');
-        }
-    }, [participants]);
 
     // Voice range circle management
     const updateVoiceRangeCircle = useCallback(() => {
@@ -1144,114 +1126,14 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         }
     }, [participants.size, refreshAllMarkers]); // Trigger when participant count changes
 
-    // Enhanced music button styling
-    const getMusicButtonStyle = useCallback(() => {
-        const baseClasses = 'w-16 h-16 rounded-full shadow-2xl transition-all duration-300 flex items-center justify-center text-white text-2xl';
-        
-        if (isLoading) {
-            return `${baseClasses} bg-gray-500 cursor-not-allowed`;
-        }
-        
-        if (isPublishingMusic) {
-            if (musicState.source === 'file') {
-                return isMusicPaused 
-                    ? `${baseClasses} bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700`
-                    : `${baseClasses} bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700`;
-            } else {
-                return `${baseClasses} bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700`;
-            }
-        } else if (isListeningToMusic) {
-            return `${baseClasses} bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700`;
-        } else {
-            return `${baseClasses} bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700`;
-        }
-    }, [isPublishingMusic, isListeningToMusic, isMusicPaused, musicState.source, isLoading]);
 
-    // Enhanced music button icon
-    const getMusicButtonIcon = useCallback(() => {
-        if (isLoading) return '⏳';
-        if (isPublishingMusic) {
-            if (musicState.source === 'file') {
-                return isMusicPaused ? '▶️' : '⏸️';
-            } else {
-                return '📺';
-            }
-        } else if (isListeningToMusic) {
-            return '🎧';
-        } else {
-            return '🎵';
-        }
-    }, [isPublishingMusic, isListeningToMusic, isMusicPaused, musicState.source, isLoading]);
 
-    // Enhanced music button title
-    const getMusicButtonTitle = useCallback(() => {
-        if (isLoading) return 'Loading...';
-        if (isPublishingMusic) {
-            if (musicState.source === 'file') {
-                return isMusicPaused ? 'Resume Music' : 'Pause Music';
-            } else {
-                return 'Tab Audio Capture (Control in source tab)';
-            }
-        } else if (isListeningToMusic) {
-            return 'Disconnect from Music';
-        } else {
-            return 'Start Music Party';
-        }
-    }, [isPublishingMusic, isListeningToMusic, isMusicPaused, musicState.source, isLoading]);
 
-    // Enhanced GPS accuracy indicator
-    const getGpsAccuracyColor = useCallback((accuracy: number) => {
-        if (accuracy <= 10) return 'text-green-400';
-        if (accuracy <= 50) return 'text-yellow-400';
-        return 'text-red-400';
-    }, []);
 
-    // Enhanced participant list with better UX
-    const renderParticipantList = useCallback(() => {
-        const participantArray = Array.from(participants.values());
-        const sortedParticipants = participantArray.sort((a, b) => {
-            // Sort by distance to user
-            const distanceA = Math.sqrt(
-                Math.pow((a.position.x - myPosition.x) * 111000, 2) +
-                Math.pow((a.position.y - myPosition.y) * 111000, 2)
-            );
-            const distanceB = Math.sqrt(
-                Math.pow((b.position.x - myPosition.x) * 111000, 2) +
-                Math.pow((b.position.y - myPosition.y) * 111000, 2)
-            );
-            return distanceA - distanceB;
-        });
-
-        return sortedParticipants.slice(0, 5).map((participant) => {
-            const distance = Math.round(Math.sqrt(
-                Math.pow((participant.position.x - myPosition.x) * 111000, 2) +
-                Math.pow((participant.position.y - myPosition.y) * 111000, 2)
-            ));
-            
-            return (
-                <div
-                    key={participant.userId}
-                    className="text-gray-400 truncate flex items-center justify-between hover:text-white hover:bg-gray-700 px-2 py-1 rounded cursor-pointer transition-colors"
-                    onClick={() => {
-                        centerMapOnUser(participant.position);
-                        console.log('Centered map on participant:', participant.username);
-                    }}
-                    title={`Click to center map on ${participant.username} (${distance}m away)`}
-                >
-                    <span className="flex items-center gap-1">
-                        {participant.isPublishingMusic ? '🎵' : '👤'} 
-                        <span className="truncate">{participant.username}</span>
-                    </span>
-                    <div className="text-xs text-gray-500 flex items-center gap-1">
-                        <span>{distance}m</span>
-                        {participant.isPublishingMusic && (
-                            <span className="text-pink-400">●</span>
-                        )}
-                    </div>
-                </div>
-            );
-        });
-    }, [participants, myPosition, centerMapOnUser]);
+    // Participant list handler
+    const handleParticipantClick = useCallback((position: Vector2) => {
+        centerMapOnUser(position);
+    }, [centerMapOnUser]);
 
     // Enhanced genre change handler with loading state
     const handleGenreChange = useCallback(async (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -1344,38 +1226,27 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
     return (
         <div className="fixed inset-0 w-full h-full bg-gray-900" style={{ zIndex: 0 }}>
-            {/* Genre Selector */}
-            <GenreSelector
-                genres={genres}
-                selectedGenre={genre}
-                onGenreChange={handleGenreChange}
-            />
-            
             {/* Error Display */}
             <ErrorDisplay error={error} />
 
-                        {/* Room Info Panel */}
-            <RoomInfoPanel
-                room={room}
-                username={username}
-                isConnecting={isConnecting}
-                isConnected={isConnected}
-                locationPermission={locationPermission}
-                isTrackingLocation={isTrackingLocation}
-                gpsAccuracy={gpsAccuracy}
+            {/* Map Controls */}
+            <MapControls
+                genres={genres}
+                currentGenre={genre}
+                onGenreChange={handleGenreChange}
                 participants={participants}
+                myPosition={myPosition}
                 roomInfoExpanded={roomInfoExpanded}
-                showVoiceRange={showVoiceRange}
                 onToggleRoomInfo={() => setRoomInfoExpanded(!roomInfoExpanded)}
-                onToggleVoiceRange={() => setShowVoiceRange(!showVoiceRange)}
                 onCenterMapOnUser={() => centerMapOnUser()}
-                onShowAllParticipants={() => showAllParticipants()}
-                onLogParticipantState={logParticipantState}
-                onRefreshAllMarkers={refreshAllMarkers}
-                getGpsAccuracyColor={getGpsAccuracyColor}
-                renderParticipantList={renderParticipantList}
-                ComponentLoadingSpinner={ComponentLoadingSpinner}
-                EarshotRadius={EarshotRadius}
+                isLoading={isLoading}
+            />
+
+            {/* Participant List */}
+            <ParticipantList
+                participants={participants}
+                myPosition={myPosition}
+                onParticipantClick={handleParticipantClick}
             />
 
 
@@ -1416,12 +1287,9 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             <MusicControls
                 isPublishingMusic={isPublishingMusic}
                 isListeningToMusic={isListeningToMusic}
-                musicStateSource={musicState.source}
+                isMusicPaused={isMusicPaused}
+                isLoading={isLoading}
                 onMusicButtonClick={handleMusicButtonClick}
-                onStopMusic={stopMusicPublishing}
-                getMusicButtonStyle={getMusicButtonStyle}
-                getMusicButtonIcon={getMusicButtonIcon}
-                getMusicButtonTitle={getMusicButtonTitle}
             />
 
             {selectedMusicUser && (

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { Analytics } from "@vercel/analytics/next";
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export const metadata: Metadata = {
     title: 'Vibes Hunters - Spatial Audio Social Experience',
@@ -34,8 +35,23 @@ export default function RootLayout({
 }) {
     return (
         <html lang="en">
+            <head>
+                {/* Resource preloading for better performance */}
+                <link rel="preload" href="/api/token" as="fetch" crossOrigin="anonymous" />
+                <link rel="dns-prefetch" href="maps.googleapis.com" />
+                <link rel="dns-prefetch" href="api.livekit.io" />
+                <link rel="preconnect" href="https://maps.googleapis.com" />
+                <link rel="preconnect" href="https://api.livekit.io" />
+                
+                {/* Preload critical images */}
+                <link rel="preload" href="/music_gendre/ambient.png" as="image" />
+                <link rel="preload" href="/music_gendre/rock.png" as="image" />
+                <link rel="preload" href="/music_gendre/pop.png" as="image" />
+            </head>
             <body className="antialiased">
-                {children}
+                <ErrorBoundary>
+                    {children}
+                </ErrorBoundary>
                 <Analytics />
             </body>
         </html>

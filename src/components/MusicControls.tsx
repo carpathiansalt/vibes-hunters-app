@@ -2,61 +2,51 @@
 
 import React from 'react';
 
+
 interface MusicControlsProps {
     isPublishingMusic: boolean;
     isListeningToMusic: boolean;
-    musicStateSource: 'file' | 'tab-capture' | undefined;
+    isMusicPaused: boolean;
+    isLoading: boolean;
     onMusicButtonClick: () => void;
-    onStopMusic: () => void;
-    getMusicButtonStyle: () => string;
-    getMusicButtonIcon: () => string;
-    getMusicButtonTitle: () => string;
 }
 
 export function MusicControls({
     isPublishingMusic,
     isListeningToMusic,
-    musicStateSource,
-    onMusicButtonClick,
-    onStopMusic,
-    getMusicButtonStyle,
-    getMusicButtonIcon,
-    getMusicButtonTitle
+    isMusicPaused,
+    isLoading,
+    onMusicButtonClick
 }: MusicControlsProps) {
+    const getButtonText = () => {
+        if (isPublishingMusic) {
+            return isMusicPaused ? '▶️ Resume' : '⏸️ Pause';
+        } else if (isListeningToMusic) {
+            return '🚪 Leave Party';
+        } else {
+            return '🎵 Start Party';
+        }
+    };
+
+    const getButtonColor = () => {
+        if (isPublishingMusic) {
+            return 'bg-purple-600 hover:bg-purple-700';
+        } else if (isListeningToMusic) {
+            return 'bg-blue-600 hover:bg-blue-700';
+        } else {
+            return 'bg-green-600 hover:bg-green-700';
+        }
+    };
+
     return (
-        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-30">
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
             <button
                 onClick={onMusicButtonClick}
-                className={getMusicButtonStyle()}
-                title={getMusicButtonTitle()}
+                disabled={isLoading}
+                className={`px-6 py-3 rounded-full text-white font-medium shadow-lg transition-all duration-200 ${getButtonColor()} disabled:opacity-50 disabled:cursor-not-allowed`}
             >
-                {getMusicButtonIcon()}
+                {getButtonText()}
             </button>
-
-            {/* Stop Button - Only show when music is playing or paused */}
-            {isPublishingMusic && (
-                <button
-                    onClick={onStopMusic}
-                    className="absolute -top-12 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-full shadow-lg transition-all duration-300 flex items-center justify-center text-white text-lg"
-                    title="Stop Music Party"
-                >
-                    ⏹️
-                </button>
-            )}
-
-            {/* Music Status Indicator */}
-            {isListeningToMusic && (
-                <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-2 py-1 rounded-lg text-xs font-medium">
-                    Listening to music party
-                </div>
-            )}
-
-            {/* Music Source Indicator for Publishing */}
-            {isPublishingMusic && musicStateSource === 'tab-capture' && (
-                <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-orange-600 text-white px-2 py-1 rounded-lg text-xs font-medium">
-                    Tab Audio Capture
-                </div>
-            )}
         </div>
     );
 } 
