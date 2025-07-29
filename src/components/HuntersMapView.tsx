@@ -104,7 +104,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const [genre, setGenre] = useState(genres[genreIndex]?.name || 'pop');
 
     // Computed values
-    const isPublishingMusic = musicState.state === 'publishing';
+    const isPublishingMusic = musicState.state === 'publishing' || musicState.state === 'paused';
     const isListeningToMusic = musicState.state === 'listening';
     const isMusicPaused = musicState.state === 'paused';
 
