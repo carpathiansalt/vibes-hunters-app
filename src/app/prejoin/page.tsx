@@ -297,13 +297,13 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
         const updateVisibleCount = () => {
             const width = window.innerWidth;
             if (width >= 1024) { // lg breakpoint
-                setVisibleCount(5);
-            } else if (width >= 768) { // md breakpoint
                 setVisibleCount(4);
+            } else if (width >= 768) { // md breakpoint
+                setVisibleCount(3);
             } else if (width >= 640) { // sm breakpoint
                 setVisibleCount(3);
             } else { // mobile
-                setVisibleCount(3);
+                setVisibleCount(2);
             }
         };
 
@@ -352,23 +352,23 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
                 ←
             </button>
             
-            <div className="flex gap-2 sm:gap-3 overflow-x-auto max-w-full flex-nowrap flex-1 justify-center scrollbar-thin scrollbar-thumb-purple-300 scrollbar-track-transparent" role="radiogroup" aria-describedby={ariaDescribedBy}>
+            <div className="flex gap-2 sm:gap-3 max-w-full flex-nowrap flex-1 justify-center" role="radiogroup" aria-describedby={ariaDescribedBy}>
                 {visibleAvatars.map((a, index) => (
                     <button
                         type="button"
                         key={a}
                         onClick={() => setAvatar(a)}
                         onKeyDown={(e) => handleKeyDown(e, a)}
-                        className={`relative rounded-lg sm:rounded-xl border-2 p-1 sm:p-1.5 transition-all focus:outline-none focus:ring-2 focus:ring-purple-400 flex-shrink-0 ${
+                        className={`relative rounded-lg sm:rounded-xl border-2 p-2 sm:p-2.5 transition-all focus:outline-none focus:ring-2 focus:ring-purple-400 flex-shrink-0 ${
                             avatar === a
                                 ? 'border-purple-500 bg-purple-50 scale-105'
                                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                         }`}
                         style={{ 
-                            width: 'clamp(60px, 12vw, 72px)', 
-                            height: 'clamp(60px, 12vw, 72px)',
-                            minWidth: '52px',
-                            minHeight: '52px',
+                            width: 'clamp(70px, 15vw, 80px)', 
+                            height: 'clamp(70px, 15vw, 80px)',
+                            minWidth: '60px',
+                            minHeight: '60px',
                         }}
                         role="radio"
                         aria-checked={avatar === a}
@@ -378,14 +378,14 @@ function AvatarCarousel({ avatars, avatar, setAvatar, 'aria-describedby': ariaDe
                         <Image
                             src={`/characters_001/${a}.png`}
                             alt={`Avatar ${a}`}
-                            width={72}
-                            height={72}
+                            width={80}
+                            height={80}
                             className="w-full h-full rounded object-cover"
                             style={{ 
                                 width: '100%', 
                                 height: '100%',
-                                minWidth: '52px',
-                                minHeight: '52px',
+                                minWidth: '60px',
+                                minHeight: '60px',
                             }}
                             priority={index < 3}
                             loading={index < 3 ? 'eager' : 'lazy'}
