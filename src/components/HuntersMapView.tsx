@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback, useMemo, Suspense, lazy } from 'react';
-import { Room, RoomEvent, RemoteParticipant, LocalAudioTrack, DisconnectReason } from 'livekit-client';
+import { Room, RoomEvent, RemoteParticipant, LocalAudioTrack, DisconnectReason, RemoteTrack, TrackPublication } from 'livekit-client';
 import { Loader } from '@googlemaps/js-api-loader';
 import { Vector2, ParticipantMetadata, UserPosition } from '@/types';
 import { useSpatialAudio } from '@/hooks/useSpatialAudio';
@@ -812,8 +812,34 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 updateTrackPositions();
             });
 
-            newRoom.on(RoomEvent.TrackUnsubscribed, () => {
+            newRoom.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, publication: TrackPublication, participant: RemoteParticipant) => {
+                console.log('🎵 Track unsubscribed:', track.sid, 'from participant:', participant.identity);
                 updateTrackPositions();
+                
+                // Check if this is a music track that we were listening to
+                const trackName = (publication as { name?: string }).name;
+                if (trackName && trackName.startsWith('music-') && musicState.listeningTo === participant.identity) {
+                    console.log('🎵 Music track unsubscribed, stopping music listening for:', participant.identity);
+                    
+                    // Stop listening to this participant's music
+                    leaveMusicParty(participant.identity).then((success) => {
+                        if (success) {
+                            updateMusicState({ state: 'idle', listeningTo: undefined });
+                            setSelectedMusicUser(null);
+                            console.log('Successfully stopped listening to music from:', participant.identity);
+                        } else {
+                            console.error('Failed to stop listening to music from:', participant.identity);
+                            // Still reset UI state even if leaveMusicParty fails
+                            updateMusicState({ state: 'idle', listeningTo: undefined });
+                            setSelectedMusicUser(null);
+                        }
+                    }).catch((error) => {
+                        console.error('Error stopping music listening:', error);
+                        // Still reset UI state even if there's an error
+                        updateMusicState({ state: 'idle', listeningTo: undefined });
+                        setSelectedMusicUser(null);
+                    });
+                }
             });
 
             // Listen for admin track mute/unpublish notifications
