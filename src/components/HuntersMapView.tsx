@@ -1166,11 +1166,14 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         
                         if (!trackStillPublished) {
                             console.log(`🎵 Track no longer published in room, resetting music state${isMobile ? ' (MOBILE)' : ''}`);
+                            console.log('🎵 This might be due to admin unpublish, showing alert');
                             // Clean up references
                             currentMusicTrackRef.current = null;
                             // Force update the music state to ensure UI reflects the change
                             updateMusicState({ state: 'idle', source: undefined, isPaused: false });
                             setSelectedMusicUser(null);
+                            // Show alert to user about potential admin action
+                            alert('Admin Notice: Your music track was unpublished. This may be due to terms violation.');
                         }
                     }
                 }
@@ -1208,11 +1211,14 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         
                         if (!trackStillPublished) {
                             console.log('🎵 Track no longer published in room (frequent check), resetting music state');
+                            console.log('🎵 This might be due to admin unpublish, showing alert');
                             // Clean up references
                             currentMusicTrackRef.current = null;
                             // Force update the music state to ensure UI reflects the change
                             updateMusicState({ state: 'idle', source: undefined, isPaused: false });
                             setSelectedMusicUser(null);
+                            // Show alert to user about potential admin action
+                            alert('Admin Notice: Your music track was unpublished. This may be due to terms violation.');
                         }
                     }
                 }
