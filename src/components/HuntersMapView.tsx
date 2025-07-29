@@ -880,10 +880,13 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         }
                     } else if (data.type === 'admin_track_unpublished') {
                         console.log('🎵 Admin track unpublished data received:', data);
+                        console.log('🎵 Current music state:', musicStateRef.current);
+                        console.log('🎵 Current music track ref:', currentMusicTrackRef.current);
+                        console.log('🎵 Local participant identity:', newRoom.localParticipant.identity);
                         
                         // Check if this user is the one publishing music that got unpublished
                         if (isPublishingMusic && currentMusicTrackRef.current && currentMusicTrackRef.current.track && currentMusicTrackRef.current.track.sid === data.trackSid) {
-                            console.log('🎵 Admin unpublished our music track, stopping publishing');
+                            console.log('🎵 Admin unpublished our music track (by SID), stopping publishing');
                             await stopMusicPublishing();
                             // Force update the music state to ensure UI reflects the change
                             updateMusicState({ state: 'idle', source: undefined, isPaused: false });
@@ -893,6 +896,16 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         // Also check if we're the publisher by identity (in case track SID comparison fails)
                         else if (isPublishingMusic && data.publisherIdentity && data.publisherIdentity === newRoom.localParticipant.identity) {
                             console.log('🎵 Admin unpublished our music track (by identity), stopping publishing');
+                            await stopMusicPublishing();
+                            // Force update the music state to ensure UI reflects the change
+                            updateMusicState({ state: 'idle', source: undefined, isPaused: false });
+                            setSelectedMusicUser(null);
+                            alert(`Admin Notice: ${data.message}\n(Your music was unpublished by admin)`);
+                        }
+                        // If we're publishing music but track SID and identity don't match, still stop publishing
+                        // This handles cases where the track might have been already unpublished
+                        else if (isPublishingMusic) {
+                            console.log('🎵 Admin unpublished track and we are publishing music, stopping publishing (fallback)');
                             await stopMusicPublishing();
                             // Force update the music state to ensure UI reflects the change
                             updateMusicState({ state: 'idle', source: undefined, isPaused: false });
@@ -1126,6 +1139,25 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                     setSelectedMusicUser(null);
                 }
                 
+                // Additional check: if we're publishing music, verify the track is still published in the room
+                if (isPublishingMusic && currentMusicTrackRef.current && currentMusicTrackRef.current.track) {
+                    const localParticipant = livekitRoom?.localParticipant;
+                    if (localParticipant) {
+                        // Check if our track is still in the local participant's tracks
+                        const audioTracks = Array.from(localParticipant.audioTrackPublications.values());
+                        const trackStillPublished = audioTracks.some(track => track.trackSid === currentMusicTrackRef.current?.track?.sid);
+                        
+                        if (!trackStillPublished) {
+                            console.log(`🎵 Track no longer published in room, resetting music state${isMobile ? ' (MOBILE)' : ''}`);
+                            // Clean up references
+                            currentMusicTrackRef.current = null;
+                            // Force update the music state to ensure UI reflects the change
+                            updateMusicState({ state: 'idle', source: undefined, isPaused: false });
+                            setSelectedMusicUser(null);
+                        }
+                    }
+                }
+                
                 // Additional mobile-specific check: more aggressive state reset for mobile
                 if (isMobile && musicStateRef.current.listeningTo) {
                     const targetParticipant = participants.get(musicStateRef.current.listeningTo!);
@@ -1142,6 +1174,37 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             return () => clearInterval(interval);
         }
     }, [isConnected, participants, isPublishingMusic]);
+
+    // Additional frequent check when publishing music to catch admin unpublishes quickly
+    useEffect(() => {
+        if (isConnected && isPublishingMusic) {
+            const checkInterval = 200; // Very frequent check when publishing music
+            
+            const checkPublishingState = () => {
+                // Check if our track is still published in the room
+                if (currentMusicTrackRef.current && currentMusicTrackRef.current.track) {
+                    const localParticipant = livekitRoom?.localParticipant;
+                    if (localParticipant) {
+                        // Check if our track is still in the local participant's tracks
+                        const audioTracks = Array.from(localParticipant.audioTrackPublications.values());
+                        const trackStillPublished = audioTracks.some(track => track.trackSid === currentMusicTrackRef.current?.track?.sid);
+                        
+                        if (!trackStillPublished) {
+                            console.log('🎵 Track no longer published in room (frequent check), resetting music state');
+                            // Clean up references
+                            currentMusicTrackRef.current = null;
+                            // Force update the music state to ensure UI reflects the change
+                            updateMusicState({ state: 'idle', source: undefined, isPaused: false });
+                            setSelectedMusicUser(null);
+                        }
+                    }
+                }
+            };
+
+            const interval = setInterval(checkPublishingState, checkInterval);
+            return () => clearInterval(interval);
+        }
+    }, [isConnected, isPublishingMusic, livekitRoom, updateMusicState]);
 
     // Ensure all participants have markers when map is ready or participants change
     useEffect(() => {
