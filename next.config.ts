@@ -4,13 +4,15 @@ const nextConfig: NextConfig = {
   /* config options here */
   experimental: {
     optimizePackageImports: ['livekit-client', '@googlemaps/js-api-loader'],
-    // optimizeCss: true, // Temporarily disabled due to critters module issue
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
+    optimizeCss: true,
+  },
+  
+  // Turbopack configuration
+  turbopack: {
+    rules: {
+      '*.svg': {
+        loaders: ['@svgr/webpack'],
+        as: '*.js',
       },
     },
   },
@@ -34,17 +36,60 @@ const nextConfig: NextConfig = {
   compress: true,
   generateEtags: false,
   
+  // Output optimization
+  output: 'standalone',
+  
+  // Headers for performance
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+        ],
+      },
+      {
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, must-revalidate',
+          },
+        ],
+      },
+      {
+        source: '/_next/static/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ];
+  },
+  
   // Bundle analyzer (enable with ANALYZE=true)
-  // Temporarily disabled to avoid port conflicts
-  /*
   webpack: (config, { isServer }) => {
-    if (process.env.ANALYZE === 'true') {
+    if (process.env.ANALYZE === 'true' && !isServer) {
       try {
         const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
         config.plugins.push(
           new BundleAnalyzerPlugin({
-            analyzerMode: 'server',
-            openAnalyzer: true,
+            analyzerMode: 'static',
+            openAnalyzer: false,
+            reportFilename: 'bundle-analyzer-report.html',
           })
         );
       } catch (error) {
@@ -54,7 +99,6 @@ const nextConfig: NextConfig = {
     
     return config;
   },
-  */
 };
 
 export default nextConfig;
