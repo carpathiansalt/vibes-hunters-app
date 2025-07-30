@@ -87,7 +87,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         { name: 'Disco', image: '/music_gendre/disco.png', color: 'from-pink-500 to-purple-600' },
         { name: 'Folk', image: '/music_gendre/folk.png', color: 'from-green-500 to-emerald-600' },
         { name: 'Funk', image: '/music_gendre/funk.png', color: 'from-purple-500 to-pink-600' },
-        { name: 'Hip-hop', image: '/music_gendre/hip-hop.png', color: 'from-red-500 to-pink-600' },
+        { name: 'Hiphop', image: '/music_gendre/hip-hop.png', color: 'from-red-500 to-pink-600' },
         { name: 'Jazz', image: '/music_gendre/jazz.png', color: 'from-yellow-500 to-orange-600' },
         { name: 'Pop', image: '/music_gendre/pop.png', color: 'from-purple-500 to-pink-600' },
         { name: 'Punk', image: '/music_gendre/punk.png', color: 'from-red-600 to-orange-700' },
@@ -99,9 +99,9 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
     const [genreIndex] = useState(() => {
         const idx = genres.findIndex(g => g.name === room);
-        return idx >= 0 ? idx : genres.findIndex(g => g.name === 'pop');
+        return idx >= 0 ? idx : genres.findIndex(g => g.name === 'Pop');
     });
-    const [genre, setGenre] = useState(genres[genreIndex]?.name || 'pop');
+    const [genre, setGenre] = useState(genres[genreIndex]?.name || 'Pop');
 
     // Computed values
     const isPublishingMusic = musicState.state === 'publishing' || musicState.state === 'paused';

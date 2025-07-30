@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   /* config options here */
   experimental: {
     optimizePackageImports: ['livekit-client', '@googlemaps/js-api-loader'],
-    optimizeCss: true,
+    // optimizeCss: true, // Temporarily disabled due to critters module issue
     turbo: {
       rules: {
         '*.svg': {
@@ -35,6 +35,8 @@ const nextConfig: NextConfig = {
   generateEtags: false,
   
   // Bundle analyzer (enable with ANALYZE=true)
+  // Temporarily disabled to avoid port conflicts
+  /*
   webpack: (config, { isServer }) => {
     if (process.env.ANALYZE === 'true') {
       try {
@@ -52,6 +54,7 @@ const nextConfig: NextConfig = {
     
     return config;
   },
+  */
 };
 
 export default nextConfig;
