@@ -9,6 +9,7 @@ import { useSpatialAudio } from '@/hooks/useSpatialAudio';
 // Import UI components
 import { LocationPermissionBanner } from './LocationPermissionBanner';
 import { ErrorDisplay } from './ErrorDisplay';
+import { RoomInfoPanel } from './RoomInfoPanel';
 
 // Import new optimized components
 import { MapControls } from './MapControls';
@@ -18,6 +19,7 @@ import { MusicControls } from './MusicControls';
 // Lazy load heavy components
 const BoomboxMusicDialog = lazy(() => import('./BoomboxMusicDialog').then(mod => ({ default: mod.BoomboxMusicDialog })));
 const MicrophoneButton = lazy(() => import('./MicrophoneButton').then(mod => ({ default: mod.MicrophoneButton })));
+const EarshotRadius = lazy(() => import('./EarshotRadius').then(mod => ({ default: mod.EarshotRadius })));
 
 
 // Loading components
@@ -75,9 +77,13 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
 
     // Location tracking
     const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
+    const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+    const [isTrackingLocation, setIsTrackingLocation] = useState(false);
 
     // UI state
     const [isLoading, setIsLoading] = useState(false);
+    const [roomInfoExpanded, setRoomInfoExpanded] = useState(false);
+    const [showVoiceRange, setShowVoiceRange] = useState(false);
 
     // Genres data
     const genres = useMemo(() => [
@@ -399,6 +405,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                         y: position.coords.longitude
                     };
                     setMyPosition(newPosition);
+                    setGpsAccuracy(position.coords.accuracy);
                     console.log('GPS location granted:', newPosition, 'accuracy:', position.coords.accuracy);
                     resolve({ success: true, position: newPosition });
                 },
@@ -421,6 +428,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
     const startLocationTracking = useCallback(() => {
         if (!navigator.geolocation || watchIdRef.current !== null) return;
 
+        setIsTrackingLocation(true);
         watchIdRef.current = navigator.geolocation.watchPosition(
             (position) => {
                 const newPosition = {
@@ -429,6 +437,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 };
 
                 console.log('GPS position updated:', newPosition, 'accuracy:', position.coords.accuracy);
+                setGpsAccuracy(position.coords.accuracy);
 
                 // Only update if position changed significantly (more than ~10 meters)
                 const currentPos = myPosition;
@@ -446,6 +455,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             (error) => {
                 console.error('GPS tracking error:', error);
                 setError(`GPS tracking error: ${error.message}`);
+                setIsTrackingLocation(false);
             },
             {
                 enableHighAccuracy: true,
@@ -460,6 +470,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         if (watchIdRef.current !== null) {
             navigator.geolocation.clearWatch(watchIdRef.current);
             watchIdRef.current = null;
+            setIsTrackingLocation(false);
             console.log('GPS tracking stopped');
         }
     }, []);
@@ -1390,6 +1401,29 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
         }
     }, [isPublishingMusic, isListeningToMusic, isMusicPaused, musicState.source, isLoading]);
 
+    // Room info panel helper functions
+    const getGpsAccuracyColor = useCallback((accuracy: number) => {
+        if (accuracy <= 5) return 'text-green-400';
+        if (accuracy <= 10) return 'text-yellow-400';
+        if (accuracy <= 20) return 'text-orange-400';
+        return 'text-red-400';
+    }, []);
+
+    const renderParticipantList = useCallback(() => {
+        const participantArray = Array.from(participants.values()).slice(0, 5);
+        return participantArray.map((participant, index) => (
+            <div key={participant.userId} className="text-gray-300">
+                {index + 1}. {participant.username}
+                {participant.isPublishingMusic && ' 🎵'}
+            </div>
+        ));
+    }, [participants]);
+
+    const handleShowAllParticipants = useCallback(() => {
+        // This could show a modal or expand the participant list
+        console.log('Show all participants clicked');
+    }, []);
+
     return (
         <div className="fixed inset-0 w-full h-full bg-gray-900" style={{ zIndex: 0 }}>
             {/* Error Display */}
@@ -1409,6 +1443,29 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 onParticipantClick={handleParticipantClick}
             />
 
+            {/* Room Info Panel */}
+            <RoomInfoPanel
+                room={room}
+                username={username}
+                isConnecting={isConnecting}
+                isConnected={isConnected}
+                locationPermission={locationPermission}
+                isTrackingLocation={isTrackingLocation}
+                gpsAccuracy={gpsAccuracy}
+                participants={participants}
+                roomInfoExpanded={roomInfoExpanded}
+                showVoiceRange={showVoiceRange}
+                onToggleRoomInfo={() => setRoomInfoExpanded(!roomInfoExpanded)}
+                onToggleVoiceRange={() => setShowVoiceRange(!showVoiceRange)}
+                onCenterMapOnUser={() => centerMapOnUser()}
+                onShowAllParticipants={handleShowAllParticipants}
+                onLogParticipantState={logParticipantState}
+                onRefreshAllMarkers={refreshAllMarkers}
+                getGpsAccuracyColor={getGpsAccuracyColor}
+                renderParticipantList={renderParticipantList}
+                ComponentLoadingSpinner={ComponentLoadingSpinner}
+                EarshotRadius={EarshotRadius}
+            />
 
             {/* Location Permission Banner */}
             <LocationPermissionBanner
