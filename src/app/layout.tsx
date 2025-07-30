@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { Analytics } from "@vercel/analytics/next";
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration';
+import { PerformanceMonitor } from '@/components/PerformanceMonitor';
 
 export const metadata: Metadata = {
     title: 'Vibes Hunters - Spatial Audio Social Experience',
@@ -52,6 +54,8 @@ export default function RootLayout({
                 <ErrorBoundary>
                     {children}
                 </ErrorBoundary>
+                <ServiceWorkerRegistration />
+                <PerformanceMonitor />
                 <Analytics />
             </body>
         </html>

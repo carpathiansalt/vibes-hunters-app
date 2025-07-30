@@ -1,7 +1,15 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback, useMemo, Suspense, lazy } from 'react';
-import { Room, RoomEvent, RemoteParticipant, LocalAudioTrack, DisconnectReason, RemoteTrack, TrackPublication } from 'livekit-client';
+import { 
+    Room, 
+    RoomEvent, 
+    RemoteParticipant, 
+    LocalAudioTrack, 
+    DisconnectReason, 
+    RemoteTrack, 
+    TrackPublication 
+} from 'livekit-client';
 import { Loader } from '@googlemaps/js-api-loader';
 import { Vector2, ParticipantMetadata, UserPosition } from '@/types';
 import { useSpatialAudio } from '@/hooks/useSpatialAudio';
@@ -494,6 +502,10 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
                 apiKey: GOOGLE_MAPS_API_KEY,
                 version: 'weekly',
                 libraries: ['places'],
+                region: 'US',
+                language: 'en',
+                mapIds: [],
+                authReferrerPolicy: 'origin'
             });
 
             await loader.load();
@@ -1204,7 +1216,7 @@ export function HuntersMapView({ room, username, avatar }: HuntersMapViewProps) 
             const interval = setInterval(checkMusicState, checkInterval);
             return () => clearInterval(interval);
         }
-    }, [isConnected, participants, isPublishingMusic]);
+    }, [isConnected, participants, isPublishingMusic, livekitRoom?.localParticipant, updateMusicState]);
 
     // Additional frequent check when publishing music to catch admin unpublishes quickly
     useEffect(() => {
