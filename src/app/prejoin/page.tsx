@@ -13,7 +13,7 @@ const genres = [
     { name: 'Disco', image: '/music_gendre/disco.png' },
     { name: 'Folk', image: '/music_gendre/folk.png' },
     { name: 'Funk', image: '/music_gendre/funk.png' },
-    { name: 'Hiphop', image: '/music_gendre/hip-hop.png' },
+    { name: 'HipHop', image: '/music_gendre/hip-hop.png' },
     { name: 'Jazz', image: '/music_gendre/jazz.png' },
     { name: 'Pop', image: '/music_gendre/pop.png' },
     { name: 'Punk', image: '/music_gendre/punk.png' },
