@@ -4,12 +4,14 @@ import { Analytics } from "@vercel/analytics/next";
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration';
 import { PerformanceMonitor } from '@/components/PerformanceMonitor';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
+    metadataBase: new URL(SITE_URL),
     title: 'Vibes Hunters - Spatial Audio Social Experience',
     description: 'Discover, share, and enjoy music together in a global, immersive spatial audio experience.',
     keywords: ['music', 'social', 'spatial audio', 'WebRTC', 'real-time'],
-    authors: [{ name: 'Carpathian Salt' }],
+    authors: [{ name: 'Ocanom Ltd' }],
     openGraph: {
         title: 'Vibes Hunters',
         description: 'Join the global music hunt! Experience music in 3D space with friends.',

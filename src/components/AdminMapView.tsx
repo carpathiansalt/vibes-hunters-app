@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { Loader } from '@googlemaps/js-api-loader';
+import { Rocket } from 'lucide-react';
 
 interface ParticipantInfo {
     identity: string;
@@ -367,7 +368,7 @@ export default function AdminMapView() {
                             url: iconUrl,
                             scaledSize: new window.google.maps.Size(markerSize, markerSize),
                         },
-                        title: `${participant.username || participant.identity} (${room.name})${participant.isPublishingMusic ? ' 🎵' : ''}`,
+                        title: `${participant.username || participant.identity} (${room.name})${participant.isPublishingMusic ? ' (music)' : ''}`,
                         zIndex: participant.isPublishingMusic ? 999 : 500,
                     });
                     // Info window
@@ -378,7 +379,7 @@ export default function AdminMapView() {
                                 <div class="text-sm text-gray-600">Room: ${room.name}</div>
                                 <div class="text-sm text-gray-600">State: ${participant.state}</div>
                                 ${participant.isPublishingMusic ? `
-                                    <div class="text-sm text-purple-600 font-medium">🎵 Publishing Music</div>
+                                    <div class="text-sm text-purple-600 font-medium"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:inline-block;vertical-align:-2px;margin-right:4px"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>Publishing Music</div>
                                     ${participant.partyTitle ? `<div class="text-xs text-purple-600">${participant.partyTitle}</div>` : ''}
                                 ` : ''}
                                 <div class="text-xs text-gray-500 mt-1">
@@ -453,7 +454,7 @@ export default function AdminMapView() {
                             className="w-full py-2 mt-2 rounded-xl bg-gradient-to-r from-purple-500 via-blue-500 to-pink-500 text-white font-bold shadow-lg hover:scale-105 transition-transform flex items-center justify-center gap-2 disabled:opacity-50"
                             disabled={loading}
                         >
-                            <span className="text-lg">🚀</span> Access Dashboard
+                            <Rocket className="h-5 w-5" aria-hidden="true" /> Access Dashboard
                         </button>
                     </form>
                     <div className="mt-6 text-white/70 text-center text-sm">

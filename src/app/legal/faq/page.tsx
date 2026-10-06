@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { CONTACT_EMAIL } from '@/lib/site';
 
 interface FAQItem {
     question: string;
@@ -159,8 +160,8 @@ export default function FAQ() {
                         <h2 className="text-xl font-bold text-gray-800 mb-3">Still need help?</h2>
                         <p className="text-gray-700 mb-4">
                             If you couldn&apos;t find the answer you&apos;re looking for, contact us at{' '}
-                            <a href="mailto:info@vibes-hunters.com" className="text-purple-600 hover:text-purple-800 underline font-medium">
-                                info@vibes-hunters.com
+                            <a href={`mailto:${CONTACT_EMAIL}`} className="text-purple-600 hover:text-purple-800 underline font-medium">
+                                {CONTACT_EMAIL}
                             </a>
                             . We&apos;re here to help you get the most out of your Vibes Hunters experience!
                         </p>
