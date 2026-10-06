@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { SITE_URL } from '@/lib/site';
 
 // SEO Metadata for prejoin page
 export const metadata: Metadata = {
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
         title: 'Join the Hunt - Choose Your Music Vibe',
         description: 'Select your music genre and avatar to join the global music community.',
         type: 'website',
-        url: 'https://vibes-hunters.com/prejoin',
+        url: `${SITE_URL}/prejoin`,
     },
     twitter: {
         card: 'summary_large_image',
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
         description: 'Select your music genre and avatar to join the global music community.',
     },
     alternates: {
-        canonical: 'https://vibes-hunters.com/prejoin',
+        canonical: `${SITE_URL}/prejoin`,
     },
 };
 
@@ -31,11 +32,11 @@ const jsonLd = {
     '@type': 'WebPage',
     name: 'Join the Hunt - Music Room Selection',
     description: 'Select your music preferences and avatar to join the global spatial audio music community.',
-    url: 'https://vibes-hunters.com/prejoin',
+    url: `${SITE_URL}/prejoin`,
     isPartOf: {
         '@type': 'WebSite',
         name: 'Vibes Hunters',
-        url: 'https://vibes-hunters.com',
+        url: SITE_URL,
     },
     breadcrumb: {
         '@type': 'BreadcrumbList',
@@ -44,13 +45,13 @@ const jsonLd = {
                 '@type': 'ListItem',
                 position: 1,
                 name: 'Home',
-                item: 'https://vibes-hunters.com',
+                item: SITE_URL,
             },
             {
                 '@type': 'ListItem',
                 position: 2,
                 name: 'Join the Hunt',
-                item: 'https://vibes-hunters.com/prejoin',
+                item: `${SITE_URL}/prejoin`,
             },
         ],
     },

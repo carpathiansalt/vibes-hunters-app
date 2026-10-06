@@ -1,6 +1,7 @@
 "use client";
 
 import Link from 'next/link';
+import { CONTACT_EMAIL } from '@/lib/site';
 
 export default function TermsOfService() {
     return (
@@ -95,8 +96,8 @@ export default function TermsOfService() {
                         <h2 className="text-2xl font-bold mb-4 text-gray-800">9. Contact Information</h2>
                         <p className="text-gray-700 leading-relaxed">
                             If you have any questions about these Terms of Service, please contact us at{' '}
-                            <a href="mailto:info@vibes-hunters.com" className="text-purple-600 hover:text-purple-800 underline">
-                                info@vibes-hunters.com
+                            <a href={`mailto:${CONTACT_EMAIL}`} className="text-purple-600 hover:text-purple-800 underline">
+                                {CONTACT_EMAIL}
                             </a>
                         </p>
                     </section>

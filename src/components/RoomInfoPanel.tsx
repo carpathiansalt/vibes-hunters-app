@@ -2,6 +2,7 @@
 
 import React, { Suspense } from 'react';
 import { UserPosition } from '@/types';
+import { CONTACT_EMAIL } from '@/lib/site';
 
 interface RoomInfoPanelProps {
     room: string;
@@ -146,8 +147,8 @@ export function RoomInfoPanel({
                                     <a href="/legal/privacy" className="hover:text-white transition-colors underline">Privacy</a>
                                 </div>
                                 <div>
-                                    <a href="mailto:info@vibes-hunters.com" className="text-blue-300 hover:text-white transition-colors text-xs">
-                                        info@vibes-hunters.com
+                                    <a href={`mailto:${CONTACT_EMAIL}`} className="text-blue-300 hover:text-white transition-colors text-xs">
+                                        {CONTACT_EMAIL}
                                     </a>
                                 </div>
                             </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from 'next/link';
+import { CONTACT_EMAIL } from '@/lib/site';
 
 export default function About() {
     return (
@@ -120,8 +121,8 @@ export default function About() {
                         </p>
                         <p className="text-gray-700 leading-relaxed">
                             Contact us at{' '}
-                            <a href="mailto:info@vibes-hunters.com" className="text-purple-600 hover:text-purple-800 underline font-medium">
-                                info@vibes-hunters.com
+                            <a href={`mailto:${CONTACT_EMAIL}`} className="text-purple-600 hover:text-purple-800 underline font-medium">
+                                {CONTACT_EMAIL}
                             </a>
                             {' '}for support, feedback, or to join our newsletter for updates!
                         </p>

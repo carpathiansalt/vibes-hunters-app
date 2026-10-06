@@ -4,6 +4,8 @@ import React, { useState, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Music } from 'lucide-react';
+import { CONTACT_EMAIL } from '@/lib/site';
 
 // Memoized genres array to prevent unnecessary re-renders
 const genres = [
@@ -102,7 +104,9 @@ export default function PreJoinPage() {
             {/* Header */}
             <header className="text-center text-white pt-4 pb-2 px-4 flex-shrink-0">
                 <div className="mb-2">
-                    <div className="text-3xl sm:text-4xl lg:text-5xl mb-1" role="img" aria-label="Music note">🎵</div>
+                    <div className="mb-1 flex justify-center" role="img" aria-label="Music note">
+                        <Music className="h-10 w-10 text-white sm:h-12 sm:w-12 lg:h-14 lg:w-14" aria-hidden="true" />
+                    </div>
                     <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1">Vibes Hunters</h1>
                 </div>
                 <p className="text-purple-200 text-xs sm:text-sm lg:text-base">Find your tribe through music</p>
@@ -214,7 +218,7 @@ export default function PreJoinPage() {
                                 </>
                             ) : (
                                 <>
-                                    <span className="text-base sm:text-lg lg:text-xl">🎵</span>
+                                    <Music className="h-5 w-5" aria-hidden="true" />
                                     <span className="text-sm sm:text-base lg:text-lg">Join the Hunt</span>
                                 </>
                             )}
@@ -249,7 +253,7 @@ export default function PreJoinPage() {
                 {/* Contact Info */}
                 <address className="text-xs not-italic">
                     <a
-                        href="mailto:info@vibes-hunters.com"
+                        href={`mailto:${CONTACT_EMAIL}`}
                         className="text-purple-300 hover:text-white transition-colors underline font-medium focus:outline-none focus:ring-2 focus:ring-purple-300 rounded px-1"
                     >
                         Contact us
